@@ -1,0 +1,323 @@
+const express = require('express');
+const { eventsService } = require('../services/grpcClients');
+const { eventsTransformers, handleGrpcError, validateInput } = require('../utils/grpcMapper');
+const { authenticateToken, requireRole, requirePermission } = require('../middleware/auth');
+const router = express.Router();
+
+// Aplicar autenticación a todas las rutas de eventos
+router.use(authenticateToken);
+
+// GET /api/events - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.get('/', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { includePastEvents, userId } = req.query;
+
+    // Transformar filtros para gRPC
+    const grpcRequest = eventsTransformers.toGrpcListEvents({
+      includePastEvents: includePastEvents === 'true',
+      userId
+    });
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.listEvents(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcEventsList(grpcResponse);
+
+    if (response.success) {
+      res.status(200).json({
+        success: true,
+        message: response.message,
+        events: response.events
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener eventos:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// GET /api/events/:id - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.get('/:id', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    // Llamar al microservicio de eventos
+    const grpcRequest = { id: parseInt(id) };
+    const grpcResponse = await eventsService.getEvent(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcEventResponse(grpcResponse);
+
+    if (response.success) {
+      res.status(200).json({
+        success: true,
+        message: response.message,
+        event: response.event
+      });
+    } else {
+      res.status(404).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener evento:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// POST /api/events - PRESIDENTE y COORDINADOR
+router.post('/', requireRole(['PRESIDENTE', 'COORDINADOR']), async (req, res) => {
+  try {
+    const eventData = req.body;
+
+    // Validar datos de entrada
+    const validationErrors = validateInput.event(eventData);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Datos de entrada inválidos',
+        details: validationErrors
+      });
+    }
+
+    // Transformar datos para gRPC
+    const grpcRequest = eventsTransformers.toGrpcCreateEvent(eventData);
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.createEvent(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcEventResponse(grpcResponse);
+
+    if (response.success) {
+      res.status(201).json({
+        success: true,
+        message: response.message,
+        event: response.event
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al crear evento:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// PUT /api/events/:id - PRESIDENTE y COORDINADOR
+router.put('/:id', requireRole(['PRESIDENTE', 'COORDINADOR']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const eventData = req.body;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    // Validar datos de entrada
+    const validationErrors = validateInput.event(eventData);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Datos de entrada inválidos',
+        details: validationErrors
+      });
+    }
+
+    // Transformar datos para gRPC
+    const grpcRequest = eventsTransformers.toGrpcUpdateEvent(id, eventData);
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.updateEvent(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcEventResponse(grpcResponse);
+
+    if (response.success) {
+      res.status(200).json({
+        success: true,
+        message: response.message,
+        event: response.event
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al actualizar evento:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// DELETE /api/events/:id - PRESIDENTE y COORDINADOR
+router.delete('/:id', requireRole(['PRESIDENTE', 'COORDINADOR']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    // Llamar al microservicio de eventos
+    const grpcRequest = { id: parseInt(id) };
+    const grpcResponse = await eventsService.deleteEvent(grpcRequest);
+
+    if (grpcResponse.success) {
+      res.status(200).json({
+        success: true,
+        message: grpcResponse.message
+      });
+    } else {
+      res.status(400).json({
+        error: grpcResponse.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al eliminar evento:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// GET /api/events/:id/participants - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.get('/:id/participants', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    // Llamar al microservicio de eventos
+    const grpcRequest = { event_id: parseInt(id) };
+    const grpcResponse = await eventsService.listParticipants(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcParticipantsList(grpcResponse);
+
+    if (response.success) {
+      res.status(200).json({
+        success: true,
+        message: response.message,
+        participants: response.participants
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener participantes:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// POST /api/events/:id/participants - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.post('/:id/participants', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    if (!userId || isNaN(parseInt(userId))) {
+      return res.status(400).json({
+        error: 'ID de usuario inválido'
+      });
+    }
+
+    // Transformar datos para gRPC
+    const grpcRequest = eventsTransformers.toGrpcAddParticipant(id, userId);
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.addParticipant(grpcRequest);
+
+    if (grpcResponse.success) {
+      res.status(201).json({
+        success: true,
+        message: grpcResponse.message,
+        participant: grpcResponse.participant
+      });
+    } else {
+      res.status(400).json({
+        error: grpcResponse.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al agregar participante:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+// DELETE /api/events/:id/participants/:userId - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.delete('/:id/participants/:userId', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    if (!userId || isNaN(parseInt(userId))) {
+      return res.status(400).json({
+        error: 'ID de usuario inválido'
+      });
+    }
+
+    // Transformar datos para gRPC
+    const grpcRequest = {
+      event_id: parseInt(id),
+      user_id: parseInt(userId)
+    };
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.removeParticipant(grpcRequest);
+
+    if (grpcResponse.success) {
+      res.status(200).json({
+        success: true,
+        message: grpcResponse.message
+      });
+    } else {
+      res.status(400).json({
+        error: grpcResponse.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al quitar participante:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
+module.exports = router;

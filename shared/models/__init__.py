@@ -1,0 +1,1 @@
+# Shared models package for ONG Management System

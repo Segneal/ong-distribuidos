@@ -1,0 +1,159 @@
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: ong_postgres
+    environment:
+      POSTGRES_DB: ong_management
+      POSTGRES_USER: ong_user
+      POSTGRES_PASSWORD: ong_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ong_network
+
+  # Zookeeper para Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: ong_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - ong_network
+
+  # Apache Kafka
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: ong_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    networks:
+      - ong_network
+
+  # Microservicio de Usuarios
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: ong_user_service
+    ports:
+      - "50051:50051"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=ong_management
+      - DB_USER=ong_user
+      - DB_PASSWORD=ong_pass
+      - DB_PORT=5432
+      - GRPC_PORT=50051
+      - JWT_SECRET=your-secret-key-change-in-production
+      - KAFKA_BROKERS=kafka:9092
+      - ORGANIZATION_ID=empuje-comunitario
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - ong_network
+
+  # Microservicio de Inventario
+  inventory-service:
+    build:
+      context: .
+      dockerfile: ./inventory-service/Dockerfile
+    container_name: ong_inventory_service
+    ports:
+      - "50052:50052"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=ong_management
+      - DB_USER=ong_user
+      - DB_PASSWORD=ong_pass
+      - DB_PORT=5432
+      - GRPC_PORT=50052
+      - KAFKA_BROKERS=kafka:9092
+      - ORGANIZATION_ID=empuje-comunitario
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - ong_network
+
+  # Microservicio de Eventos
+  events-service:
+    build:
+      context: .
+      dockerfile: ./events-service/Dockerfile
+    container_name: ong_events_service
+    ports:
+      - "50053:50053"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=ong_management
+      - DB_USER=ong_user
+      - DB_PASSWORD=ong_pass
+      - DB_PORT=5432
+      - EVENTS_SERVICE_PORT=50053
+      - KAFKA_BROKERS=kafka:9092
+      - ORGANIZATION_ID=empuje-comunitario
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - ong_network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: ong_api_gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - USER_SERVICE_URL=user-service:50051
+      - INVENTORY_SERVICE_URL=inventory-service:50052
+      - EVENTS_SERVICE_URL=events-service:50053
+      - JWT_SECRET=your-secret-key-change-in-production
+      - JWT_EXPIRES_IN=15m
+      - REFRESH_TOKEN_EXPIRES_IN=7d
+    depends_on:
+      - user-service
+      - inventory-service
+      - events-service
+    networks:
+      - ong_network
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ong_frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+    depends_on:
+      - api-gateway
+    networks:
+      - ong_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ong_network:
+    driver: bridge

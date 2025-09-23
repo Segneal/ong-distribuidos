@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package users;
+
+// Enum para roles de usuario
+enum Role {
+  PRESIDENTE = 0;
+  VOCAL = 1;
+  COORDINADOR = 2;
+  VOLUNTARIO = 3;
+}
+
+// Mensaje para representar un usuario
+message User {
+  int32 id = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string email = 5;
+  string phone = 6;
+  Role role = 7;
+  bool is_active = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+// Mensajes de request para crear usuario
+message CreateUserRequest {
+  string username = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string phone = 5;
+  Role role = 6;
+}
+
+// Mensaje de response para usuario
+message UserResponse {
+  bool success = 1;
+  string message = 2;
+  User user = 3;
+}
+
+// Mensaje de request para obtener usuario
+message GetUserRequest {
+  int32 id = 1;
+}
+
+// Mensaje de request para actualizar usuario
+message UpdateUserRequest {
+  int32 id = 1;
+  string username = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string email = 5;
+  string phone = 6;
+  Role role = 7;
+}
+
+// Mensaje de request para eliminar usuario
+message DeleteUserRequest {
+  int32 id = 1;
+}
+
+// Mensaje de response para eliminación
+message DeleteUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Mensaje de request para listar usuarios
+message ListUsersRequest {
+  bool include_inactive = 1;
+}
+
+// Mensaje de response para lista de usuarios
+message ListUsersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated User users = 3;
+}
+
+// Mensaje de request para autenticación
+message AuthRequest {
+  string username_or_email = 1;
+  string password = 2;
+}
+
+// Mensaje de response para autenticación
+message AuthResponse {
+  bool success = 1;
+  string message = 2;
+  User user = 3;
+  string token = 4;
+}
+
+// Servicio gRPC para usuarios
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (UserResponse);
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc AuthenticateUser(AuthRequest) returns (AuthResponse);
+}

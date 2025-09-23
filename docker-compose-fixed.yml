@@ -1,0 +1,85 @@
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: ong_postgres
+    environment:
+      POSTGRES_DB: ong_management
+      POSTGRES_USER: ong_user
+      POSTGRES_PASSWORD: ong_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ong_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ong_user -d ong_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Microservicio de Usuarios
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: ong_user_service
+    ports:
+      - "50051:50051"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=ong_management
+      - DB_USER=ong_user
+      - DB_PASSWORD=ong_pass
+      - DB_PORT=5432
+      - JWT_SECRET=your-secret-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ong_network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: ong_api_gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - USER_SERVICE_URL=user-service:50051
+      - INVENTORY_SERVICE_URL=inventory-service:50052
+      - EVENTS_SERVICE_URL=events-service:50053
+      - JWT_SECRET=your-secret-key-change-in-production
+    depends_on:
+      - user-service
+    networks:
+      - ong_network
+    restart: unless-stopped
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ong_frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+    depends_on:
+      - api-gateway
+    networks:
+      - ong_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  ong_network:
+    driver: bridge

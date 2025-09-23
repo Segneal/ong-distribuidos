@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package inventory;
+
+// Servicio de inventario para gestión de donaciones
+service InventoryService {
+  // Crear una nueva donación
+  rpc CreateDonation(CreateDonationRequest) returns (DonationResponse);
+  
+  // Obtener una donación por ID
+  rpc GetDonation(GetDonationRequest) returns (DonationResponse);
+  
+  // Actualizar una donación existente
+  rpc UpdateDonation(UpdateDonationRequest) returns (DonationResponse);
+  
+  // Eliminar una donación (baja lógica)
+  rpc DeleteDonation(DeleteDonationRequest) returns (DeleteDonationResponse);
+  
+  // Listar donaciones con filtros opcionales
+  rpc ListDonations(ListDonationsRequest) returns (ListDonationsResponse);
+  
+  // Transferir donaciones a otra organización
+  rpc TransferDonations(TransferDonationsRequest) returns (TransferDonationsResponse);
+}
+
+// Enumeración de categorías de donaciones
+enum Category {
+  ROPA = 0;
+  ALIMENTOS = 1;
+  JUGUETES = 2;
+  UTILES_ESCOLARES = 3;
+}
+
+// Mensaje principal de donación
+message Donation {
+  int32 id = 1;
+  Category category = 2;
+  string description = 3;
+  int32 quantity = 4;
+  bool deleted = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  int32 created_by = 8;
+  int32 updated_by = 9;
+}
+
+// Mensajes de request para CreateDonation
+message CreateDonationRequest {
+  Category category = 1;
+  string description = 2;
+  int32 quantity = 3;
+  int32 created_by = 4;
+}
+
+// Mensajes de request para GetDonation
+message GetDonationRequest {
+  int32 id = 1;
+}
+
+// Mensajes de request para UpdateDonation
+message UpdateDonationRequest {
+  int32 id = 1;
+  string description = 2;
+  int32 quantity = 3;
+  int32 updated_by = 4;
+}
+
+// Mensajes de request para DeleteDonation
+message DeleteDonationRequest {
+  int32 id = 1;
+  int32 deleted_by = 2;
+}
+
+// Mensajes de request para ListDonations
+message ListDonationsRequest {
+  optional Category category = 1;
+  optional bool include_deleted = 2;
+}
+
+// Mensaje de transferencia de donaciones
+message DonationTransfer {
+  int32 donation_id = 1;
+  int32 quantity = 2;
+}
+
+// Mensajes de request para TransferDonations
+message TransferDonationsRequest {
+  repeated DonationTransfer donations = 1;
+  string target_organization = 2;
+  int32 transferred_by = 3;
+}
+
+// Mensajes de response
+message DonationResponse {
+  bool success = 1;
+  string message = 2;
+  optional Donation donation = 3;
+}
+
+message DeleteDonationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListDonationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Donation donations = 3;
+}
+
+message TransferDonationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string transfer_ids = 3;
+}

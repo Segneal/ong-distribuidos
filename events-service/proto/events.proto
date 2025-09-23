@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package events;
+
+// Servicio de eventos para gestión de eventos solidarios
+service EventsService {
+  // Crear un nuevo evento
+  rpc CreateEvent(CreateEventRequest) returns (EventResponse);
+  
+  // Obtener un evento por ID
+  rpc GetEvent(GetEventRequest) returns (EventResponse);
+  
+  // Actualizar un evento existente
+  rpc UpdateEvent(UpdateEventRequest) returns (EventResponse);
+  
+  // Eliminar un evento (física para eventos futuros)
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+  
+  // Listar eventos con filtros opcionales
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  
+  // Agregar participante a un evento
+  rpc AddParticipant(AddParticipantRequest) returns (ParticipantResponse);
+  
+  // Remover participante de un evento
+  rpc RemoveParticipant(RemoveParticipantRequest) returns (ParticipantResponse);
+  
+  // Listar participantes de un evento
+  rpc ListParticipants(ListParticipantsRequest) returns (ListParticipantsResponse);
+  
+  // Registrar donaciones repartidas en un evento pasado
+  rpc RegisterDistributedDonations(RegisterDistributedDonationsRequest) returns (RegisterDistributedDonationsResponse);
+}
+
+// Mensaje principal de evento
+message Event {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  string event_date = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+// Mensaje de participante
+message Participant {
+  int32 event_id = 1;
+  int32 user_id = 2;
+  string user_name = 3;
+  string user_last_name = 4;
+  string adhesion_date = 5;
+}
+
+// Mensaje de donación repartida
+message DistributedDonation {
+  int32 id = 1;
+  int32 event_id = 2;
+  int32 donation_id = 3;
+  string donation_description = 4;
+  int32 distributed_quantity = 5;
+  int32 registered_by = 6;
+  string registration_date = 7;
+}
+
+// Mensajes de request para CreateEvent
+message CreateEventRequest {
+  string name = 1;
+  string description = 2;
+  string event_date = 3;
+  repeated int32 participant_ids = 4;
+}
+
+// Mensajes de request para GetEvent
+message GetEventRequest {
+  int32 id = 1;
+}
+
+// Mensajes de request para UpdateEvent
+message UpdateEventRequest {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  string event_date = 4;
+}
+
+// Mensajes de request para DeleteEvent
+message DeleteEventRequest {
+  int32 id = 1;
+}
+
+// Mensajes de request para ListEvents
+message ListEventsRequest {
+  optional bool include_past_events = 1;
+  optional int32 user_id = 2; // Para filtrar eventos donde participa un usuario específico
+}
+
+// Mensajes de request para AddParticipant
+message AddParticipantRequest {
+  int32 event_id = 1;
+  int32 user_id = 2;
+}
+
+// Mensajes de request para RemoveParticipant
+message RemoveParticipantRequest {
+  int32 event_id = 1;
+  int32 user_id = 2;
+}
+
+// Mensajes de request para ListParticipants
+message ListParticipantsRequest {
+  int32 event_id = 1;
+}
+
+// Mensaje para donación a repartir
+message DonationToDistribute {
+  int32 donation_id = 1;
+  int32 quantity = 2;
+}
+
+// Mensajes de request para RegisterDistributedDonations
+message RegisterDistributedDonationsRequest {
+  int32 event_id = 1;
+  repeated DonationToDistribute donations = 2;
+  int32 registered_by = 3;
+}
+
+// Mensajes de response
+message EventResponse {
+  bool success = 1;
+  string message = 2;
+  optional Event event = 3;
+}
+
+message DeleteEventResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListEventsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Event events = 3;
+}
+
+message ParticipantResponse {
+  bool success = 1;
+  string message = 2;
+  optional Participant participant = 3;
+}
+
+message ListParticipantsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Participant participants = 3;
+}
+
+message RegisterDistributedDonationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated DistributedDonation distributed_donations = 3;
+}

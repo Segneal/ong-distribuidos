@@ -178,7 +178,7 @@ const EventList = () => {
                 <h3>
                   {event.name}
                   {userParticipations[event.id] && (
-                    <span className="participation-badge">✓ Participando</span>
+                    <span className="participation-badge">  ✓ Participando</span>
                   )}
                 </h3>
                 <div className="event-date">

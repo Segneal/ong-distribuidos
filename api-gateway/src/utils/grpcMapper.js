@@ -210,7 +210,13 @@ const eventsTransformers = {
   fromGrpcParticipantsList: (grpcResponse) => ({
     success: grpcResponse.success,
     message: grpcResponse.message,
-    participants: grpcResponse.participants ? grpcResponse.participants.map(eventsTransformers.fromGrpcParticipant) : [],
+    participants: grpcResponse.participants ? grpcResponse.participants.map(p => ({
+      eventId: p.event_id,
+      userId: p.user_id,
+      userName: p.user_name,
+      userLastName: p.user_last_name,
+      adhesionDate: p.adhesion_date,
+    })) : [],
   }),
 
   toGrpcRegisterDistributedDonations: (eventId, donationsData, registeredBy) => ({
@@ -235,7 +241,7 @@ const eventsTransformers = {
   fromGrpcDistributedDonationsResponse: (grpcResponse) => ({
     success: grpcResponse.success,
     message: grpcResponse.message,
-    distributedDonations: grpcResponse.distributed_donations ? 
+    distributedDonations: grpcResponse.distributed_donations ?
       grpcResponse.distributed_donations.map(eventsTransformers.fromGrpcDistributedDonation) : [],
   }),
 };

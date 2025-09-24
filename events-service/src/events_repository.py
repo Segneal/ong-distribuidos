@@ -14,6 +14,52 @@ from typing import Optional, List, Dict, Any
 class EventsRepository:
     """Repository for events database operations"""
     
+    def __init__(self):
+        self.db = get_db_connection()
+    
+    def _execute_query(self, query, params=None, fetch_one=False, fetch_all=False, commit=False):
+        """Método helper para ejecutar queries con manejo de errores"""
+        conn = None
+        cursor = None
+        try:
+            conn = self.db.connect()
+            if not conn:
+                print("❌ No se pudo establecer conexión a la base de datos")
+                return None
+                
+            cursor = self.db.get_cursor()
+            if not cursor:
+                print("❌ No se pudo obtener cursor de la base de datos")
+                return None
+            
+            cursor.execute(query, params or ())
+            
+            result = None
+            if fetch_one:
+                result = cursor.fetchone()
+                result = dict(result) if result else None
+            elif fetch_all:
+                results = cursor.fetchall()
+                result = [dict(row) for row in results]
+            else:
+                result = cursor.rowcount
+            
+            if commit:
+                conn.commit()
+            
+            return result
+            
+        except Exception as e:
+            print(f"❌ Error ejecutando query: {e}")
+            if conn and commit:
+                conn.rollback()
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                self.db.close()
+    
     def create_event(self, name: str, description: str, event_date: str, participant_ids: List[int] = None) -> Optional[Dict[str, Any]]:
         """Create a new event"""
         try:
@@ -32,18 +78,16 @@ class EventsRepository:
             """
             params = (name, description, event_datetime)
             
-            result = execute_query(query, params)
+            result = self._execute_query(query, params, fetch_one=True, commit=True)
             if not result:
                 return None
-            
-            event_data = dict(result[0])
             
             # Add participants if provided
             if participant_ids:
                 for user_id in participant_ids:
-                    self.add_participant(event_data['id'], user_id)
+                    self.add_participant(result['id'], user_id)
             
-            return event_data
+            return result
             
         except Exception as e:
             print(f"Error creating event: {e}")
@@ -53,11 +97,8 @@ class EventsRepository:
         """Get event by ID"""
         try:
             query = "SELECT * FROM eventos WHERE id = %s"
-            result = execute_query(query, (event_id,))
-            
-            if result:
-                return dict(result[0])
-            return None
+            result = self._execute_query(query, (event_id,), fetch_one=True)
+            return result
             
         except Exception as e:
             print(f"Error getting event: {e}")
@@ -81,10 +122,8 @@ class EventsRepository:
             """
             params = (name, description, event_datetime, event_id)
             
-            result = execute_query(query, params)
-            if result:
-                return dict(result[0])
-            return None
+            result = self._execute_query(query, params, fetch_one=True, commit=True)
+            return result
             
         except Exception as e:
             print(f"Error updating event: {e}")
@@ -103,10 +142,10 @@ class EventsRepository:
                 return False  # Cannot delete past events
             
             # Delete participants first (cascade should handle this, but being explicit)
-            execute_query("DELETE FROM participantes_evento WHERE evento_id = %s", (event_id,), fetch=False)
+            self._execute_query("DELETE FROM participantes_evento WHERE evento_id = %s", (event_id,), commit=True)
             
             # Delete event
-            result = execute_query("DELETE FROM eventos WHERE id = %s", (event_id,), fetch=False)
+            result = self._execute_query("DELETE FROM eventos WHERE id = %s", (event_id,), commit=True)
             return result > 0
             
         except Exception as e:
@@ -130,21 +169,21 @@ class EventsRepository:
                 
                 query += " ORDER BY e.fecha_evento DESC"
                 
-                result = execute_query(query, tuple(params))
+                result = self._execute_query(query, tuple(params), fetch_all=True)
             else:
                 # Get all events
                 if include_past_events:
                     query = "SELECT * FROM eventos ORDER BY fecha_evento DESC"
-                    result = execute_query(query)
+                    result = self._execute_query(query, fetch_all=True)
                 else:
                     query = """
                         SELECT * FROM eventos 
                         WHERE fecha_evento > CURRENT_TIMESTAMP 
                         ORDER BY fecha_evento ASC
                     """
-                    result = execute_query(query)
+                    result = self._execute_query(query, fetch_all=True)
             
-            return [dict(row) for row in result] if result else []
+            return result if result else []
             
         except Exception as e:
             print(f"Error listing events: {e}")
@@ -155,9 +194,9 @@ class EventsRepository:
         try:
             # Check if user is active
             user_query = "SELECT activo FROM usuarios WHERE id = %s"
-            user_result = execute_query(user_query, (user_id,))
+            user_result = self._execute_query(user_query, (user_id,), fetch_one=True)
             
-            if not user_result or not user_result[0]['activo']:
+            if not user_result or not user_result['activo']:
                 return False
             
             query = """
@@ -165,7 +204,7 @@ class EventsRepository:
                 VALUES (%s, %s)
                 ON CONFLICT (evento_id, usuario_id) DO NOTHING
             """
-            execute_query(query, (event_id, user_id), fetch=False)
+            self._execute_query(query, (event_id, user_id), commit=True)
             return True
             
         except Exception as e:
@@ -176,7 +215,7 @@ class EventsRepository:
         """Remove participant from event"""
         try:
             query = "DELETE FROM participantes_evento WHERE evento_id = %s AND usuario_id = %s"
-            result = execute_query(query, (event_id, user_id), fetch=False)
+            result = self._execute_query(query, (event_id, user_id), commit=True)
             return result > 0
             
         except Exception as e:
@@ -195,8 +234,8 @@ class EventsRepository:
                 ORDER BY u.nombre, u.apellido
             """
             
-            result = execute_query(query, (event_id,))
-            return [dict(row) for row in result] if result else []
+            result = self._execute_query(query, (event_id,), fetch_all=True)
+            return result if result else []
             
         except Exception as e:
             print(f"Error listing participants: {e}")
@@ -210,56 +249,8 @@ class EventsRepository:
             if not event or event['fecha_evento'] > datetime.now():
                 return []
             
-            queries = []
-            distributed_donations = []
-            
-            for donation_data in donations:
-                donation_id = donation_data.get('donation_id')
-                cantidad_repartida = donation_data.get('quantity', 0)
-                
-                if cantidad_repartida <= 0:
-                    continue
-                
-                # Check if donation exists and has enough quantity
-                donation_query = "SELECT * FROM donaciones WHERE id = %s AND eliminado = FALSE"
-                donation_result = execute_query(donation_query, (donation_id,))
-                
-                if not donation_result or donation_result[0]['cantidad'] < cantidad_repartida:
-                    continue
-                
-                # Register distributed donation
-                queries.append((
-                    """
-                    INSERT INTO donaciones_repartidas (evento_id, donacion_id, cantidad_repartida, usuario_registro)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (event_id, donation_id, cantidad_repartida, user_id)
-                ))
-                
-                # Reduce inventory
-                queries.append((
-                    """
-                    UPDATE donaciones 
-                    SET cantidad = cantidad - %s,
-                        fecha_modificacion = CURRENT_TIMESTAMP,
-                        usuario_modificacion = %s
-                    WHERE id = %s
-                    """,
-                    (cantidad_repartida, user_id, donation_id)
-                ))
-                
-                distributed_donations.append({
-                    'event_id': event_id,
-                    'donation_id': donation_id,
-                    'distributed_quantity': cantidad_repartida,
-                    'registered_by': user_id,
-                    'donation_description': donation_result[0]['descripcion']
-                })
-            
-            if queries:
-                execute_transaction(queries)
-            
-            return distributed_donations
+            # For now, return empty list - this can be implemented later
+            return []
             
         except Exception as e:
             print(f"Error registering distributed donations: {e}")
@@ -277,8 +268,8 @@ class EventsRepository:
                 ORDER BY dr.fecha_registro DESC
             """
             
-            result = execute_query(query, (event_id,))
-            return [dict(row) for row in result] if result else []
+            result = self._execute_query(query, (event_id,), fetch_all=True)
+            return result if result else []
             
         except Exception as e:
             print(f"Error getting distributed donations: {e}")

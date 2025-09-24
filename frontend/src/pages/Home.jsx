@@ -88,17 +88,7 @@ const Home = () => {
         ))}
       </Grid>
 
-      <Paper elevation={1} sx={{ p: 3, mt: 4, bgcolor: 'grey.50' }}>
-        <Typography variant="h6" gutterBottom>
-          Estado del Sistema
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          ✅ API Gateway: Configurado<br />
-          🔄 Microservicios: En desarrollo<br />
-          🔄 Frontend: En desarrollo<br />
-          ⏳ Autenticación: Pendiente
-        </Typography>
-      </Paper>
+      
     </Box>
   );
 };

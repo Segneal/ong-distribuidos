@@ -15,11 +15,13 @@ echo "✅ PostgreSQL está listo!"
 echo "🔍 Probando conexión a la base de datos..."
 python -c "
 import sys
-sys.path.append('/app/shared')
-from models.database import test_connection
-import sys
-if test_connection():
+sys.path.append('/app/src')
+from database_fixed import get_db_connection
+db = get_db_connection()
+conn = db.connect()
+if conn:
     print('✅ Conexión a la base de datos exitosa')
+    db.close()
 else:
     print('❌ Error de conexión a la base de datos')
     sys.exit(1)

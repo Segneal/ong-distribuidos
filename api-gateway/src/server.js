@@ -15,13 +15,7 @@ app.use(morgan('combined')); // Logging básico
 app.use(express.json({ limit: '10mb' })); // JSON parsing
 app.use(express.urlencoded({ extended: true })); // URL encoding
 
-// Rate limiting básico
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por ventana
-  message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.'
-});
-app.use(limiter);
+
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

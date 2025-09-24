@@ -28,7 +28,7 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
             description=event_data.get('descripcion', ''),
             event_date=str(event_data['fecha_evento']),
             created_at=str(event_data['fecha_creacion']),
-            updated_at=str(event_data['fecha_actualizacion'])
+            updated_at=str(event_data.get('fecha_actualizacion', ''))
         )
     
     def _create_participant_message(self, participant_data):

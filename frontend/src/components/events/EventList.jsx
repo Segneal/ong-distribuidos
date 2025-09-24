@@ -12,6 +12,7 @@ const EventList = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const [userParticipations, setUserParticipations] = useState({});
 
   useEffect(() => {
     loadEvents();
@@ -26,13 +27,39 @@ const EventList = () => {
       }
       
       const response = await api.get(`/events?${params.toString()}`);
-      setEvents(response.data.events || []);
+      const eventsData = response.data.events || [];
+      setEvents(eventsData);
+      
+      // Load participation status for each event
+      await loadUserParticipations(eventsData);
+      
       setError('');
     } catch (err) {
       setError('Error al cargar eventos');
       console.error('Error loading events:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUserParticipations = async (eventsData) => {
+    try {
+      const participations = {};
+      
+      for (const event of eventsData) {
+        try {
+          const response = await api.get(`/events/${event.id}/participants`);
+          const eventParticipants = response.data.participants || [];
+          participations[event.id] = eventParticipants.some(p => p.userId === user.id);
+        } catch (err) {
+          console.error(`Error loading participants for event ${event.id}:`, err);
+          participations[event.id] = false;
+        }
+      }
+      
+      setUserParticipations(participations);
+    } catch (err) {
+      console.error('Error loading user participations:', err);
     }
   };
 
@@ -55,7 +82,11 @@ const EventList = () => {
       await api.post(`/events/${eventId}/participants`, {
         userId: user.id
       });
-      loadEvents(); // Reload to update participant status
+      // Update local state immediately
+      setUserParticipations(prev => ({
+        ...prev,
+        [eventId]: true
+      }));
     } catch (err) {
       setError('Error al unirse al evento');
       console.error('Error joining event:', err);
@@ -65,7 +96,11 @@ const EventList = () => {
   const handleLeaveEvent = async (eventId) => {
     try {
       await api.delete(`/events/${eventId}/participants/${user.id}`);
-      loadEvents(); // Reload to update participant status
+      // Update local state immediately
+      setUserParticipations(prev => ({
+        ...prev,
+        [eventId]: false
+      }));
     } catch (err) {
       setError('Error al salir del evento');
       console.error('Error leaving event:', err);
@@ -140,7 +175,12 @@ const EventList = () => {
           events.map(event => (
             <div key={event.id} className={`event-card ${isEventPast(event.eventDate) ? 'past-event' : 'future-event'}`}>
               <div className="event-header">
-                <h3>{event.name}</h3>
+                <h3>
+                  {event.name}
+                  {userParticipations[event.id] && (
+                    <span className="participation-badge">✓ Participando</span>
+                  )}
+                </h3>
                 <div className="event-date">
                   {formatDate(event.eventDate)}
                   {isEventPast(event.eventDate) && <span className="past-label">(Pasado)</span>}
@@ -186,21 +226,33 @@ const EventList = () => {
                   </>
                 )}
 
-                {canParticipate && !isEventPast(event.eventDate) && (
+                {!isEventPast(event.eventDate) && (
                   <>
-                    <button
-                      className="btn btn-success"
-                      onClick={() => handleJoinEvent(event.id)}
-                    >
-                      Unirse
-                    </button>
-                    <button
-                      className="btn btn-warning"
-                      onClick={() => handleLeaveEvent(event.id)}
-                    >
-                      Salir
-                    </button>
+                    {!userParticipations[event.id] ? (
+                      <button
+                        className="btn btn-success"
+                        onClick={() => handleJoinEvent(event.id)}
+                      >
+                        Unirse
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-warning"
+                        onClick={() => handleLeaveEvent(event.id)}
+                      >
+                        Salir
+                      </button>
+                    )}
                   </>
+                )}
+
+                {canManageEvents && (
+                  <button
+                    className="btn btn-info"
+                    onClick={() => window.location.href = `/events/${event.id}/participants`}
+                  >
+                    Gestionar Participantes
+                  </button>
                 )}
               </div>
             </div>

@@ -1,77 +1,99 @@
-import React from 'react';
-import { 
-  Typography, 
-  Paper, 
-  Box, 
-  Alert,
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow
+  Alert
 } from '@mui/material';
-import { Add as AddIcon, People as PeopleIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  People as PeopleIcon
+} from '@mui/icons-material';
+import UserList from '../components/users/UserList';
+import UserForm from '../components/users/UserForm';
+import { useAuth } from '../contexts/AuthContext';
 
 const Users = () => {
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [refreshList, setRefreshList] = useState(0);
+  const { user } = useAuth();
+
+  // Solo PRESIDENTE puede acceder a la gestión de usuarios
+  if (user?.role !== 'PRESIDENTE') {
+    return (
+      <Box p={4}>
+        <Alert severity="warning">
+          <Typography variant="h6">Acceso Denegado</Typography>
+          <Typography>No tienes permisos para acceder a la gestión de usuarios.</Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
+  const handleCreateUser = () => {
+    setEditingUser(null);
+    setShowForm(true);
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setShowForm(true);
+  };
+
+  const handleDeleteUser = (userId) => {
+    // Forzar actualización de la lista
+    setRefreshList(prev => prev + 1);
+  };
+
+  const handleSaveUser = (savedUser) => {
+    setShowForm(false);
+    setEditingUser(null);
+    // Forzar actualización de la lista
+    setRefreshList(prev => prev + 1);
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingUser(null);
+  };
+
   return (
-    <Box>
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Box display="flex" alignItems="center" mb={2}>
-          <PeopleIcon sx={{ mr: 2 }} color="primary" />
+    <Box p={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <PeopleIcon color="primary" />
           <Typography variant="h4" component="h1">
             Gestión de Usuarios
           </Typography>
         </Box>
-        <Typography variant="body1" color="text.secondary">
-          Administra los miembros de la organización y sus roles.
-        </Typography>
-      </Paper>
-
-      <Alert severity="info" sx={{ mb: 3 }}>
-        La gestión de usuarios será implementada en una tarea posterior. 
-        Aquí podrás crear, modificar y eliminar usuarios del sistema.
-      </Alert>
-
-      <Paper elevation={1} sx={{ p: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6">
-            Lista de Usuarios
-          </Typography>
+        
+        {!showForm && (
           <Button
             variant="contained"
+            color="primary"
             startIcon={<AddIcon />}
-            disabled
+            onClick={handleCreateUser}
           >
             Nuevo Usuario
           </Button>
-        </Box>
+        )}
+      </Box>
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nombre de Usuario</TableCell>
-                <TableCell>Nombre Completo</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Rol</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell colSpan={6} align="center">
-                  <Typography variant="body2" color="text.secondary">
-                    No hay usuarios para mostrar. La funcionalidad será implementada próximamente.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+      {showForm ? (
+        <UserForm
+          user={editingUser}
+          onSave={handleSaveUser}
+          onCancel={handleCancelForm}
+          isEditing={!!editingUser}
+        />
+      ) : (
+        <UserList
+          key={refreshList} // Forzar re-render cuando cambie
+          onEditUser={handleEditUser}
+          onDeleteUser={handleDeleteUser}
+        />
+      )}
     </Box>
   );
 };

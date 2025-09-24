@@ -8,6 +8,9 @@ COPY package*.json ./
 # Instalar dependencias
 RUN npm ci --only=production
 
+# Instalar herramientas de protobuf globalmente
+RUN npm install -g @grpc/proto-loader
+
 # Copiar código fuente
 COPY src/ ./src/
 COPY proto/ ./proto/

@@ -320,4 +320,67 @@ router.delete('/:id/participants/:userId', requireRole(['PRESIDENTE', 'COORDINAD
   }
 });
 
+// POST /api/events/:id/distributed-donations - PRESIDENTE y COORDINADOR
+router.post('/:id/distributed-donations', requireRole(['PRESIDENTE', 'COORDINADOR']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { donations } = req.body;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    if (!donations || !Array.isArray(donations) || donations.length === 0) {
+      return res.status(400).json({
+        error: 'Se requiere una lista de donaciones para registrar'
+      });
+    }
+
+    // Validar estructura de donaciones
+    for (const donation of donations) {
+      if (!donation.donationId || isNaN(parseInt(donation.donationId))) {
+        return res.status(400).json({
+          error: 'ID de donación inválido'
+        });
+      }
+      if (!donation.quantity || isNaN(parseInt(donation.quantity)) || parseInt(donation.quantity) <= 0) {
+        return res.status(400).json({
+          error: 'Cantidad de donación inválida'
+        });
+      }
+    }
+
+    // Transformar datos para gRPC
+    const grpcRequest = eventsTransformers.toGrpcRegisterDistributedDonations(
+      id, 
+      donations, 
+      req.user.id
+    );
+
+    // Llamar al microservicio de eventos
+    const grpcResponse = await eventsService.registerDistributedDonations(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcDistributedDonationsResponse(grpcResponse);
+
+    if (response.success) {
+      res.status(201).json({
+        success: true,
+        message: response.message,
+        distributedDonations: response.distributedDonations
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al registrar donaciones repartidas:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
 module.exports = router;

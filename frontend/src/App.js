@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Inventory from './pages/Inventory';
 import Events from './pages/Events';
+import EventFormPage from './pages/EventForm';
+import ParticipantManagerPage from './pages/ParticipantManager';
+import DistributedDonationsPage from './pages/DistributedDonations';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -44,6 +47,34 @@ function App() {
           <Route path="events" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']}>
               <Events />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Crear evento - PRESIDENTE y COORDINADOR */}
+          <Route path="events/new" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
+              <EventFormPage />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Editar evento - PRESIDENTE y COORDINADOR */}
+          <Route path="events/:id/edit" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
+              <EventFormPage />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Gestión de participantes - PRESIDENTE y COORDINADOR */}
+          <Route path="events/:id/participants" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
+              <ParticipantManagerPage />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Registrar donaciones repartidas - PRESIDENTE y COORDINADOR */}
+          <Route path="events/:id/donations" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
+              <DistributedDonationsPage />
             </RoleProtectedRoute>
           } />
         </Route>

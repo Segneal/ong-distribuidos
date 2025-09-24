@@ -51,11 +51,15 @@ const eventsClient = new eventsProto.EventsService(
 const promisifyGrpcCall = (client, method) => {
   return (request) => {
     return new Promise((resolve, reject) => {
+      console.log(`GRPC CLIENT: Calling ${method} with request:`, JSON.stringify(request, null, 2));
       client[method](request, (error, response) => {
         if (error) {
-          console.error(`gRPC Error en ${method}:`, error);
+          console.error(`GRPC CLIENT: Error en ${method}:`, error);
+          console.error(`GRPC CLIENT: Error details:`, error.details);
+          console.error(`GRPC CLIENT: Error code:`, error.code);
           reject(error);
         } else {
+          console.log(`GRPC CLIENT: Success response from ${method}:`, JSON.stringify(response, null, 2));
           resolve(response);
         }
       });

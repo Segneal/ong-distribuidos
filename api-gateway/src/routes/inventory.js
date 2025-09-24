@@ -80,13 +80,21 @@ router.get('/:id', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
 
 // POST /api/inventory - PRESIDENTE y VOCAL
 router.post('/', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
+  console.log('=== POST /api/inventory STARTED ===');
   try {
     const donationData = req.body;
-    const userId = req.user?.id || 1; // TODO: Obtener del token de autenticación
+    const userId = req.user?.id || 1;
+
+    console.log('1. POST /api/inventory - donationData:', JSON.stringify(donationData, null, 2));
+    console.log('2. POST /api/inventory - userId:', userId);
+    console.log('3. POST /api/inventory - user object:', JSON.stringify(req.user, null, 2));
 
     // Validar datos de entrada
+    console.log('4. Starting validation...');
     const validationErrors = validateInput.donation(donationData);
+    console.log('5. Validation errors:', validationErrors);
     if (validationErrors.length > 0) {
+      console.log('6. Validation failed, returning 400');
       return res.status(400).json({
         error: 'Datos de entrada inválidos',
         details: validationErrors
@@ -94,38 +102,54 @@ router.post('/', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
     }
 
     // Transformar datos para gRPC (usar usuario autenticado)
+    console.log('7. Starting gRPC transformation...');
     const grpcRequest = inventoryTransformers.toGrpcCreateDonation(donationData, req.user.id);
+    console.log('8. gRPC request:', JSON.stringify(grpcRequest, null, 2));
 
     // Llamar al microservicio de inventario
+    console.log('9. Calling inventory service...');
     const grpcResponse = await inventoryService.createDonation(grpcRequest);
+    console.log('10. gRPC response:', JSON.stringify(grpcResponse, null, 2));
 
     // Transformar respuesta
+    console.log('11. Transforming response...');
     const response = inventoryTransformers.fromGrpcDonationResponse(grpcResponse);
+    console.log('12. Transformed response:', JSON.stringify(response, null, 2));
 
     if (response.success) {
+      console.log('13. Success - returning 201');
       res.status(201).json({
         success: true,
         message: response.message,
         donation: response.donation
       });
     } else {
+      console.log('14. Failed - returning 400 with message:', response.message);
       res.status(400).json({
         error: response.message
       });
     }
   } catch (error) {
-    console.error('Error al crear donación:', error);
+    console.error('15. EXCEPTION in POST /api/inventory:', error);
+    console.error('16. Error stack:', error.stack);
     const errorResponse = handleGrpcError(error);
+    console.log('17. Error response:', JSON.stringify(errorResponse, null, 2));
     res.status(errorResponse.status).json(errorResponse.error);
   }
+  console.log('=== POST /api/inventory ENDED ===');
 });
 
 // PUT /api/inventory/:id - PRESIDENTE y VOCAL
 router.put('/:id', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
+  console.log('=== PUT /api/inventory/:id STARTED ===');
   try {
     const { id } = req.params;
     const donationData = req.body;
     const userId = req.user?.id || 1; // TODO: Obtener del token de autenticación
+
+    console.log('1. PUT /api/inventory - id:', id);
+    console.log('2. PUT /api/inventory - donationData:', JSON.stringify(donationData, null, 2));
+    console.log('3. PUT /api/inventory - userId:', userId);
 
     if (!id || isNaN(parseInt(id))) {
       return res.status(400).json({
@@ -141,30 +165,40 @@ router.put('/:id', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
     }
 
     // Transformar datos para gRPC (usar usuario autenticado)
+    console.log('4. PUT /api/inventory - Calling toGrpcUpdateDonation...');
     const grpcRequest = inventoryTransformers.toGrpcUpdateDonation(id, donationData, req.user.id);
+    console.log('5. PUT /api/inventory - grpcRequest:', JSON.stringify(grpcRequest, null, 2));
 
     // Llamar al microservicio de inventario
+    console.log('6. PUT /api/inventory - Calling inventory service...');
     const grpcResponse = await inventoryService.updateDonation(grpcRequest);
 
+    console.log('7. PUT /api/inventory - grpcResponse:', JSON.stringify(grpcResponse, null, 2));
+
     // Transformar respuesta
+    console.log('8. PUT /api/inventory - Transforming response...');
     const response = inventoryTransformers.fromGrpcDonationResponse(grpcResponse);
+    console.log('9. PUT /api/inventory - transformed response:', JSON.stringify(response, null, 2));
 
     if (response.success) {
+      console.log('10. PUT /api/inventory - Success, returning 200');
       res.status(200).json({
         success: true,
         message: response.message,
         donation: response.donation
       });
     } else {
+      console.log('11. PUT /api/inventory - Failed, returning 400');
       res.status(400).json({
         error: response.message
       });
     }
   } catch (error) {
-    console.error('Error al actualizar donación:', error);
+    console.error('12. PUT /api/inventory - EXCEPTION:', error);
     const errorResponse = handleGrpcError(error);
     res.status(errorResponse.status).json(errorResponse.error);
   }
+  console.log('=== PUT /api/inventory/:id ENDED ===');
 });
 
 // DELETE /api/inventory/:id - PRESIDENTE y VOCAL

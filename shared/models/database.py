@@ -25,7 +25,15 @@ class DatabaseConnection:
     def connect(self):
         """Establish database connection"""
         try:
-            database_url = os.getenv('DATABASE_URL', 'postgresql://ong_user:ong_pass@localhost:5432/ong_management')
+            # Usar variables de entorno individuales si están disponibles
+            db_host = os.getenv('DB_HOST', 'localhost')
+            db_port = os.getenv('DB_PORT', '5432')
+            db_name = os.getenv('DB_NAME', 'ong_management')
+            db_user = os.getenv('DB_USER', 'ong_user')
+            db_password = os.getenv('DB_PASSWORD', 'ong_pass')
+            
+            database_url = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+            
             self._connection = psycopg2.connect(
                 database_url,
                 cursor_factory=RealDictCursor
@@ -52,6 +60,58 @@ def get_db_connection():
     """Get database connection instance"""
     return DatabaseConnection().get_connection()
 
+def execute_insert_returning(query: str, params: tuple = None):
+    """
+    Execute an INSERT query with RETURNING clause
+    
+    Args:
+        query: SQL INSERT query string with RETURNING
+        params: Query parameters
+    
+    Returns:
+        Query results from RETURNING clause
+    """
+    print("=== DATABASE: execute_insert_returning STARTED ===")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        print(f"DATABASE: 1. Executing INSERT with RETURNING")
+        print(f"DATABASE: 2. Query: {query}")
+        print(f"DATABASE: 3. Params: {params}")
+        print(f"DATABASE: 4. Cursor type: {type(cursor)}")
+        
+        print(f"DATABASE: 5. Executing query...")
+        cursor.execute(query, params)
+        
+        print(f"DATABASE: 6. Fetching results...")
+        result = cursor.fetchall()
+        
+        print(f"DATABASE: 7. Committing transaction...")
+        conn.commit()
+        
+        print(f"DATABASE: 8. INSERT RETURNING result: {result}")
+        print(f"DATABASE: 9. Result type: {type(result)}")
+        print(f"DATABASE: 10. Result length: {len(result) if result else 'None'}")
+        
+        if result and len(result) > 0:
+            print(f"DATABASE: 11. First result item: {result[0]}")
+            print(f"DATABASE: 12. First result type: {type(result[0])}")
+        
+        return result
+            
+    except Exception as e:
+        print(f"DATABASE: 13. EXCEPTION in execute_insert_returning: {e}")
+        print(f"DATABASE: 14. Exception type: {type(e)}")
+        conn.rollback()
+        print(f"DATABASE: 15. Transaction rolled back")
+        import traceback
+        print(f"DATABASE: 16. Exception traceback: {traceback.format_exc()}")
+        raise
+    finally:
+        cursor.close()
+        print("=== DATABASE: execute_insert_returning ENDED ===")
+
 def execute_query(query: str, params: tuple = None, fetch: bool = True):
     """
     Execute a database query
@@ -71,11 +131,22 @@ def execute_query(query: str, params: tuple = None, fetch: bool = True):
         cursor.execute(query, params)
         
         if fetch:
-            if query.strip().upper().startswith('SELECT'):
-                return cursor.fetchall()
+            if query.strip().upper().startswith('SELECT') or 'RETURNING' in query.upper():
+                print(f"About to fetchall for query: {query}")
+                result = cursor.fetchall()
+                print(f"Query: {query}")
+                print(f"Params: {params}")
+                print(f"Fetchall result: {result}")
+                print(f"Fetchall result type: {type(result)}")
+                if 'RETURNING' in query.upper():
+                    conn.commit()  # Commit for INSERT/UPDATE with RETURNING
+                    print("Committed transaction for RETURNING query")
+                return result
             else:
                 conn.commit()
-                return cursor.rowcount
+                rowcount = cursor.rowcount
+                print(f"Non-SELECT query, returning rowcount: {rowcount}")
+                return rowcount
         else:
             conn.commit()
             return None
@@ -113,3 +184,21 @@ def execute_transaction(queries: list):
         raise
     finally:
         cursor.close()
+
+def test_connection():
+    """
+    Test database connection
+    
+    Returns:
+        True if connection is successful, False otherwise
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        result = cursor.fetchone()
+        cursor.close()
+        return result is not None
+    except Exception as e:
+        print(f"Database connection test failed: {e}")
+        return False

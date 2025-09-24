@@ -117,7 +117,8 @@
 
 
 
-- [ ] 5.2 Implementar servidor gRPC de eventos
+- [x] 5.2 Implementar servidor gRPC de eventos
+
   - Crear EventsService con métodos CRUD para eventos
   - Implementar validación de fechas futuras para creación
   - Agregar gestión de participantes (asignar/quitar miembros)
@@ -126,7 +127,8 @@
 
   - _Requisitos: 5.1, 5.2, 5.3, 5.7_
 
-- [ ] 5.3 Implementar registro de donaciones repartidas
+- [x] 5.3 Implementar registro de donaciones repartidas
+
   - Crear funcionalidad para registrar donaciones en eventos pasados
 
 
@@ -134,7 +136,8 @@
   - Registrar usuario que hace la modificación
   - _Requisitos: 5.4, 5.5_
 
-- [ ] 5.4 Implementar eliminación física de eventos futuros
+- [x] 5.4 Implementar eliminación física de eventos futuros
+
   - Crear validación para eliminar solo eventos futuros
   - Implementar eliminación física de base de datos
   - Remover participantes automáticamente
@@ -176,7 +179,7 @@
 
 
 
-
+|
 
 - [x] 7.1 Implementar endpoints de autenticación
 
@@ -203,38 +206,69 @@
   - Agregar manejo de errores de autorización
   - _Requisitos: 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 8. Implementar módulo de gestión de usuarios completo
-- [ ] 8.1 Implementar endpoints de gestión de usuarios
+- [x] 8. Implementar módulo de gestión de usuarios completo
+
+
+
+
+
+- [x] 8.1 Implementar endpoints de gestión de usuarios
+
+
   - Crear GET /api/users (solo PRESIDENTE)
   - Crear POST /api/users para alta de usuarios
   - Crear PUT /api/users/:id para modificación
   - Crear DELETE /api/users/:id para baja lógica
   - _Requisitos: 2.1, 2.2, 2.6, 2.7_
 
-- [ ] 8.2 Implementar componentes de gestión de usuarios
+- [x] 8.2 Implementar componentes de gestión de usuarios
+
+
   - Crear UserList para mostrar usuarios (solo PRESIDENTE)
   - Crear UserForm para alta y modificación de usuarios
   - Implementar confirmación para baja de usuarios
   - Agregar validación de formularios
   - _Requisitos: 2.1, 2.2, 2.6, 2.7_
 
-- [ ] 9. Implementar módulo de inventario completo
-- [ ] 9.1 Implementar endpoints de inventario
+- [x] 9. Implementar módulo de inventario completo
+
+
+
+
+
+
+
+- [x] 9.1 Implementar endpoints de inventario
+
+
+
+
+
   - Crear GET /api/inventory (PRESIDENTE, VOCAL)
   - Crear POST /api/inventory para registrar donaciones
   - Crear PUT /api/inventory/:id para modificar donaciones
   - Crear DELETE /api/inventory/:id para baja lógica
   - _Requisitos: 4.1, 4.2, 4.5, 4.6_
 
-- [ ] 9.2 Implementar componentes de inventario
+
+- [x] 9.2 Implementar componentes de inventario
+
+
   - Crear InventoryList con filtros por categoría
   - Crear DonationForm para registrar/modificar donaciones
   - Implementar validación de cantidades
   - Agregar confirmación para eliminación
   - _Requisitos: 4.1, 4.2, 4.3, 4.5, 4.6, 4.7_
 
-- [ ] 10. Implementar módulo de eventos completo
-- [ ] 10.1 Implementar endpoints de eventos
+- [x] 10. Implementar módulo de eventos completo
+
+
+
+
+
+- [x] 10.1 Implementar endpoints de eventos
+
+
   - Crear GET /api/events con filtros por rol
   - Crear POST /api/events (PRESIDENTE, COORDINADOR)
   - Crear PUT /api/events/:id para modificar eventos
@@ -242,7 +276,9 @@
   - Crear POST/DELETE /api/events/:id/participants para gestión de participantes
   - _Requisitos: 5.1, 5.2, 5.3, 5.6, 5.7_
 
-- [ ] 10.2 Implementar componentes de eventos
+- [x] 10.2 Implementar componentes de eventos
+
+
   - Crear EventList con diferentes vistas por rol
   - Crear EventForm para crear/modificar eventos
   - Implementar ParticipantManager para gestión de miembros

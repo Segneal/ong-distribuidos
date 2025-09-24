@@ -5,8 +5,14 @@ const authService = require('../services/authService');
  */
 const authenticateToken = (req, res, next) => {
   try {
+    console.log(`authenticateToken - Method: ${req.method}, Path: ${req.path}`);
+    console.log(`authenticateToken - Authorization header:`, req.headers.authorization);
+    
     const token = authService.extractTokenFromHeader(req.headers.authorization);
+    console.log(`authenticateToken - Extracted token:`, token ? 'Present' : 'Missing');
+    
     const decoded = authService.verifyToken(token);
+    console.log(`authenticateToken - Decoded token:`, decoded);
     
     // Agregar información del usuario al request
     req.user = {
@@ -15,6 +21,7 @@ const authenticateToken = (req, res, next) => {
       role: decoded.role
     };
     
+    console.log(`authenticateToken - User set:`, req.user);
     next();
   } catch (error) {
     console.error('Error de autenticación:', error.message);
@@ -31,7 +38,12 @@ const authenticateToken = (req, res, next) => {
  */
 const requireRole = (roles) => {
   return (req, res, next) => {
+    console.log(`requireRole middleware - Method: ${req.method}, Path: ${req.path}`);
+    console.log(`requireRole middleware - User:`, req.user);
+    console.log(`requireRole middleware - Required roles:`, roles);
+    
     if (!req.user) {
+      console.log('requireRole middleware - No user found');
       return res.status(401).json({
         error: 'Usuario no autenticado',
         timestamp: new Date().toISOString()
@@ -39,6 +51,7 @@ const requireRole = (roles) => {
     }
 
     if (!authService.hasRole(req.user.role, roles)) {
+      console.log(`requireRole middleware - Role check failed. User role: ${req.user.role}, Required: ${roles}`);
       return res.status(403).json({
         error: 'Permisos insuficientes',
         message: `Se requiere uno de los siguientes roles: ${Array.isArray(roles) ? roles.join(', ') : roles}`,
@@ -47,6 +60,7 @@ const requireRole = (roles) => {
       });
     }
 
+    console.log('requireRole middleware - Role check passed, proceeding to next middleware');
     next();
   };
 };

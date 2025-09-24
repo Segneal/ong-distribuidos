@@ -3,11 +3,16 @@ Events gRPC Service Implementation
 """
 import grpc
 from concurrent import futures
+import sys
+import os
+
+# Add current directory to path for imports
+sys.path.append(os.path.dirname(__file__))
+
 import events_pb2
 import events_pb2_grpc
 from events_repository import EventsRepository
 from datetime import datetime
-import os
 
 class EventsService(events_pb2_grpc.EventsServiceServicer):
     """gRPC service for events management"""
@@ -392,15 +397,16 @@ def serve():
     events_pb2_grpc.add_EventsServiceServicer_to_server(EventsService(), server)
     
     port = os.getenv('EVENTS_SERVICE_PORT', '50053')
-    server.add_insecure_port(f'localhost:{port}')
+    server.add_insecure_port(f'0.0.0.0:{port}')
     
-    print(f"Events Service starting on port {port}")
     server.start()
+    print(f"✅ Servidor gRPC de eventos iniciado en puerto {port}")
+    print(f"🌐 Escuchando en 0.0.0.0:{port}")
     
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        print("Events Service stopping...")
+        print("🛑 Deteniendo servidor...")
         server.stop(0)
 
 

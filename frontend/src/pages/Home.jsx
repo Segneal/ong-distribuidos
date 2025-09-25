@@ -15,34 +15,37 @@ import {
   Event as EventIcon,
   NetworkCheck as NetworkIcon
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home = () => {
-  const features = [
+  const { user, hasPermission } = useAuth();
+
+  const allFeatures = [
     {
       title: 'Gestión de Usuarios',
       description: 'Administra los miembros de la organización con diferentes roles.',
       icon: <PeopleIcon fontSize="large" color="primary" />,
-      path: '/users'
+      path: '/users',
+      permission: () => user?.role === 'PRESIDENTE'
     },
     {
       title: 'Inventario de Donaciones',
       description: 'Controla y gestiona las donaciones recibidas por categorías.',
       icon: <InventoryIcon fontSize="large" color="primary" />,
-      path: '/inventory'
+      path: '/inventory',
+      permission: () => user?.role === 'PRESIDENTE' || user?.role === 'VOCAL'
     },
     {
       title: 'Eventos Solidarios',
       description: 'Organiza y coordina eventos solidarios con participantes.',
       icon: <EventIcon fontSize="large" color="primary" />,
-      path: '/events'
-    },
-    {
-      title: 'Red de ONGs',
-      description: 'Colabora con otras organizaciones a través de la red.',
-      icon: <NetworkIcon fontSize="large" color="primary" />,
-      path: '/network'
+      path: '/events',
+      permission: () => true // Todos pueden ver eventos
     }
   ];
+
+  // Filtrar características según permisos
+  const features = allFeatures.filter(feature => feature.permission());
 
   return (
     <Box>

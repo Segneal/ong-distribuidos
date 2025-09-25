@@ -43,7 +43,7 @@ const LoginForm = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // Limpiar errores cuando el usuario empiece a escribir
     if (formErrors[name]) {
       setFormErrors(prev => ({
@@ -51,7 +51,7 @@ const LoginForm = () => {
         [name]: ''
       }));
     }
-    
+
     // Limpiar error general
     if (error) {
       clearError();
@@ -79,19 +79,19 @@ const LoginForm = () => {
   // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
       const result = await login(formData);
-      
+
       if (result.success) {
         // Redirigir según el rol del usuario
         const userRole = result.user.role;
         let redirectPath = from;
-        
+
         // Si viene de la raíz, redirigir según el rol
         if (from === '/') {
           switch (userRole) {
@@ -111,7 +111,7 @@ const LoginForm = () => {
               redirectPath = '/';
           }
         }
-        
+
         navigate(redirectPath, { replace: true });
       }
     } catch (error) {
@@ -125,10 +125,10 @@ const LoginForm = () => {
   };
 
   return (
-    <Box 
-      display="flex" 
-      justifyContent="center" 
-      alignItems="center" 
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
       minHeight="80vh"
       px={2}
     >
@@ -172,7 +172,7 @@ const LoginForm = () => {
               ),
             }}
           />
-          
+
           <TextField
             margin="normal"
             required
@@ -207,7 +207,7 @@ const LoginForm = () => {
               ),
             }}
           />
-          
+
           <Button
             type="submit"
             fullWidth
@@ -221,7 +221,7 @@ const LoginForm = () => {
         </Box>
 
         <Typography variant="body2" color="text.secondary" align="center">
-          © 2024 ONG Empuje Comunitario
+          © 2025 ONG Empuje Comunitario
         </Typography>
       </Paper>
     </Box>

@@ -389,6 +389,30 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
                 message="Error interno del servidor",
                 distributed_donations=[]
             )
+    
+    def GetDistributedDonations(self, request, context):
+        """Get donations distributed in an event"""
+        try:
+            distributed_donations = self.repository.get_distributed_donations(request.event_id)
+            
+            distributed_messages = []
+            for donation_data in distributed_donations:
+                distributed_message = self._create_distributed_donation_message(donation_data)
+                distributed_messages.append(distributed_message)
+            
+            return events_pb2.GetDistributedDonationsResponse(
+                success=True,
+                message=f"Se encontraron {len(distributed_messages)} donaciones repartidas",
+                distributed_donations=distributed_messages
+            )
+            
+        except Exception as e:
+            print(f"Error en GetDistributedDonations: {e}")
+            return events_pb2.GetDistributedDonationsResponse(
+                success=False,
+                message="Error interno del servidor",
+                distributed_donations=[]
+            )
 
 
 def serve():

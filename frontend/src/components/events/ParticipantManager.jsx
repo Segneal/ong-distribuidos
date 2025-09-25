@@ -23,7 +23,7 @@ const ParticipantManager = () => {
   const loadEventData = async () => {
     try {
       setLoading(true);
-      
+
       // Load event details
       const eventResponse = await api.get(`/events/${id}`);
       setEvent(eventResponse.data.event);
@@ -35,10 +35,10 @@ const ParticipantManager = () => {
       // Load all active users
       const usersResponse = await api.get('/users');
       const allUsers = usersResponse.data.users || [];
-      
+
       // Filter out users who are already participants
       const participantIds = participantsResponse.data.participants?.map(p => p.userId) || [];
-      const available = allUsers.filter(u => u.active && !participantIds.includes(u.id));
+      const available = allUsers.filter(u => u.isActive && !participantIds.includes(u.id));
       setAvailableUsers(available);
 
       setError('');
@@ -60,7 +60,7 @@ const ParticipantManager = () => {
       await api.post(`/events/${id}/participants`, {
         userId: parseInt(selectedUserId)
       });
-      
+
       setSelectedUserId('');
       loadEventData(); // Reload to update lists
     } catch (err) {
@@ -107,7 +107,7 @@ const ParticipantManager = () => {
     <div className="participant-manager-container">
       <div className="form-header">
         <h2>Gestión de Participantes</h2>
-        <button 
+        <button
           className="btn btn-secondary"
           onClick={() => navigate('/events')}
         >

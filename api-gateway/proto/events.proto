@@ -30,6 +30,9 @@ service EventsService {
   
   // Registrar donaciones repartidas en un evento pasado
   rpc RegisterDistributedDonations(RegisterDistributedDonationsRequest) returns (RegisterDistributedDonationsResponse);
+  
+  // Obtener donaciones repartidas de un evento
+  rpc GetDistributedDonations(GetDistributedDonationsRequest) returns (GetDistributedDonationsResponse);
 }
 
 // Mensaje principal de evento
@@ -124,6 +127,11 @@ message RegisterDistributedDonationsRequest {
   int32 registered_by = 3;
 }
 
+// Mensajes de request para GetDistributedDonations
+message GetDistributedDonationsRequest {
+  int32 event_id = 1;
+}
+
 // Mensajes de response
 message EventResponse {
   bool success = 1;
@@ -155,6 +163,12 @@ message ListParticipantsResponse {
 }
 
 message RegisterDistributedDonationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated DistributedDonation distributed_donations = 3;
+}
+
+message GetDistributedDonationsResponse {
   bool success = 1;
   string message = 2;
   repeated DistributedDonation distributed_donations = 3;

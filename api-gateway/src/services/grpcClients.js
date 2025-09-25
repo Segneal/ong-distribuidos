@@ -98,6 +98,7 @@ const eventsService = {
   removeParticipant: promisifyGrpcCall(eventsClient, 'RemoveParticipant'),
   listParticipants: promisifyGrpcCall(eventsClient, 'ListParticipants'),
   registerDistributedDonations: promisifyGrpcCall(eventsClient, 'RegisterDistributedDonations'),
+  getDistributedDonations: promisifyGrpcCall(eventsClient, 'GetDistributedDonations'),
 };
 
 // Función para verificar conectividad de servicios

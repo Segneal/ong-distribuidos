@@ -249,8 +249,70 @@ class EventsRepository:
             if not event or event['fecha_evento'] > datetime.now():
                 return []
             
-            # For now, return empty list - this can be implemented later
-            return []
+            registered_donations = []
+            
+            for donation in donations:
+                donation_id = donation['donation_id']
+                quantity = donation['quantity']
+                
+                # Check available quantity first
+                check_query = """
+                    SELECT cantidad FROM donaciones WHERE id = %s AND eliminado = FALSE
+                """
+                donation_check = self._execute_query(check_query, (donation_id,), fetch_one=True)
+                
+                if not donation_check or donation_check['cantidad'] < quantity:
+                    print(f"Insufficient quantity for donation {donation_id}. Available: {donation_check['cantidad'] if donation_check else 0}, Requested: {quantity}")
+                    continue
+                
+                # Insert distributed donation record
+                insert_query = """
+                    INSERT INTO donaciones_repartidas (evento_id, donacion_id, cantidad_repartida, usuario_registro)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id, evento_id, donacion_id, cantidad_repartida, usuario_registro, fecha_registro
+                """
+                
+                result = self._execute_query(
+                    insert_query, 
+                    (event_id, donation_id, quantity, user_id), 
+                    fetch_one=True,
+                    commit=True
+                )
+                
+                if result:
+                    # Decrement the donation quantity in inventory
+                    update_query = """
+                        UPDATE donaciones 
+                        SET cantidad = cantidad - %s,
+                            fecha_modificacion = CURRENT_TIMESTAMP,
+                            usuario_modificacion = %s
+                        WHERE id = %s
+                    """
+                    update_result = self._execute_query(update_query, (quantity, user_id, donation_id), commit=True)
+                    print(f"Updated donation {donation_id}: decreased by {quantity}. Update result: {update_result}")
+                
+                if result:
+                    # Get donation details for response
+                    donation_query = """
+                        SELECT d.descripcion, d.categoria
+                        FROM donaciones d
+                        WHERE d.id = %s
+                    """
+                    donation_details = self._execute_query(donation_query, (donation_id,), fetch_one=True)
+                    
+                    registered_donation = {
+                        'id': result['id'],
+                        'event_id': result['evento_id'],
+                        'donation_id': result['donacion_id'],
+                        'donation_description': donation_details['descripcion'] if donation_details else '',
+                        'donation_category': donation_details['categoria'] if donation_details else '',
+                        'distributed_quantity': result['cantidad_repartida'],
+                        'registered_by': result['usuario_registro'],
+                        'registration_date': str(result['fecha_registro'])
+                    }
+                    registered_donations.append(registered_donation)
+            
+            return registered_donations
             
         except Exception as e:
             print(f"Error registering distributed donations: {e}")
@@ -260,7 +322,10 @@ class EventsRepository:
         """Get donations distributed in this event"""
         try:
             query = """
-                SELECT dr.*, d.categoria, d.descripcion, u.nombre, u.apellido
+                SELECT dr.id, dr.evento_id as event_id, dr.donacion_id as donation_id, 
+                       dr.cantidad_repartida as distributed_quantity, dr.usuario_registro as registered_by,
+                       dr.fecha_registro as registration_date, d.categoria, d.descripcion as donation_description,
+                       u.nombre as registered_by_name, u.apellido as registered_by_lastname
                 FROM donaciones_repartidas dr
                 JOIN donaciones d ON dr.donacion_id = d.id
                 JOIN usuarios u ON dr.usuario_registro = u.id

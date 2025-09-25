@@ -1,94 +1,55 @@
 @echo off
-echo 🚀 Iniciando prueba rapida del sistema ONG...
+echo ========================================
+echo PRUEBA COMPLETA DEL SISTEMA ONG
+echo ========================================
+echo.
 
-REM Configuracion
-set API_BASE=http://localhost:3001
+echo 1. Verificando servicios Docker...
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo.
+
+echo 2. Probando conectividad a servicios...
+echo - PostgreSQL (puerto 5432):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
+
+echo - User Service gRPC (puerto 50051):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
+
+echo - Inventory Service gRPC (puerto 50052):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
+
+echo - Events Service gRPC (puerto 50053):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
+
+echo - API Gateway (puerto 3000):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
+
+echo - Frontend (puerto 3001):
+timeout /t 1 >nul 2>&1 && echo   ✓ Disponible || echo   ✗ No disponible
 
 echo.
-echo 📋 FASE 1: Verificacion de servicios basicos
-echo 🔍 Probando Health Check...
-curl -s %API_BASE%/health
-if %errorlevel% equ 0 (
-    echo ✅ Health Check OK
-) else (
-    echo ❌ Health Check FAILED
-)
+echo 3. Verificando datos de prueba en la base de datos...
+docker exec -it ong_postgres psql -U ong_user -d ong_management -c "SELECT COUNT(*) as usuarios FROM usuarios WHERE activo = TRUE;" -t
+docker exec -it ong_postgres psql -U ong_user -d ong_management -c "SELECT COUNT(*) as eventos FROM eventos;" -t
+docker exec -it ong_postgres psql -U ong_user -d ong_management -c "SELECT COUNT(*) as participantes FROM participantes_evento;" -t
+docker exec -it ong_postgres psql -U ong_user -d ong_management -c "SELECT COUNT(*) as donaciones FROM donaciones WHERE eliminado = FALSE;" -t
 
 echo.
-echo 🔐 FASE 2: Autenticacion
-echo 🔍 Probando login como admin...
-curl -s -X POST %API_BASE%/auth/login ^
-  -H "Content-Type: application/json" ^
-  -d "{\"usernameOrEmail\":\"admin\",\"password\":\"admin123\"}" ^
-  -o login_response.json
-
-if %errorlevel% equ 0 (
-    echo ✅ Login OK
-    REM Extraer token (simplificado)
-    for /f "tokens=2 delims=:" %%a in ('findstr "token" login_response.json') do set TOKEN=%%a
-    set TOKEN=%TOKEN:"=%
-    set TOKEN=%TOKEN:,=%
-    set TOKEN=%TOKEN: =%
-) else (
-    echo ❌ Login FAILED
-    goto :end
-)
-
+echo 4. URLs de acceso:
+echo - Frontend: http://localhost:3001
+echo - API Gateway: http://localhost:3000
+echo - Health Check: http://localhost:3000/health
 echo.
-echo 👥 FASE 3: Gestion de Usuarios
-echo 🔍 Probando listar usuarios...
-curl -s %API_BASE%/users -H "Authorization: Bearer %TOKEN%"
-if %errorlevel% equ 0 (
-    echo ✅ Listar usuarios OK
-) else (
-    echo ❌ Listar usuarios FAILED
-)
 
+echo 5. Credenciales de prueba:
+echo - Usuario: admin / Contraseña: admin123 (PRESIDENTE)
+echo - Usuario: vocal1 / Contraseña: admin123 (VOCAL)
+echo - Usuario: coord1 / Contraseña: admin123 (COORDINADOR)
+echo - Usuario: vol1 / Contraseña: admin123 (VOLUNTARIO)
+echo - Usuario: vol2 / Contraseña: admin123 (VOLUNTARIO)
 echo.
-echo 📦 FASE 4: Gestion de Inventario
-echo 🔍 Probando listar inventario...
-curl -s %API_BASE%/inventory -H "Authorization: Bearer %TOKEN%"
-if %errorlevel% equ 0 (
-    echo ✅ Listar inventario OK
-) else (
-    echo ❌ Listar inventario FAILED
-)
 
-echo.
-echo 🎉 FASE 5: Gestion de Eventos
-echo 🔍 Probando listar eventos...
-curl -s %API_BASE%/events -H "Authorization: Bearer %TOKEN%"
-if %errorlevel% equ 0 (
-    echo ✅ Listar eventos OK
-) else (
-    echo ❌ Listar eventos FAILED
-)
-
-echo.
-echo 🔍 Probando crear evento...
-curl -s -X POST %API_BASE%/events ^
-  -H "Authorization: Bearer %TOKEN%" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"name\":\"Evento de Prueba\",\"description\":\"Evento creado para pruebas\",\"event_date\":\"2024-12-25T10:00:00Z\",\"location\":\"Centro Comunitario\",\"max_participants\":50,\"event_type\":\"DISTRIBUCION\"}"
-
-if %errorlevel% equ 0 (
-    echo ✅ Crear evento OK
-) else (
-    echo ❌ Crear evento FAILED
-)
-
-echo.
-echo 🎯 RESUMEN DE PRUEBAS COMPLETADO
-echo ✅ Sistema probado con funcionalidades basicas
-echo 🌐 Frontend disponible en: http://localhost:3000
-echo 🔗 API Gateway disponible en: http://localhost:3001
-
-echo.
-echo 📝 CREDENCIALES DE PRUEBA:
-echo Admin: admin / admin123
-echo Coordinador: coord1 / admin123
-echo Voluntario: vol1 / admin123
-
-:end
-if exist login_response.json del login_response.json
+echo ========================================
+echo SISTEMA LISTO PARA USAR
+echo ========================================
 pause

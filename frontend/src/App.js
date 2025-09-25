@@ -11,6 +11,7 @@ import Events from './pages/Events';
 import EventFormPage from './pages/EventForm';
 import ParticipantManagerPage from './pages/ParticipantManager';
 import DistributedDonationsPage from './pages/DistributedDonations';
+import DistributedDonationsHistoryPage from './pages/DistributedDonationsHistory';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -75,6 +76,13 @@ function App() {
           <Route path="events/:id/donations" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
               <DistributedDonationsPage />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Ver historial de donaciones repartidas - PRESIDENTE, COORDINADOR y VOLUNTARIO */}
+          <Route path="events/:id/donations-history" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']}>
+              <DistributedDonationsHistoryPage />
             </RoleProtectedRoute>
           } />
         </Route>

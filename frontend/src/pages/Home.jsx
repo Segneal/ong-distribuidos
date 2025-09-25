@@ -15,34 +15,37 @@ import {
   Event as EventIcon,
   NetworkCheck as NetworkIcon
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home = () => {
-  const features = [
+  const { user, hasPermission } = useAuth();
+
+  const allFeatures = [
     {
       title: 'Gestión de Usuarios',
       description: 'Administra los miembros de la organización con diferentes roles.',
       icon: <PeopleIcon fontSize="large" color="primary" />,
-      path: '/users'
+      path: '/users',
+      permission: () => user?.role === 'PRESIDENTE'
     },
     {
       title: 'Inventario de Donaciones',
       description: 'Controla y gestiona las donaciones recibidas por categorías.',
       icon: <InventoryIcon fontSize="large" color="primary" />,
-      path: '/inventory'
+      path: '/inventory',
+      permission: () => user?.role === 'PRESIDENTE' || user?.role === 'VOCAL'
     },
     {
       title: 'Eventos Solidarios',
       description: 'Organiza y coordina eventos solidarios con participantes.',
       icon: <EventIcon fontSize="large" color="primary" />,
-      path: '/events'
-    },
-    {
-      title: 'Red de ONGs',
-      description: 'Colabora con otras organizaciones a través de la red.',
-      icon: <NetworkIcon fontSize="large" color="primary" />,
-      path: '/network'
+      path: '/events',
+      permission: () => true // Todos pueden ver eventos
     }
   ];
+
+  // Filtrar características según permisos
+  const features = allFeatures.filter(feature => feature.permission());
 
   return (
     <Box>
@@ -59,33 +62,52 @@ const Home = () => {
         </Typography>
       </Paper>
 
-      <Grid container spacing={3}>
-        {features.map((feature, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1, textAlign: 'center' }}>
-                <Box sx={{ mb: 2 }}>
-                  {feature.icon}
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>
-                  {feature.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </CardContent>
-              <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
-                <Button 
-                  size="small" 
-                  variant="outlined"
-                  onClick={() => window.location.href = feature.path}
-                >
-                  Acceder
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
+      <Grid container spacing={3} justifyContent="center">
+        {features.map((feature, index) => {
+          // Calcular el tamaño de grid basado en el número de features
+          const gridSize = features.length === 1 ? 12 : 
+                          features.length === 2 ? 6 : 
+                          features.length === 3 ? 4 : 3;
+          
+          return (
+            <Grid item xs={12} sm={6} md={gridSize} key={index}>
+              <Card sx={{ 
+                height: '100%', 
+                display: 'flex', 
+                flexDirection: 'column',
+                minHeight: '280px'
+              }}>
+                <CardContent sx={{ flexGrow: 1, textAlign: 'center', p: 3 }}>
+                  <Box sx={{ mb: 3 }}>
+                    {feature.icon}
+                  </Box>
+                  <Typography variant="h5" component="h3" gutterBottom sx={{ fontWeight: 600 }}>
+                    {feature.title}
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                    {feature.description}
+                  </Typography>
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'center', pb: 3 }}>
+                  <Button 
+                    size="large" 
+                    variant="contained"
+                    onClick={() => window.location.href = feature.path}
+                    sx={{ 
+                      px: 4, 
+                      py: 1.5,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    Acceder
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       

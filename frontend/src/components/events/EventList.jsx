@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
+import api, { eventsService } from '../../services/api';
 import './Events.css';
 
 const EventList = () => {
@@ -8,7 +8,10 @@ const EventList = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [includePastEvents, setIncludePastEvents] = useState(false);
+  const [includePastEvents, setIncludePastEvents] = useState(() => {
+    const saved = localStorage.getItem('includePastEvents');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState([]);
@@ -18,15 +21,15 @@ const EventList = () => {
     loadEvents();
   }, [includePastEvents]);
 
+  useEffect(() => {
+    localStorage.setItem('includePastEvents', JSON.stringify(includePastEvents));
+  }, [includePastEvents]);
+
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (includePastEvents) {
-        params.append('includePastEvents', 'true');
-      }
       
-      const response = await api.get(`/events?${params.toString()}`);
+      const response = await eventsService.getEvents({ includePastEvents });
       const eventsData = response.data.events || [];
       setEvents(eventsData);
       
@@ -175,15 +178,20 @@ const EventList = () => {
           events.map(event => (
             <div key={event.id} className={`event-card ${isEventPast(event.eventDate) ? 'past-event' : 'future-event'}`}>
               <div className="event-header">
-                <h3>
-                  {event.name}
+                <div className="event-title-section">
+                  <h3>{event.name}</h3>
                   {userParticipations[event.id] && (
-                    <span className="participation-badge">  ✓ Participando</span>
+                    <span className="participation-status participating">
+                      <span className="status-icon">✓</span>
+                      <span className="status-text">Participando</span>
+                    </span>
                   )}
-                </h3>
+                </div>
                 <div className="event-date">
-                  {formatDate(event.eventDate)}
-                  {isEventPast(event.eventDate) && <span className="past-label">(Pasado)</span>}
+                  <span className="date-text">{formatDate(event.eventDate)}</span>
+                  {isEventPast(event.eventDate) && (
+                    <span className="event-status past">Finalizado</span>
+                  )}
                 </div>
               </div>
               
@@ -192,67 +200,77 @@ const EventList = () => {
               )}
 
               <div className="event-actions">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => loadParticipants(event.id)}
-                >
-                  Ver Participantes
-                </button>
+                {/* Botones principales */}
+                <div className="primary-actions">
+                  {!isEventPast(event.eventDate) && (
+                    <>
+                      {!userParticipations[event.id] ? (
+                        <button
+                          className="btn btn-success btn-modern"
+                          onClick={() => handleJoinEvent(event.id)}
+                        >
+                          ✓ Participar
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-outline btn-modern"
+                          onClick={() => handleLeaveEvent(event.id)}
+                        >
+                          ✗ Salir del evento
+                        </button>
+                      )}
+                    </>
+                  )}
+                  
+                  <button
+                    className="btn btn-secondary btn-modern"
+                    onClick={() => loadParticipants(event.id)}
+                  >
+                    👥 Ver participantes
+                  </button>
+                </div>
 
+                {/* Botones de gestión (solo para administradores) */}
                 {canManageEvents && (
-                  <>
+                  <div className="admin-actions">
                     <button
-                      className="btn btn-primary"
+                      className="btn btn-primary btn-small"
                       onClick={() => window.location.href = `/events/${event.id}/edit`}
                     >
                       Editar
                     </button>
-                    {!isEventPast(event.eventDate) && (
+                    
+                    <button
+                      className="btn btn-info btn-small"
+                      onClick={() => window.location.href = `/events/${event.id}/participants`}
+                    >
+                      Gestionar
+                    </button>
+
+                    {!isEventPast(event.eventDate) ? (
                       <button
-                        className="btn btn-danger"
+                        className="btn btn-danger btn-small"
                         onClick={() => handleDeleteEvent(event.id)}
                       >
                         Eliminar
                       </button>
-                    )}
-                    {isEventPast(event.eventDate) && (
-                      <button
-                        className="btn btn-success"
-                        onClick={() => window.location.href = `/events/${event.id}/donations`}
-                      >
-                        Registrar Donaciones
-                      </button>
-                    )}
-                  </>
-                )}
-
-                {!isEventPast(event.eventDate) && (
-                  <>
-                    {!userParticipations[event.id] ? (
-                      <button
-                        className="btn btn-success"
-                        onClick={() => handleJoinEvent(event.id)}
-                      >
-                        Unirse
-                      </button>
                     ) : (
-                      <button
-                        className="btn btn-warning"
-                        onClick={() => handleLeaveEvent(event.id)}
-                      >
-                        Salir
-                      </button>
+                      <>
+                        <button
+                          className="btn btn-success btn-small"
+                          onClick={() => window.location.href = `/events/${event.id}/donations`}
+                        >
+                          Registrar Donaciones
+                        </button>
+                        <button
+                          className="btn btn-info btn-small"
+                          onClick={() => window.location.href = `/events/${event.id}/donations-history`}
+                        >
+                          Ver Historial
+                        </button>
+                      </>
                     )}
-                  </>
-                )}
-
-                {canManageEvents && (
-                  <button
-                    className="btn btn-info"
-                    onClick={() => window.location.href = `/events/${event.id}/participants`}
-                  >
-                    Gestionar Participantes
-                  </button>
+                  </div>
                 )}
               </div>
             </div>

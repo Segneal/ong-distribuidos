@@ -53,7 +53,14 @@ export const authService = {
 };
 
 export const usersService = {
-  getUsers: () => api.get('/users'),
+  getUsers: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.includeInactive) {
+      queryParams.append('includeInactive', 'true');
+    }
+    const queryString = queryParams.toString();
+    return api.get(`/users${queryString ? `?${queryString}` : ''}`);
+  },
   createUser: (userData) => api.post('/users', userData),
   updateUser: (id, userData) => api.put(`/users/${id}`, userData),
   deleteUser: (id) => api.delete(`/users/${id}`),
@@ -69,13 +76,23 @@ export const inventoryService = {
 };
 
 export const eventsService = {
-  getEvents: () => api.get('/events'),
+  getEvents: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.includePastEvents) {
+      queryParams.append('includePastEvents', 'true');
+    }
+    const queryString = queryParams.toString();
+    return api.get(`/events${queryString ? `?${queryString}` : ''}`);
+  },
   createEvent: (eventData) => api.post('/events', eventData),
   updateEvent: (id, eventData) => api.put(`/events/${id}`, eventData),
   deleteEvent: (id) => api.delete(`/events/${id}`),
   getEvent: (id) => api.get(`/events/${id}`),
   addParticipant: (eventId, userId) => api.post(`/events/${eventId}/participants`, { userId }),
   removeParticipant: (eventId, userId) => api.delete(`/events/${eventId}/participants/${userId}`),
+  getParticipants: (eventId) => api.get(`/events/${eventId}/participants`),
+  registerDistributedDonations: (eventId, donations) => api.post(`/events/${eventId}/distributed-donations`, { donations }),
+  getDistributedDonations: (eventId) => api.get(`/events/${eventId}/distributed-donations`),
 };
 
 // Servicio para health check

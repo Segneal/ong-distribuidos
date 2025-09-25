@@ -236,9 +236,17 @@ const eventsTransformers = {
     distributedQuantity: grpcDistributedDonation.distributed_quantity,
     registeredBy: grpcDistributedDonation.registered_by,
     registrationDate: grpcDistributedDonation.registration_date,
+    registeredByName: grpcDistributedDonation.registered_by_name,
   }),
 
   fromGrpcDistributedDonationsResponse: (grpcResponse) => ({
+    success: grpcResponse.success,
+    message: grpcResponse.message,
+    distributedDonations: grpcResponse.distributed_donations ?
+      grpcResponse.distributed_donations.map(eventsTransformers.fromGrpcDistributedDonation) : [],
+  }),
+
+  fromGrpcGetDistributedDonationsResponse: (grpcResponse) => ({
     success: grpcResponse.success,
     message: grpcResponse.message,
     distributedDonations: grpcResponse.distributed_donations ?

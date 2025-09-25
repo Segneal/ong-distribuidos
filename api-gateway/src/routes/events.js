@@ -383,4 +383,40 @@ router.post('/:id/distributed-donations', requireRole(['PRESIDENTE', 'COORDINADO
   }
 });
 
+// GET /api/events/:id/distributed-donations - PRESIDENTE, COORDINADOR y VOLUNTARIO
+router.get('/:id/distributed-donations', requireRole(['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({
+        error: 'ID de evento inválido'
+      });
+    }
+
+    // Llamar al microservicio de eventos
+    const grpcRequest = { event_id: parseInt(id) };
+    const grpcResponse = await eventsService.getDistributedDonations(grpcRequest);
+
+    // Transformar respuesta
+    const response = eventsTransformers.fromGrpcGetDistributedDonationsResponse(grpcResponse);
+
+    if (response.success) {
+      res.status(200).json({
+        success: true,
+        message: response.message,
+        distributedDonations: response.distributedDonations
+      });
+    } else {
+      res.status(400).json({
+        error: response.message
+      });
+    }
+  } catch (error) {
+    console.error('Error al obtener donaciones repartidas:', error);
+    const errorResponse = handleGrpcError(error);
+    res.status(errorResponse.status).json(errorResponse.error);
+  }
+});
+
 module.exports = router;

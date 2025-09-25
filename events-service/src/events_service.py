@@ -43,6 +43,10 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
     
     def _create_distributed_donation_message(self, donation_data):
         """Create DistributedDonation message from database data"""
+        registered_by_name = ""
+        if donation_data.get('registered_by_name') and donation_data.get('registered_by_lastname'):
+            registered_by_name = f"{donation_data['registered_by_name']} {donation_data['registered_by_lastname']}"
+        
         return events_pb2.DistributedDonation(
             id=donation_data.get('id', 0),
             event_id=donation_data['event_id'],
@@ -50,7 +54,8 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
             donation_description=donation_data.get('donation_description', ''),
             distributed_quantity=donation_data['distributed_quantity'],
             registered_by=donation_data['registered_by'],
-            registration_date=str(datetime.now())
+            registration_date=str(donation_data.get('registration_date', datetime.now())),
+            registered_by_name=registered_by_name
         )
     
     def CreateEvent(self, request, context):
@@ -385,6 +390,30 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
         except Exception as e:
             print(f"Error en RegisterDistributedDonations: {e}")
             return events_pb2.RegisterDistributedDonationsResponse(
+                success=False,
+                message="Error interno del servidor",
+                distributed_donations=[]
+            )
+    
+    def GetDistributedDonations(self, request, context):
+        """Get donations distributed in an event"""
+        try:
+            distributed_donations = self.repository.get_distributed_donations(request.event_id)
+            
+            distributed_messages = []
+            for donation_data in distributed_donations:
+                distributed_message = self._create_distributed_donation_message(donation_data)
+                distributed_messages.append(distributed_message)
+            
+            return events_pb2.GetDistributedDonationsResponse(
+                success=True,
+                message=f"Se encontraron {len(distributed_messages)} donaciones repartidas",
+                distributed_donations=distributed_messages
+            )
+            
+        except Exception as e:
+            print(f"Error en GetDistributedDonations: {e}")
+            return events_pb2.GetDistributedDonationsResponse(
                 success=False,
                 message="Error interno del servidor",
                 distributed_donations=[]

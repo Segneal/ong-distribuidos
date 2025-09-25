@@ -41,7 +41,7 @@ const UserList = ({ onEditUser, onDeleteUser }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await usersService.getUsers();
+      const response = await usersService.getUsers({ includeInactive });
       
       if (response.data.success) {
         setUsers(response.data.users || []);

@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY proto/ ./proto/
 
+# Compilar archivos protobuf
+RUN python -m grpc_tools.protoc \
+    --proto_path=./proto \
+    --python_out=./src \
+    --grpc_python_out=./src \
+    ./proto/users.proto
+
 # Crear directorio para testing
 RUN mkdir -p testing/usuarios
 

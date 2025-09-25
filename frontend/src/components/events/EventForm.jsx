@@ -225,22 +225,6 @@ const EventForm = () => {
           />
         </div>
 
-        <div className="form-group">
-          <label>Participantes</label>
-          <div className="participants-selection">
-            {users.filter(u => u.active).map(user => (
-              <label key={user.id} className="participant-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedParticipants.includes(user.id)}
-                  onChange={() => handleParticipantToggle(user.id)}
-                />
-                {user.firstName} {user.lastName} ({user.role})
-              </label>
-            ))}
-          </div>
-        </div>
-
         <div className="form-actions">
           <button
             type="button"

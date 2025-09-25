@@ -103,7 +103,9 @@ const DistributedDonationsHistory = () => {
                 <div className="donation-meta-info">
                   <div className="registration-info">
                     <span className="meta-label">Registrado por:</span>
-                    <span className="meta-value">Usuario ID {donation.registeredBy}</span>
+                    <span className="meta-value">
+                      {donation.registeredByName || `Usuario ID ${donation.registeredBy}`}
+                    </span>
                   </div>
                   <div className="registration-date">
                     <span className="meta-label">Fecha:</span>

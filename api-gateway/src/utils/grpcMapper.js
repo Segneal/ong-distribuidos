@@ -236,6 +236,7 @@ const eventsTransformers = {
     distributedQuantity: grpcDistributedDonation.distributed_quantity,
     registeredBy: grpcDistributedDonation.registered_by,
     registrationDate: grpcDistributedDonation.registration_date,
+    registeredByName: grpcDistributedDonation.registered_by_name,
   }),
 
   fromGrpcDistributedDonationsResponse: (grpcResponse) => ({

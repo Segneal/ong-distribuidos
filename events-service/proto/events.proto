@@ -63,6 +63,7 @@ message DistributedDonation {
   int32 distributed_quantity = 5;
   int32 registered_by = 6;
   string registration_date = 7;
+  string registered_by_name = 8;
 }
 
 // Mensajes de request para CreateEvent

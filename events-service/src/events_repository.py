@@ -275,7 +275,8 @@ class EventsRepository:
                 result = self._execute_query(
                     insert_query, 
                     (event_id, donation_id, quantity, user_id), 
-                    fetch_one=True
+                    fetch_one=True,
+                    commit=True
                 )
                 
                 if result:
@@ -287,7 +288,7 @@ class EventsRepository:
                             usuario_modificacion = %s
                         WHERE id = %s
                     """
-                    update_result = self._execute_query(update_query, (quantity, user_id, donation_id))
+                    update_result = self._execute_query(update_query, (quantity, user_id, donation_id), commit=True)
                     print(f"Updated donation {donation_id}: decreased by {quantity}. Update result: {update_result}")
                 
                 if result:
@@ -324,7 +325,7 @@ class EventsRepository:
                 SELECT dr.id, dr.evento_id as event_id, dr.donacion_id as donation_id, 
                        dr.cantidad_repartida as distributed_quantity, dr.usuario_registro as registered_by,
                        dr.fecha_registro as registration_date, d.categoria, d.descripcion as donation_description,
-                       u.nombre, u.apellido
+                       u.nombre as registered_by_name, u.apellido as registered_by_lastname
                 FROM donaciones_repartidas dr
                 JOIN donaciones d ON dr.donacion_id = d.id
                 JOIN usuarios u ON dr.usuario_registro = u.id

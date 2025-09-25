@@ -43,6 +43,10 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
     
     def _create_distributed_donation_message(self, donation_data):
         """Create DistributedDonation message from database data"""
+        registered_by_name = ""
+        if donation_data.get('registered_by_name') and donation_data.get('registered_by_lastname'):
+            registered_by_name = f"{donation_data['registered_by_name']} {donation_data['registered_by_lastname']}"
+        
         return events_pb2.DistributedDonation(
             id=donation_data.get('id', 0),
             event_id=donation_data['event_id'],
@@ -50,7 +54,8 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
             donation_description=donation_data.get('donation_description', ''),
             distributed_quantity=donation_data['distributed_quantity'],
             registered_by=donation_data['registered_by'],
-            registration_date=str(datetime.now())
+            registration_date=str(donation_data.get('registration_date', datetime.now())),
+            registered_by_name=registered_by_name
         )
     
     def CreateEvent(self, request, context):

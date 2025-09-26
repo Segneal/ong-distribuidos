@@ -19,16 +19,19 @@ import {
 } from '@mui/material';
 import {
   Edit as EditIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Email as EmailIcon
 } from '@mui/icons-material';
 import { usersService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import SendCredentialsModal from './SendCredentialsModal';
 
 const UserList = ({ onEditUser, onDeleteUser }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [credentialsModal, setCredentialsModal] = useState({ open: false, user: null });
   const { user } = useAuth();
 
 
@@ -75,6 +78,14 @@ const UserList = ({ onEditUser, onDeleteUser }) => {
         setError(err.response?.data?.error || 'Error al eliminar usuario');
       }
     }
+  };
+
+  const handleSendCredentials = (user) => {
+    setCredentialsModal({ open: true, user });
+  };
+
+  const handleCloseCredentialsModal = () => {
+    setCredentialsModal({ open: false, user: null });
   };
 
 
@@ -191,6 +202,16 @@ const UserList = ({ onEditUser, onDeleteUser }) => {
                             <EditIcon />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Enviar email de bienvenida">
+                          <IconButton
+                            size="small"
+                            color="info"
+                            onClick={() => handleSendCredentials(user)}
+                            disabled={!user.isActive || !user.email}
+                          >
+                            <EmailIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Eliminar usuario">
                           <IconButton
                             size="small"
@@ -216,6 +237,12 @@ const UserList = ({ onEditUser, onDeleteUser }) => {
           </Box>
         </Paper>
       )}
+
+      <SendCredentialsModal
+        open={credentialsModal.open}
+        onClose={handleCloseCredentialsModal}
+        user={credentialsModal.user}
+      />
     </Box>
   );
 };

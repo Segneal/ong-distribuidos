@@ -128,6 +128,7 @@ services:
       - USER_SERVICE_URL=user-service:50051
       - INVENTORY_SERVICE_URL=inventory-service:50052
       - EVENTS_SERVICE_URL=events-service:50053
+      - EMAIL_SERVICE_URL=http://email-service:3002
       - JWT_SECRET=your-secret-key-change-in-production
       - JWT_EXPIRES_IN=15m
       - REFRESH_TOKEN_EXPIRES_IN=7d
@@ -135,6 +136,40 @@ services:
       - user-service
       - inventory-service
       - events-service
+      - email-service
+    networks:
+      - ong_network
+
+  # MailHog - Servidor SMTP de prueba con UI web
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ong_mailhog
+    ports:
+      - "1025:1025"  # Puerto SMTP
+      - "8025:8025"  # Puerto Web UI
+    networks:
+      - ong_network
+
+  # Servicio de Email
+  email-service:
+    build:
+      context: ./email-service
+      dockerfile: Dockerfile
+    container_name: ong_email_service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=development
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_SECURE=false
+      - SMTP_USER=
+      - SMTP_PASS=
+      - SMTP_FROM=noreply@empujecomunitario.org
+      - FRONTEND_URL=http://localhost:3001
+    depends_on:
+      - mailhog
     networks:
       - ong_network
 

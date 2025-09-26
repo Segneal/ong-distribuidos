@@ -95,6 +95,11 @@ export const eventsService = {
   getDistributedDonations: (eventId) => api.get(`/events/${eventId}/distributed-donations`),
 };
 
+export const emailService = {
+  sendWelcomeEmail: (emailData) => api.post('/email/welcome', emailData),
+  testEmailConfig: () => api.get('/email/test'),
+};
+
 // Servicio para health check
 export const healthService = {
   check: () => api.get('/health', { baseURL: 'http://localhost:3000' }),

@@ -175,3 +175,30 @@ INSERT INTO eventos_externos (organizacion_id, evento_id, nombre, descripcion, f
 ('fundacion-esperanza', 'EVT-2025-001', 'Maratón Solidaria', 'Carrera benéfica para recaudar fondos', '2025-02-10 08:00:00'),
 ('ong-solidaria', 'EVT-2025-002', 'Taller de Reciclaje', 'Enseñanza de técnicas de reciclaje', '2025-02-15 15:00:00'),
 ('centro-comunitario', 'EVT-2025-003', 'Feria de Salud', 'Controles médicos gratuitos', '2025-02-20 09:00:00');
+
+-- Tabla para solicitudes de donaciones propias
+CREATE TABLE IF NOT EXISTS solicitudes_donaciones (
+    id SERIAL PRIMARY KEY,
+    solicitud_id VARCHAR(100) UNIQUE NOT NULL,
+    donaciones JSONB NOT NULL,
+    estado VARCHAR(20) DEFAULT 'ACTIVA' CHECK (estado IN ('ACTIVA', 'DADA_DE_BAJA', 'COMPLETADA')),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_creacion INTEGER REFERENCES usuarios(id),
+    usuario_actualizacion INTEGER REFERENCES usuarios(id),
+    notas TEXT
+);
+
+-- Índices para solicitudes de donaciones
+CREATE INDEX IF NOT EXISTS idx_solicitudes_donaciones_estado ON solicitudes_donaciones(estado);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_donaciones_fecha ON solicitudes_donaciones(fecha_creacion);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_donaciones_gin ON solicitudes_donaciones USING gin(donaciones);
+
+-- Trigger para actualizar fecha_actualizacion en solicitudes_donaciones
+CREATE TRIGGER IF NOT EXISTS trigger_solicitudes_donaciones_fecha_actualizacion
+    BEFORE UPDATE ON solicitudes_donaciones
+    FOR EACH ROW
+    EXECUTE FUNCTION update_fecha_actualizacion();
+
+-- Ejecutar migración para tablas adicionales de red de ONGs
+\i network_tables_migration.sql

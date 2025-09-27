@@ -45,12 +45,14 @@ const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const eventsRoutes = require('./routes/events');
+const donationRequestsRoutes = require('./routes/donationRequests');
 
 // Configurar rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/donation-requests', donationRequestsRoutes);
 
 // Ruta por defecto
 app.get('/', (req, res) => {
@@ -62,7 +64,8 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       inventory: '/api/inventory',
-      events: '/api/events'
+      events: '/api/events',
+      donationRequests: '/api/donation-requests'
     }
   });
 });

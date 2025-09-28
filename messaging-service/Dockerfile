@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY docker-entrypoint.sh .
+
+# Make entrypoint executable
+RUN chmod +x docker-entrypoint.sh
+
+EXPOSE 50054 8000
+
+ENTRYPOINT ["./docker-entrypoint.sh"]

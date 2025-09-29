@@ -110,17 +110,20 @@ class BaseProducer:
         from ..config import Topics
         return self._publish_message(Topics.DONATION_REQUESTS, message)
     
-    def publish_donation_transfer(self, target_org: str, request_id: str, donations: list) -> bool:
+    def publish_donation_transfer(self, target_org: str, transfer_data: Dict[str, Any]) -> bool:
         """Publish donation transfer message"""
         message = {
             "type": "donation_transfer",
-            "request_id": request_id,
-            "donor_organization": self.organization_id,
-            "donations": donations,
-            "timestamp": datetime.utcnow().isoformat()
+            "transfer_id": transfer_data.get("transfer_id"),
+            "request_id": transfer_data.get("request_id"),
+            "source_organization": transfer_data.get("source_organization"),
+            "target_organization": transfer_data.get("target_organization"),
+            "donations": transfer_data.get("donations"),
+            "timestamp": transfer_data.get("timestamp"),
+            "user_id": transfer_data.get("user_id")
         }
         
-        if not self._validate_message(message, ["request_id", "donor_organization", "donations"]):
+        if not self._validate_message(message, ["transfer_id", "request_id", "donations"]):
             return False
         
         from ..config import Topics

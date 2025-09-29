@@ -1,403 +1,213 @@
 """
-Transfer Service for ONG Network Messaging System
-Handles donation transfer operations with inventory validation
+Transfer Service for managing donation transfers
 """
-import json
+import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Tuple, Optional
 import structlog
 
-from ..producers.transfer_producer import DonationTransferProducer
-from ..database.manager import DatabaseManager
-from ..config import settings
+from messaging.config import settings
+from messaging.database.connection import get_db_connection
+from messaging.producers.base_producer import BaseProducer
 
 logger = structlog.get_logger(__name__)
 
 
 class TransferService:
-    """Service for handling donation transfers with inventory validation"""
+    """Service for managing donation transfers"""
     
     def __init__(self):
-        self.producer = DonationTransferProducer()
-        self.db_manager = DatabaseManager()
+        self.producer = BaseProducer()
     
-    def transfer_donations(
-        self, 
-        target_org: str, 
-        request_id: str, 
-        donations: List[Dict[str, Any]], 
-        transferred_by: int
-    ) -> Tuple[bool, str]:
+    def transfer_donations(self, target_organization: str, request_id: str, donations: List[Dict], user_id: int) -> Tuple[bool, str, Optional[str]]:
         """
-        Transfer donations to target organization with inventory validation
+        Transfer donations to another organization
         
         Args:
-            target_org: Target organization ID
-            request_id: Original request ID being fulfilled
-            donations: List of donation items with donation_id and quantity
-            transferred_by: User ID performing the transfer
+            target_organization: ID of the target organization
+            request_id: ID of the donation request being fulfilled
+            donations: List of donation items to transfer
+            user_id: ID of the user making the transfer
             
         Returns:
-            Tuple[bool, str]: (success, message)
+            Tuple of (success, message, transfer_id)
         """
         try:
-            logger.info(
-                "Starting donation transfer",
-                target_org=target_org,
-                request_id=request_id,
-                donations_count=len(donations),
-                transferred_by=transferred_by
-            )
+            # Generate transfer ID
+            transfer_id = f"transfer-{settings.organization_id}-{uuid.uuid4().hex[:8]}"
             
-            # Validate inputs
-            if not target_org or not request_id or not donations:
-                return False, "Parámetros de transferencia inválidos"
-            
-            # Validate and prepare transfer data
-            transfer_items, validation_error = self._validate_and_prepare_transfer(donations)
-            if validation_error:
-                return False, validation_error
-            
-            # Check inventory availability
-            availability_check, availability_error = self._check_inventory_availability(donations)
-            if not availability_check:
-                return False, availability_error
-            
-            # Execute transfer (reduce inventory and publish message)
-            success, error_msg = self._execute_transfer(
-                target_org, request_id, donations, transfer_items, transferred_by
-            )
-            
-            if success:
-                logger.info(
-                    "Donation transfer completed successfully",
-                    target_org=target_org,
-                    request_id=request_id
-                )
-                return True, "Transferencia completada exitosamente"
-            else:
-                return False, error_msg
-            
-        except Exception as e:
-            logger.error(
-                "Error in donation transfer",
-                error=str(e),
-                error_type=type(e).__name__,
-                target_org=target_org,
-                request_id=request_id
-            )
-            return False, f"Error interno: {str(e)}"
-    
-    def _validate_and_prepare_transfer(
-        self, donations: List[Dict[str, Any]]
-    ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-        """
-        Validate donation transfer data and prepare transfer items
-        
-        Args:
-            donations: List of donation items with donation_id and quantity
-            
-        Returns:
-            Tuple[Optional[List], Optional[str]]: (transfer_items, error_message)
-        """
-        try:
-            transfer_items = []
+            # Validate donations
+            if not donations or not isinstance(donations, list):
+                return False, "Donations list is required", None
             
             for donation in donations:
-                # Validate required fields
-                if 'donation_id' not in donation or 'quantity' not in donation:
-                    return None, "Cada donación debe tener donation_id y quantity"
+                if not donation.get('donation_id') or not donation.get('quantity'):
+                    return False, "Each donation must have donation_id and quantity", None
                 
-                # Validate quantity is positive
-                try:
-                    quantity = int(donation['quantity'])
-                    if quantity <= 0:
-                        return None, f"La cantidad debe ser positiva: {quantity}"
-                except (ValueError, TypeError):
-                    return None, f"Cantidad inválida: {donation['quantity']}"
-                
-                # Get donation details from database
-                donation_details = self._get_donation_details(donation['donation_id'])
-                if not donation_details:
-                    return None, f"Donación no encontrada: {donation['donation_id']}"
-                
-                # Prepare transfer item
-                transfer_item = {
-                    'category': donation_details['categoria'],
-                    'description': donation_details['descripcion'],
-                    'quantity': f"{quantity} unidades"
-                }
-                transfer_items.append(transfer_item)
+                if donation.get('quantity', 0) <= 0:
+                    return False, "Donation quantity must be positive", None
             
-            return transfer_items, None
-            
-        except Exception as e:
-            logger.error("Error validating transfer data", error=str(e))
-            return None, f"Error validando datos: {str(e)}"
-    
-    def _check_inventory_availability(
-        self, donations: List[Dict[str, Any]]
-    ) -> Tuple[bool, Optional[str]]:
-        """
-        Check if all donations have sufficient inventory
-        
-        Args:
-            donations: List of donation items with donation_id and quantity
-            
-        Returns:
-            Tuple[bool, Optional[str]]: (available, error_message)
-        """
-        try:
-            conn = self.db_manager.get_connection()
-            if not conn:
-                return False, "Error de conexión a base de datos"
-            
+            # Store transfer in database
+            conn = get_db_connection()
             cursor = conn.cursor()
             
             try:
+                # Check if we have enough inventory for each donation
                 for donation in donations:
-                    donation_id = donation['donation_id']
-                    requested_quantity = int(donation['quantity'])
+                    cursor.execute("""
+                        SELECT quantity FROM donations 
+                        WHERE id = %s AND organization_id = %s
+                    """, (donation['donation_id'], settings.organization_id))
                     
-                    # Check current inventory
-                    query = """
-                        SELECT cantidad, descripcion 
-                        FROM donaciones 
-                        WHERE id = %s AND eliminado = FALSE
-                    """
-                    cursor.execute(query, (donation_id,))
-                    result = cursor.fetchone()
+                    row = cursor.fetchone()
+                    if not row:
+                        return False, f"Donation {donation['donation_id']} not found", None
                     
-                    if not result:
-                        return False, f"Donación no encontrada: {donation_id}"
+                    available_quantity = row[0]
+                    requested_quantity = donation['quantity']
                     
-                    current_quantity, description = result
-                    
-                    if current_quantity < requested_quantity:
-                        return False, (
-                            f"Inventario insuficiente para '{description}': "
-                            f"disponible {current_quantity}, solicitado {requested_quantity}"
-                        )
+                    if available_quantity < requested_quantity:
+                        return False, f"Insufficient quantity for donation {donation['donation_id']}. Available: {available_quantity}, Requested: {requested_quantity}", None
                 
-                return True, None
+                # Create transfer record
+                cursor.execute("""
+                    INSERT INTO transferencias_donaciones 
+                    (transferencia_id, organizacion_origen, organizacion_destino, solicitud_id, donaciones, fecha_transferencia, usuario_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    transfer_id,
+                    settings.organization_id,
+                    target_organization,
+                    request_id,
+                    str(donations),  # Store as JSON string
+                    datetime.now(),
+                    user_id
+                ))
                 
-            finally:
-                cursor.close()
-                conn.close()
-            
-        except Exception as e:
-            logger.error("Error checking inventory availability", error=str(e))
-            return False, f"Error verificando inventario: {str(e)}"
-    
-    def _get_donation_details(self, donation_id: int) -> Optional[Dict[str, Any]]:
-        """Get donation details from database"""
-        try:
-            conn = self.db_manager.get_connection()
-            if not conn:
-                return None
-            
-            cursor = conn.cursor()
-            
-            try:
-                query = """
-                    SELECT categoria, descripcion, cantidad 
-                    FROM donaciones 
-                    WHERE id = %s AND eliminado = FALSE
-                """
-                cursor.execute(query, (donation_id,))
-                result = cursor.fetchone()
-                
-                if result:
-                    return {
-                        'categoria': result[0],
-                        'descripcion': result[1],
-                        'cantidad': result[2]
-                    }
-                return None
-                
-            finally:
-                cursor.close()
-                conn.close()
-            
-        except Exception as e:
-            logger.error("Error getting donation details", error=str(e))
-            return None
-    
-    def _execute_transfer(
-        self,
-        target_org: str,
-        request_id: str,
-        donations: List[Dict[str, Any]],
-        transfer_items: List[Dict[str, Any]],
-        transferred_by: int
-    ) -> Tuple[bool, str]:
-        """
-        Execute the transfer by reducing inventory and publishing message
-        
-        Args:
-            target_org: Target organization ID
-            request_id: Original request ID
-            donations: Original donation items with IDs
-            transfer_items: Prepared transfer items for message
-            transferred_by: User performing transfer
-            
-        Returns:
-            Tuple[bool, str]: (success, error_message)
-        """
-        try:
-            conn = self.db_manager.get_connection()
-            if not conn:
-                return False, "Error de conexión a base de datos"
-            
-            cursor = conn.cursor()
-            
-            try:
-                # Start transaction
-                conn.autocommit = False
-                
-                # Reduce inventory quantities
+                # Update inventory quantities
                 for donation in donations:
-                    donation_id = donation['donation_id']
-                    quantity_to_transfer = int(donation['quantity'])
-                    
-                    # Update donation quantity
-                    update_query = """
-                        UPDATE donaciones 
-                        SET cantidad = cantidad - %s,
-                            fecha_modificacion = CURRENT_TIMESTAMP,
-                            usuario_modificacion = %s
-                        WHERE id = %s AND eliminado = FALSE
-                    """
-                    cursor.execute(update_query, (quantity_to_transfer, transferred_by, donation_id))
-                    
-                    if cursor.rowcount == 0:
-                        raise Exception(f"No se pudo actualizar la donación {donation_id}")
+                    cursor.execute("""
+                        UPDATE donations 
+                        SET quantity = quantity - %s 
+                        WHERE id = %s AND organization_id = %s
+                    """, (donation['quantity'], donation['donation_id'], settings.organization_id))
                 
-                # Record transfer history
-                self._record_outgoing_transfer_history(
-                    cursor, target_org, request_id, transfer_items, transferred_by
-                )
-                
-                # Commit database changes
                 conn.commit()
                 
-                # Publish transfer message to Kafka
-                publish_success = self.producer.publish_transfer(
-                    target_org, request_id, transfer_items
+                logger.info(
+                    "Donation transfer stored in database",
+                    transfer_id=transfer_id,
+                    target_organization=target_organization,
+                    donations_count=len(donations)
                 )
-                
-                if not publish_success:
-                    logger.error("Failed to publish transfer message, but inventory was updated")
-                    return False, "Error publicando mensaje de transferencia"
-                
-                logger.info("Transfer executed successfully")
-                return True, "Transferencia ejecutada exitosamente"
                 
             except Exception as e:
                 conn.rollback()
-                logger.error("Error executing transfer, rolled back", error=str(e))
-                return False, f"Error ejecutando transferencia: {str(e)}"
-            
-        except Exception as e:
-            logger.error("Error in transfer execution", error=str(e))
-            return False, f"Error en ejecución: {str(e)}"
-        finally:
-            if 'cursor' in locals() and cursor:
+                logger.error("Failed to store donation transfer in database", error=str(e))
+                return False, f"Database error: {str(e)}", None
+            finally:
                 cursor.close()
-            if 'conn' in locals() and conn:
                 conn.close()
-    
-    def _record_outgoing_transfer_history(
-        self,
-        cursor,
-        target_org: str,
-        request_id: str,
-        transfer_items: List[Dict[str, Any]],
-        transferred_by: int
-    ):
-        """Record outgoing transfer in history table"""
-        try:
-            query = """
-                INSERT INTO transferencias_donaciones 
-                (tipo, organizacion_contraparte, solicitud_id, donaciones, usuario_registro, notas)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """
             
-            notas = f"Transferencia enviada a {target_org}"
+            # Publish to Kafka
+            transfer_data = {
+                'transfer_id': transfer_id,
+                'source_organization': settings.organization_id,
+                'target_organization': target_organization,
+                'request_id': request_id,
+                'donations': donations,
+                'timestamp': datetime.now().isoformat(),
+                'user_id': user_id
+            }
             
-            cursor.execute(query, (
-                'ENVIADA',
-                target_org,
-                request_id,
-                json.dumps(transfer_items),
-                transferred_by,
-                notas
-            ))
+            success = self.producer.publish_donation_transfer(target_organization, transfer_data)
             
+            if success:
+                logger.info(
+                    "Donation transfer published successfully",
+                    transfer_id=transfer_id,
+                    target_organization=target_organization
+                )
+                return True, "Donation transfer completed successfully", transfer_id
+            else:
+                logger.error("Failed to publish donation transfer to Kafka")
+                return False, "Failed to publish transfer to network", None
+                
         except Exception as e:
-            logger.error("Error recording outgoing transfer history", error=str(e))
-            raise
+            logger.error("Error transferring donations", error=str(e))
+            return False, f"Internal error: {str(e)}", None
     
-    def get_transfer_history(
-        self, 
-        organization_id: Optional[str] = None,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    def get_transfer_history(self, organization_id: Optional[str] = None, limit: int = 50) -> List[Dict]:
         """
-        Get transfer history
+        Get transfer history for an organization
         
         Args:
-            organization_id: Filter by organization (optional)
-            limit: Maximum number of records to return
+            organization_id: ID of the organization (defaults to current organization)
+            limit: Maximum number of transfers to return
             
         Returns:
             List of transfer records
         """
         try:
-            conn = self.db_manager.get_connection()
-            if not conn:
-                return []
+            if organization_id is None:
+                organization_id = settings.organization_id
             
+            conn = get_db_connection()
             cursor = conn.cursor()
             
             try:
-                query = """
-                    SELECT id, tipo, organizacion_contraparte, solicitud_id, 
-                           donaciones, estado, fecha_transferencia, notas
-                    FROM transferencias_donaciones
-                """
-                params = []
+                cursor.execute("""
+                    SELECT 
+                        transferencia_id as transfer_id,
+                        organizacion_origen as source_organization,
+                        organizacion_destino as target_organization,
+                        solicitud_id as request_id,
+                        donaciones as donations,
+                        fecha_transferencia as timestamp,
+                        usuario_id as user_id
+                    FROM transferencias_donaciones 
+                    WHERE organizacion_origen = %s OR organizacion_destino = %s
+                    ORDER BY fecha_transferencia DESC
+                    LIMIT %s
+                """, (organization_id, organization_id, limit))
                 
-                if organization_id:
-                    query += " WHERE organizacion_contraparte = %s"
-                    params.append(organization_id)
-                
-                query += " ORDER BY fecha_transferencia DESC LIMIT %s"
-                params.append(limit)
-                
-                cursor.execute(query, tuple(params))
-                results = cursor.fetchall()
+                rows = cursor.fetchall()
                 
                 transfers = []
-                for row in results:
-                    transfer = {
-                        'id': row[0],
-                        'tipo': row[1],
-                        'organizacion_contraparte': row[2],
-                        'solicitud_id': row[3],
-                        'donaciones': json.loads(row[4]) if row[4] else [],
-                        'estado': row[5],
-                        'fecha_transferencia': row[6].isoformat() if row[6] else None,
-                        'notas': row[7]
-                    }
-                    transfers.append(transfer)
+                for row in rows:
+                    # Parse donations JSON
+                    donations_str = row[4]
+                    try:
+                        if isinstance(donations_str, str):
+                            import json
+                            donations = json.loads(donations_str)
+                        else:
+                            donations = donations_str
+                    except:
+                        donations = []
+                    
+                    transfers.append({
+                        'transfer_id': row[0],
+                        'source_organization': row[1],
+                        'target_organization': row[2],
+                        'request_id': row[3],
+                        'donations': donations,
+                        'timestamp': row[5].isoformat() if row[5] else None,
+                        'user_id': row[6]
+                    })
+                
+                logger.info(
+                    "Retrieved transfer history",
+                    count=len(transfers),
+                    organization_id=organization_id
+                )
                 
                 return transfers
                 
             finally:
                 cursor.close()
                 conn.close()
-            
+                
         except Exception as e:
             logger.error("Error getting transfer history", error=str(e))
             return []

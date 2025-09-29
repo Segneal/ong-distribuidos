@@ -3,6 +3,7 @@
 Main entry point for the ONG Network Messaging Service
 """
 import asyncio
+import os
 import signal
 import sys
 import logging
@@ -467,6 +468,221 @@ async def get_event_adhesions(data: dict):
         raise
     except Exception as e:
         logger.error("Error in get_event_adhesions API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/createDonationRequest")
+async def create_donation_request(data: dict):
+    """Create a new donation request"""
+    try:
+        from messaging.services.request_service import RequestService
+        
+        donations = data.get('donations', [])
+        user_id = data.get('userId')
+        notes = data.get('notes')
+        
+        logger.info(
+            "Creating donation request via API",
+            donations_count=len(donations),
+            user_id=user_id
+        )
+        
+        # Validate donations
+        if not donations or not isinstance(donations, list):
+            raise HTTPException(status_code=400, detail="Donations list is required")
+        
+        # Validate user_id
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Create donation request
+        request_service = RequestService()
+        success, message, request_id = request_service.create_donation_request(donations, user_id, notes)
+        
+        if success:
+            return {
+                "success": True,
+                "message": message,
+                "request_id": request_id
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in create_donation_request API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getExternalRequests")
+async def get_external_requests(data: dict = None):
+    """Get external donation requests from other organizations"""
+    try:
+        from messaging.services.request_service import RequestService
+        
+        if data is None:
+            data = {}
+        
+        active_only = data.get('activeOnly', True)
+        
+        logger.info("Getting external donation requests via API", active_only=active_only)
+        
+        request_service = RequestService()
+        requests = request_service.get_external_requests(active_only=active_only)
+        
+        return {
+            "success": True,
+            "requests": requests
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_external_requests API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getActiveRequests")
+async def get_active_requests(data: dict = None):
+    """Get our own active donation requests"""
+    try:
+        from messaging.services.request_service import RequestService
+        
+        logger.info("Getting active donation requests via API")
+        
+        request_service = RequestService()
+        requests = request_service.get_active_requests()
+        
+        return {
+            "success": True,
+            "requests": requests
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_active_requests API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/cancelDonationRequest")
+async def cancel_donation_request(data: dict):
+    """Cancel a donation request"""
+    try:
+        from messaging.services.request_service import RequestService
+        
+        request_id = data.get('requestId')
+        user_id = data.get('userId')
+        
+        logger.info(
+            "Canceling donation request via API",
+            request_id=request_id,
+            user_id=user_id
+        )
+        
+        # Validate required fields
+        if not request_id:
+            raise HTTPException(status_code=400, detail="Request ID is required")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Cancel donation request
+        request_service = RequestService()
+        success, message = request_service.cancel_donation_request(request_id, user_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in cancel_donation_request API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/transferDonations")
+async def transfer_donations(data: dict):
+    """Transfer donations to another organization"""
+    try:
+        from messaging.services.transfer_service import TransferService
+        
+        target_organization = data.get('targetOrganization')
+        request_id = data.get('requestId')
+        donations = data.get('donations', [])
+        user_id = data.get('userId')
+        
+        logger.info(
+            "Transferring donations via API",
+            target_organization=target_organization,
+            request_id=request_id,
+            donations_count=len(donations),
+            user_id=user_id
+        )
+        
+        # Validate required fields
+        if not target_organization:
+            raise HTTPException(status_code=400, detail="Target organization is required")
+        
+        if not request_id:
+            raise HTTPException(status_code=400, detail="Request ID is required")
+        
+        if not donations or not isinstance(donations, list):
+            raise HTTPException(status_code=400, detail="Donations list is required")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Transfer donations
+        transfer_service = TransferService()
+        success, message, transfer_id = transfer_service.transfer_donations(
+            target_organization, request_id, donations, user_id
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": message,
+                "transfer_id": transfer_id
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in transfer_donations API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getTransferHistory")
+async def get_transfer_history(data: dict):
+    """Get transfer history for an organization"""
+    try:
+        from messaging.services.transfer_service import TransferService
+        
+        organization_id = data.get('organizationId')
+        limit = data.get('limit', 50)
+        
+        logger.info(
+            "Getting transfer history via API",
+            organization_id=organization_id,
+            limit=limit
+        )
+        
+        # Transfer service
+        transfer_service = TransferService()
+        transfers = transfer_service.get_transfer_history(organization_id, limit)
+        
+        return {
+            "success": True,
+            "transfers": transfers
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_transfer_history API", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

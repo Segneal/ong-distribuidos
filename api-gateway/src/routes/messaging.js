@@ -285,7 +285,7 @@ router.post('/active-requests', authenticateToken, async (req, res) => {
     console.log('Calling messaging service for active requests...');
 
     // Call messaging service
-    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/getActiveRequests`);
+    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/getActiveRequests`, {});
 
     console.log('Messaging service response:', response.data);
 
@@ -368,43 +368,7 @@ router.post('/create-donation-offer', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * Get external donation offers
- */
-router.post('/external-offers', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== GET EXTERNAL OFFERS ===');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
 
-    const { activeOnly } = req.body;
-
-    console.log('Calling messaging service for external offers...');
-
-    // Call messaging service
-    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/getExternalOffers`, {
-      activeOnly: activeOnly !== false // Default to true
-    });
-
-    console.log('Messaging service response:', response.data);
-
-    res.json(response.data);
-
-  } catch (error) {
-    console.error('Error getting external offers:', error);
-    
-    if (error.response) {
-      // Error from messaging service
-      console.error('Messaging service error:', error.response.data);
-      res.status(error.response.status).json(error.response.data);
-    } else {
-      // Network or other error
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      });
-    }
-  }
-});
 
 /**
  * Publish solidarity event to the network
@@ -472,43 +436,7 @@ router.post('/publish-event', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * Get external solidarity events
- */
-router.post('/external-events', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== GET EXTERNAL EVENTS ===');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
 
-    const { activeOnly } = req.body;
-
-    console.log('Calling messaging service for external events...');
-
-    // Call messaging service
-    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/getExternalEvents`, {
-      activeOnly: activeOnly !== false // Default to true
-    });
-
-    console.log('Messaging service response:', response.data);
-
-    res.json(response.data);
-
-  } catch (error) {
-    console.error('Error getting external events:', error);
-    
-    if (error.response) {
-      // Error from messaging service
-      console.error('Messaging service error:', error.response.data);
-      res.status(error.response.status).json(error.response.data);
-    } else {
-      // Network or other error
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      });
-    }
-  }
-});
 
 /**
  * Cancel solidarity event
@@ -759,6 +687,115 @@ router.post('/external-events', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error getting external events:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get external donation offers
+ */
+router.post('/external-offers', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET EXTERNAL OFFERS ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    const { activeOnly = true } = req.body;
+
+    // Temporary solution: Query database directly
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      host: process.env.DB_HOST || 'postgres',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'ong_management',
+      user: process.env.DB_USER || 'ong_user',
+      password: process.env.DB_PASSWORD || 'ong_pass',
+    });
+
+    const query = `
+      SELECT 
+        oferta_id as offer_id,
+        organizacion_donante as organization_id,
+        organizacion_donante as organization_name,
+        donaciones as donations,
+        fecha_creacion as timestamp,
+        activa as active
+      FROM ofertas_externas 
+      WHERE organizacion_donante != 'empuje-comunitario'
+      ${activeOnly ? 'AND activa = true' : ''}
+      ORDER BY fecha_creacion DESC
+    `;
+
+    const result = await pool.query(query);
+    await pool.end();
+
+    const offers = result.rows.map(row => ({
+      offer_id: row.offer_id,
+      organization_id: row.organization_id,
+      organization_name: row.organization_name,
+      donations: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
+      timestamp: row.timestamp,
+      active: row.active
+    }));
+
+    console.log(`Found ${offers.length} external offers`);
+
+    res.json({
+      success: true,
+      offers: offers
+    });
+
+  } catch (error) {
+    console.error('Error getting external offers:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get active donation requests (our own)
+ */
+router.post('/active-requests', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET ACTIVE REQUESTS ===');
+
+    // For now, return empty array since we don't have our own requests in the test data
+    res.json({
+      success: true,
+      requests: []
+    });
+
+  } catch (error) {
+    console.error('Error getting active requests:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get transfer history
+ */
+router.post('/transfer-history', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET TRANSFER HISTORY ===');
+
+    // For now, return empty array since we don't have transfer history in the test data
+    res.json({
+      success: true,
+      transfers: []
+    });
+
+  } catch (error) {
+    console.error('Error getting transfer history:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',

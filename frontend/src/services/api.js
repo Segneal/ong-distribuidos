@@ -100,6 +100,32 @@ export const emailService = {
   testEmailConfig: () => api.get('/email/test'),
 };
 
+export const messagingService = {
+  // Donation requests
+  createDonationRequest: (requestData) => api.post('/messaging/create-donation-request', requestData),
+  getExternalRequests: (params = {}) => api.post('/messaging/external-requests', params),
+  cancelDonationRequest: (requestId) => api.post('/messaging/cancel-donation-request', { requestId }),
+  getActiveRequests: () => api.post('/messaging/active-requests'),
+  
+  // Donation transfers
+  transferDonations: (transferData) => api.post('/messaging/transfer-donations', transferData),
+  getTransferHistory: (params = {}) => api.post('/messaging/transfer-history', params),
+  
+  // Donation offers
+  createDonationOffer: (offerData) => api.post('/messaging/create-donation-offer', offerData),
+  getExternalOffers: (params = {}) => api.post('/messaging/external-offers', params),
+  
+  // Events
+  publishEvent: (eventData) => api.post('/messaging/publish-event', eventData),
+  getExternalEvents: (params = {}) => api.post('/messaging/external-events', params),
+  cancelEvent: (eventId) => api.post('/messaging/cancel-event', { eventId }),
+  
+  // Event adhesions
+  createEventAdhesion: (adhesionData) => api.post('/messaging/create-event-adhesion', adhesionData),
+  getVolunteerAdhesions: () => api.post('/messaging/volunteer-adhesions'),
+  getEventAdhesions: (eventId) => api.post('/messaging/event-adhesions', { eventId }),
+};
+
 // Servicio para health check
 export const healthService = {
   check: () => api.get('/health', { baseURL: 'http://localhost:3000' }),

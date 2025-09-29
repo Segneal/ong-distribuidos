@@ -83,12 +83,14 @@ CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial_mensajes(fecha_proce
 CREATE INDEX IF NOT EXISTS idx_historial_estado ON historial_mensajes(estado);
 
 -- Triggers para actualizar fecha_actualizacion
-CREATE TRIGGER IF NOT EXISTS trigger_ofertas_externas_fecha_actualizacion
+DROP TRIGGER IF EXISTS trigger_ofertas_externas_fecha_actualizacion ON ofertas_externas;
+CREATE TRIGGER trigger_ofertas_externas_fecha_actualizacion
     BEFORE UPDATE ON ofertas_externas
     FOR EACH ROW
     EXECUTE FUNCTION update_fecha_actualizacion();
 
-CREATE TRIGGER IF NOT EXISTS trigger_configuracion_fecha_actualizacion
+DROP TRIGGER IF EXISTS trigger_configuracion_fecha_actualizacion ON configuracion_organizacion;
+CREATE TRIGGER trigger_configuracion_fecha_actualizacion
     BEFORE UPDATE ON configuracion_organizacion
     FOR EACH ROW
     EXECUTE FUNCTION update_fecha_actualizacion();

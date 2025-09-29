@@ -27,6 +27,11 @@ timeout /t 3 /nobreak >nul
 echo 🔄 Iniciando Events Service en puerto 50053...
 start "Events Service" cmd /k "cd events-service && python src/server.py"
 
+timeout /t 3 /nobreak >nul
+
+echo 🔄 Iniciando Messaging Service en puerto 50054...
+start "Messaging Service" cmd /k "cd messaging-service && python src/main.py"
+
 echo.
 echo 🎉 Todos los microservicios han sido iniciados en ventanas separadas!
 echo.
@@ -34,6 +39,7 @@ echo 📋 Servicios ejecutándose:
 echo   • User Service:      localhost:50051
 echo   • Inventory Service: localhost:50052
 echo   • Events Service:    localhost:50053
+echo   • Messaging Service: localhost:50054
 echo.
 echo 🔧 Para iniciar el API Gateway:
 echo   cd api-gateway

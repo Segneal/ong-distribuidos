@@ -12,6 +12,11 @@ import EventFormPage from './pages/EventForm';
 import ParticipantManagerPage from './pages/ParticipantManager';
 import DistributedDonationsPage from './pages/DistributedDonations';
 import DistributedDonationsHistoryPage from './pages/DistributedDonationsHistory';
+import ExternalEvents from './pages/ExternalEvents';
+import Network from './pages/Network';
+import DonationRequests from './pages/DonationRequests';
+import DonationTransfers from './pages/DonationTransfers';
+import DonationOffers from './pages/DonationOffers';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -48,6 +53,41 @@ function App() {
           <Route path="events" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']}>
               <Events />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Red de ONGs - PRESIDENTE, COORDINADOR, VOCAL y VOLUNTARIO */}
+          <Route path="network" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOCAL', 'VOLUNTARIO']}>
+              <Network />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Eventos Externos - PRESIDENTE, COORDINADOR y VOLUNTARIO */}
+          <Route path="external-events" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']}>
+              <ExternalEvents />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Solicitudes de Donaciones - PRESIDENTE y VOCAL */}
+          <Route path="donation-requests" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'VOCAL']}>
+              <DonationRequests />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Transferencias de Donaciones - PRESIDENTE y VOCAL */}
+          <Route path="donation-transfers" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'VOCAL']}>
+              <DonationTransfers />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Ofertas de Donaciones - PRESIDENTE y VOCAL */}
+          <Route path="donation-offers" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'VOCAL']}>
+              <DonationOffers />
             </RoleProtectedRoute>
           } />
           

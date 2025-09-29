@@ -51,6 +51,9 @@ Write-Host "  📨 Kafka:          localhost:9092" -ForegroundColor White
 Write-Host "  👥 User Service:    localhost:50051 (gRPC)" -ForegroundColor White
 Write-Host "  📦 Inventory:       localhost:50052 (gRPC)" -ForegroundColor White
 Write-Host "  📅 Events:          localhost:50053 (gRPC)" -ForegroundColor White
+Write-Host "  💬 Messaging:       localhost:50054 (HTTP)" -ForegroundColor White
+Write-Host "  📧 Email Service:   localhost:3002" -ForegroundColor White
+Write-Host "  📬 MailHog UI:      http://localhost:8025" -ForegroundColor White
 Write-Host "  🌐 API Gateway:     http://localhost:3000" -ForegroundColor White
 Write-Host "  💻 Frontend:        http://localhost:3001" -ForegroundColor White
 Write-Host ""

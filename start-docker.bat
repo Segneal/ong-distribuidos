@@ -44,6 +44,9 @@ echo   📨 Kafka:          localhost:9092
 echo   👥 User Service:    localhost:50051 (gRPC)
 echo   📦 Inventory:       localhost:50052 (gRPC)
 echo   📅 Events:          localhost:50053 (gRPC)
+echo   💬 Messaging:       localhost:50054 (HTTP)
+echo   📧 Email Service:   localhost:3002
+echo   📬 MailHog UI:      http://localhost:8025
 echo   🌐 API Gateway:     http://localhost:3000
 echo   💻 Frontend:        http://localhost:3001
 echo.

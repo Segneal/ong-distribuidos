@@ -31,9 +31,5 @@ ENV PYTHONUNBUFFERED=1
 # Exponer puerto gRPC
 EXPOSE 50052
 
-# Script de inicio con verificación de base de datos
-COPY ./inventory-service/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
 # Comando para ejecutar el servicio
-CMD ["/docker-entrypoint.sh"]
+CMD ["python", "src/server.py"]

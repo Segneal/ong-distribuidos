@@ -14,11 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY src/ ./src/
-COPY docker-entrypoint.sh .
-
-# Make entrypoint executable
-RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 50054 8000
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["python", "src/main.py"]

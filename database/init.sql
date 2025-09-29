@@ -195,7 +195,8 @@ CREATE INDEX IF NOT EXISTS idx_solicitudes_donaciones_fecha ON solicitudes_donac
 CREATE INDEX IF NOT EXISTS idx_solicitudes_donaciones_gin ON solicitudes_donaciones USING gin(donaciones);
 
 -- Trigger para actualizar fecha_actualizacion en solicitudes_donaciones
-CREATE TRIGGER IF NOT EXISTS trigger_solicitudes_donaciones_fecha_actualizacion
+DROP TRIGGER IF EXISTS trigger_solicitudes_donaciones_fecha_actualizacion ON solicitudes_donaciones;
+CREATE TRIGGER trigger_solicitudes_donaciones_fecha_actualizacion
     BEFORE UPDATE ON solicitudes_donaciones
     FOR EACH ROW
     EXECUTE FUNCTION update_fecha_actualizacion();

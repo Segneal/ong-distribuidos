@@ -29,7 +29,11 @@ import {
   Inventory,
   Event,
   Home,
-  Dashboard
+  Dashboard,
+  RequestPage,
+  SwapHoriz,
+  LocalOffer,
+  Hub
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -95,11 +99,46 @@ const Layout = () => {
       });
     }
 
+    // Red de ONGs - accesible para todos los roles
+    items.push({
+      text: 'Red de ONGs',
+      icon: <Hub />,
+      path: '/network',
+      show: true
+    });
+
+    if (hasPermission('inventory', 'read')) {
+      items.push({
+        text: 'Solicitudes Red',
+        icon: <RequestPage />,
+        path: '/donation-requests',
+        show: true
+      });
+      items.push({
+        text: 'Transferencias',
+        icon: <SwapHoriz />,
+        path: '/donation-transfers',
+        show: true
+      });
+      items.push({
+        text: 'Ofertas Red',
+        icon: <LocalOffer />,
+        path: '/donation-offers',
+        show: true
+      });
+    }
+
     if (hasPermission('events', 'read')) {
       items.push({
         text: 'Eventos',
         icon: <Event />,
         path: '/events',
+        show: true
+      });
+      items.push({
+        text: 'Eventos Externos',
+        icon: <Dashboard />,
+        path: '/external-events',
         show: true
       });
     }

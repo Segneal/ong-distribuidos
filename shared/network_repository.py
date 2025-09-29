@@ -164,6 +164,52 @@ class NetworkRepository:
         result = self._execute_query(query, (estado, notas, transfer_id), commit=True)
         return result is not None and result > 0
 
+    # ==================== EVENTOS EXTERNOS ====================
+    
+    def create_external_event(self, organizacion_id: str, evento_id: str, 
+                            nombre: str, descripcion: str, fecha_evento: str) -> Optional[Dict]:
+        """Crea un nuevo evento externo"""
+        query = """
+            INSERT INTO eventos_externos (organizacion_id, evento_id, nombre, descripcion, fecha_evento)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, organizacion_id, evento_id, nombre, descripcion, fecha_evento, activo, fecha_creacion
+        """
+        return self._execute_query(
+            query, 
+            (organizacion_id, evento_id, nombre, descripcion, fecha_evento), 
+            fetch_one=True, 
+            commit=True
+        )
+    
+    def get_active_external_events(self) -> List[Dict]:
+        """Obtiene todos los eventos externos activos"""
+        query = """
+            SELECT id, organizacion_id, evento_id, nombre, descripcion, fecha_evento, fecha_creacion
+            FROM eventos_externos 
+            WHERE activo = true AND fecha_evento > CURRENT_TIMESTAMP
+            ORDER BY fecha_evento ASC
+        """
+        return self._execute_query(query, fetch_all=True) or []
+    
+    def get_external_event_by_id(self, organizacion_id: str, evento_id: str) -> Optional[Dict]:
+        """Obtiene un evento específico por organización y ID"""
+        query = """
+            SELECT id, organizacion_id, evento_id, nombre, descripcion, fecha_evento, activo, fecha_creacion
+            FROM eventos_externos 
+            WHERE organizacion_id = %s AND evento_id = %s
+        """
+        return self._execute_query(query, (organizacion_id, evento_id), fetch_one=True)
+    
+    def deactivate_external_event(self, organizacion_id: str, evento_id: str) -> bool:
+        """Desactiva un evento externo"""
+        query = """
+            UPDATE eventos_externos 
+            SET activo = false
+            WHERE organizacion_id = %s AND evento_id = %s
+        """
+        result = self._execute_query(query, (organizacion_id, evento_id), commit=True)
+        return result is not None and result > 0
+
     # ==================== ADHESIONES A EVENTOS EXTERNOS ====================
     
     def create_external_event_adhesion(self, evento_externo_id: int, voluntario_id: int, 

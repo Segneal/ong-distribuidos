@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Main entry point for the ONG Network Messaging Service
+"""
 import asyncio
 import signal
 import sys
@@ -8,10 +12,11 @@ from fastapi.responses import JSONResponse
 import structlog
 import uvicorn
 
-from .config import settings, Topics
-from .kafka_connection import kafka_manager
-from .base_producer import BaseProducer
-from .base_consumer import NetworkConsumer, OrganizationConsumer
+from messaging.config import settings, Topics
+from messaging.kafka.connection import kafka_manager
+from messaging.producers.base_producer import BaseProducer
+from messaging.consumers.base_consumer import NetworkConsumer, OrganizationConsumer
+from messaging.services.offer_service import OfferService
 
 # Configure structured logging
 structlog.configure(
@@ -38,6 +43,7 @@ logger = structlog.get_logger(__name__)
 producer = BaseProducer()
 network_consumer = NetworkConsumer()
 org_consumer = OrganizationConsumer()
+offer_service = OfferService()
 
 
 @asynccontextmanager
@@ -167,6 +173,303 @@ async def test_publish(message_type: str, data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/createDonationOffer")
+async def create_donation_offer(data: dict):
+    """Create a new donation offer"""
+    try:
+        donations = data.get('donations', [])
+        user_id = data.get('userId')
+        notes = data.get('notes')
+        
+        logger.info(
+            "Creating donation offer via API",
+            donations_count=len(donations),
+            user_id=user_id
+        )
+        
+        # Validate donations
+        if not donations or not isinstance(donations, list):
+            raise HTTPException(status_code=400, detail="Donations list is required")
+        
+        # Validate user_id
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Create donation offer
+        success, message, offer_id = offer_service.create_donation_offer(donations, user_id, notes)
+        
+        if success:
+            return {
+                "success": True,
+                "message": message,
+                "offer_id": offer_id
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in create_donation_offer API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getExternalOffers")
+async def get_external_offers(data: dict = None):
+    """Get external donation offers from other organizations"""
+    try:
+        if data is None:
+            data = {}
+        
+        active_only = data.get('activeOnly', True)
+        
+        logger.info("Getting external donation offers via API", active_only=active_only)
+        
+        offers = offer_service.get_external_offers(active_only=active_only)
+        
+        return {
+            "success": True,
+            "offers": offers
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_external_offers API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/publishEvent")
+async def publish_event(data: dict):
+    """Publish a solidarity event to the network"""
+    try:
+        from messaging.services.event_service import EventService
+        
+        event_id = data.get('eventId')
+        name = data.get('name')
+        description = data.get('description', '')
+        event_date = data.get('eventDate')
+        user_id = data.get('userId')
+        
+        logger.info(
+            "Publishing solidarity event via API",
+            event_id=event_id,
+            name=name,
+            event_date=event_date,
+            user_id=user_id
+        )
+        
+        # Validate required fields
+        if not event_id:
+            raise HTTPException(status_code=400, detail="Event ID is required")
+        
+        if not name:
+            raise HTTPException(status_code=400, detail="Event name is required")
+        
+        if not event_date:
+            raise HTTPException(status_code=400, detail="Event date is required")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Create event service and publish event
+        event_service = EventService()
+        success, message = event_service.publish_event(event_id, name, description, event_date, user_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in publish_event API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getExternalEvents")
+async def get_external_events(data: dict = None):
+    """Get external solidarity events from other organizations"""
+    try:
+        from messaging.services.event_service import EventService
+        
+        if data is None:
+            data = {}
+        
+        active_only = data.get('activeOnly', True)
+        
+        logger.info("Getting external solidarity events via API", active_only=active_only)
+        
+        event_service = EventService()
+        events = event_service.get_external_events(active_only=active_only)
+        
+        return {
+            "success": True,
+            "events": events
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_external_events API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/cancelEvent")
+async def cancel_event(data: dict):
+    """Cancel a solidarity event"""
+    try:
+        from messaging.services.event_service import EventService
+        
+        event_id = data.get('eventId')
+        user_id = data.get('userId')
+        
+        logger.info(
+            "Canceling solidarity event via API",
+            event_id=event_id,
+            user_id=user_id
+        )
+        
+        # Validate required fields
+        if not event_id:
+            raise HTTPException(status_code=400, detail="Event ID is required")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+        
+        # Create event service and cancel event
+        event_service = EventService()
+        success, message = event_service.cancel_event(event_id, user_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in cancel_event API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/createEventAdhesion")
+async def create_event_adhesion(data: dict):
+    """Create an adhesion to an external event"""
+    try:
+        from messaging.services.adhesion_service import AdhesionService
+        
+        event_id = data.get('eventId')
+        volunteer_id = data.get('volunteerId')
+        target_organization = data.get('targetOrganization')
+        
+        logger.info(
+            "Creating event adhesion via API",
+            event_id=event_id,
+            volunteer_id=volunteer_id,
+            target_organization=target_organization
+        )
+        
+        # Validate required fields
+        if not event_id:
+            raise HTTPException(status_code=400, detail="Event ID is required")
+        
+        if not volunteer_id:
+            raise HTTPException(status_code=400, detail="Volunteer ID is required")
+        
+        if not target_organization:
+            raise HTTPException(status_code=400, detail="Target organization is required")
+        
+        # Create adhesion service and create adhesion
+        adhesion_service = AdhesionService()
+        success, message = adhesion_service.create_event_adhesion(
+            event_id, volunteer_id, target_organization
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=400, detail=message)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in create_event_adhesion API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getVolunteerAdhesions")
+async def get_volunteer_adhesions(data: dict):
+    """Get adhesions for a specific volunteer"""
+    try:
+        from messaging.services.adhesion_service import AdhesionService
+        
+        volunteer_id = data.get('volunteerId')
+        
+        logger.info(
+            "Getting volunteer adhesions via API",
+            volunteer_id=volunteer_id
+        )
+        
+        # Validate required fields
+        if not volunteer_id:
+            raise HTTPException(status_code=400, detail="Volunteer ID is required")
+        
+        # Create adhesion service and get adhesions
+        adhesion_service = AdhesionService()
+        adhesions = adhesion_service.get_volunteer_adhesions(volunteer_id)
+        
+        return {
+            "success": True,
+            "adhesions": adhesions
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in get_volunteer_adhesions API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/getEventAdhesions")
+async def get_event_adhesions(data: dict):
+    """Get adhesions for a specific event (for administrators)"""
+    try:
+        from messaging.services.adhesion_service import AdhesionService
+        
+        event_id = data.get('eventId')
+        
+        logger.info(
+            "Getting event adhesions via API",
+            event_id=event_id
+        )
+        
+        # Validate required fields
+        if not event_id:
+            raise HTTPException(status_code=400, detail="Event ID is required")
+        
+        # Create adhesion service and get adhesions
+        adhesion_service = AdhesionService()
+        adhesions = adhesion_service.get_event_adhesions(event_id)
+        
+        return {
+            "success": True,
+            "adhesions": adhesions
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in get_event_adhesions API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 def signal_handler(signum, frame):
     """Handle shutdown signals"""
     logger.info("Received shutdown signal", signal=signum)
@@ -190,10 +493,11 @@ def main():
     )
     
     # Run the service
+    http_port = int(os.getenv("HTTP_PORT", "8000"))
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=settings.service_port,
+        port=http_port,
         log_level=settings.log_level.lower()
     )
 

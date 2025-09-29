@@ -15,7 +15,7 @@ function Test-Port {
 }
 
 # Verificar puertos
-$ports = @(50051, 50052, 50053)
+$ports = @(50051, 50052, 50053, 50054, 8000)
 foreach ($port in $ports) {
     if (Test-Port $port) {
         Write-Host "⚠️  Puerto $port ya está en uso. Deteniendo proceso..." -ForegroundColor Yellow
@@ -98,6 +98,13 @@ Start-Sleep -Seconds 2
 $eventsServiceJob = Start-PythonService -ServiceName "Events Service" -ServicePath "events-service" -Port "50053"
 $jobs += $eventsServiceJob
 
+# Esperar un poco entre servicios
+Start-Sleep -Seconds 2
+
+# Iniciar Messaging Service (Puerto 50054)
+$messagingServiceJob = Start-PythonService -ServiceName "Messaging Service" -ServicePath "messaging-service" -Port "50054"
+$jobs += $messagingServiceJob
+
 # Esperar un poco para que los servicios se inicien
 Start-Sleep -Seconds 5
 
@@ -108,6 +115,7 @@ Write-Host "📋 Servicios ejecutándose:" -ForegroundColor Cyan
 Write-Host "  • User Service:      localhost:50051" -ForegroundColor White
 Write-Host "  • Inventory Service: localhost:50052" -ForegroundColor White
 Write-Host "  • Events Service:    localhost:50053" -ForegroundColor White
+Write-Host "  • Messaging Service: localhost:50054" -ForegroundColor White
 Write-Host ""
 Write-Host "🔧 Para iniciar el API Gateway:" -ForegroundColor Yellow
 Write-Host "  cd api-gateway" -ForegroundColor White

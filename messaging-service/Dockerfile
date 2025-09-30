@@ -9,12 +9,19 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY messaging-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/ ./src/
+COPY messaging-service/src/ ./src/
+
+# Copy shared directory
+COPY shared/ ./shared/
+
+# Copy wait script
+COPY messaging-service/wait-for-services.sh ./
+RUN chmod +x wait-for-services.sh
 
 EXPOSE 50054 8000
 
-CMD ["python", "src/main.py"]
+CMD ["./wait-for-services.sh", "mysql:3306", "kafka:9092", "--", "python", "src/main.py"]

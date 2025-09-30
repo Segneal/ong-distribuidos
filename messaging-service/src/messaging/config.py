@@ -1,43 +1,38 @@
 import os
 from typing import List
+from pydantic import BaseModel, Field
 
 
-class Settings:
+class Settings(BaseModel):
     # Kafka Configuration
-    kafka_brokers: str = os.getenv("KAFKA_BROKERS", "kafka:9092")
-    kafka_group_id: str = os.getenv("KAFKA_GROUP_ID", "empuje-comunitario-group")
-    organization_id: str = os.getenv("ORGANIZATION_ID", "empuje-comunitario")
+    kafka_bootstrap_servers: List[str] = Field(
+        default_factory=lambda: os.getenv("KAFKA_BROKERS", "kafka:9092").split(",")
+    )
+    kafka_group_id: str = Field(default_factory=lambda: os.getenv("KAFKA_GROUP_ID", "empuje-comunitario-group"))
+    kafka_retry_attempts: int = Field(default_factory=lambda: int(os.getenv("KAFKA_RETRY_ATTEMPTS", "3")))
+    kafka_retry_delay: int = Field(default_factory=lambda: int(os.getenv("KAFKA_RETRY_DELAY", "1000")))
+    kafka_max_retry_delay: int = Field(default_factory=lambda: int(os.getenv("KAFKA_MAX_RETRY_DELAY", "10000")))
+    kafka_auto_create_topics: bool = Field(default_factory=lambda: os.getenv("KAFKA_AUTO_CREATE_TOPICS", "true").lower() == "true")
+    kafka_replication_factor: int = Field(default_factory=lambda: int(os.getenv("KAFKA_REPLICATION_FACTOR", "1")))
+    kafka_enabled: bool = Field(default_factory=lambda: os.getenv("KAFKA_ENABLED", "true").lower() == "true")
     
-    # Kafka Retry Configuration
-    kafka_retry_attempts: int = int(os.getenv("KAFKA_RETRY_ATTEMPTS", "3"))
-    kafka_retry_delay: int = int(os.getenv("KAFKA_RETRY_DELAY", "1000"))
-    kafka_max_retry_delay: int = int(os.getenv("KAFKA_MAX_RETRY_DELAY", "10000"))
+    # Organization Configuration
+    organization_id: str = Field(default_factory=lambda: os.getenv("ORGANIZATION_ID", "empuje-comunitario"))
     
-    # Topic Configuration
-    kafka_auto_create_topics: bool = os.getenv("KAFKA_AUTO_CREATE_TOPICS", "true").lower() == "true"
-    kafka_replication_factor: int = int(os.getenv("KAFKA_REPLICATION_FACTOR", "1"))
-    
-    # Database Configuration
-    db_host: str = os.getenv("DB_HOST", "postgres")
-    db_port: int = int(os.getenv("DB_PORT", "5432"))
-    db_name: str = os.getenv("DB_NAME", "ong_management")
-    db_user: str = os.getenv("DB_USER", "ong_user")
-    db_password: str = os.getenv("DB_PASSWORD", "ong_pass")
+    # Database Configuration (MySQL)
+    db_host: str = Field(default_factory=lambda: os.getenv("DB_HOST", "mysql"))
+    db_port: int = Field(default_factory=lambda: int(os.getenv("DB_PORT", "3306")))
+    db_name: str = Field(default_factory=lambda: os.getenv("DB_NAME", "ong_management"))
+    db_user: str = Field(default_factory=lambda: os.getenv("DB_USER", "ong_user"))
+    db_password: str = Field(default_factory=lambda: os.getenv("DB_PASSWORD", "ong_pass"))
     
     # Service Configuration
-    service_port: int = int(os.getenv("SERVICE_PORT", "50054"))
-    log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    
-    def __init__(self):
-        pass
-    
-    @property
-    def kafka_bootstrap_servers(self) -> List[str]:
-        return self.kafka_brokers.split(",")
+    service_port: int = Field(default_factory=lambda: int(os.getenv("SERVICE_PORT", "50054")))
+    log_level: str = Field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     
     @property
     def database_url(self) -> str:
-        return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 # Global settings instance

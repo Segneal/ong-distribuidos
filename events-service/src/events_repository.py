@@ -70,15 +70,32 @@ class EventsRepository:
             if event_datetime <= datetime.now():
                 return None
             
-            # Create event
+            # Create event (MySQL no soporta RETURNING)
             query = """
                 INSERT INTO eventos (nombre, descripcion, fecha_evento)
                 VALUES (%s, %s, %s)
-                RETURNING id, nombre, descripcion, fecha_evento, fecha_creacion, fecha_actualizacion
             """
             params = (name, description, event_datetime)
             
-            result = self._execute_query(query, params, fetch_one=True, commit=True)
+            # Execute insert and get the ID
+            conn = self.db.connect()
+            if not conn:
+                return None
+            
+            cursor = self.db.get_cursor()
+            cursor.execute(query, params)
+            event_id = cursor.lastrowid
+            conn.commit()
+            
+            # Fetch the created event
+            select_query = """
+                SELECT id, nombre, descripcion, fecha_evento, fecha_creacion, fecha_actualizacion, expuesto_red
+                FROM eventos WHERE id = %s
+            """
+            cursor.execute(select_query, (event_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            self.db.close()
             if not result:
                 return None
             
@@ -114,13 +131,34 @@ class EventsRepository:
             if event_datetime <= datetime.now():
                 return None
             
+            # Update event (MySQL no soporta RETURNING)
             query = """
                 UPDATE eventos 
                 SET nombre = %s, descripcion = %s, fecha_evento = %s
                 WHERE id = %s
-                RETURNING id, nombre, descripcion, fecha_evento, fecha_creacion, fecha_actualizacion
             """
             params = (name, description, event_datetime, event_id)
+            
+            # Execute update
+            conn = self.db.connect()
+            if not conn:
+                return None
+            
+            cursor = self.db.get_cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            
+            # Fetch the updated event
+            select_query = """
+                SELECT id, nombre, descripcion, fecha_evento, fecha_creacion, fecha_actualizacion, expuesto_red
+                FROM eventos WHERE id = %s
+            """
+            cursor.execute(select_query, (event_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            self.db.close()
+            
+            return result
             
             result = self._execute_query(query, params, fetch_one=True, commit=True)
             return result
@@ -141,15 +179,32 @@ class EventsRepository:
             if event_date <= datetime.now():
                 return False  # Cannot delete past events
             
+            # Use direct connection like other fixed methods
+            conn = self.db.connect()
+            if not conn:
+                return False
+            
+            cursor = self.db.get_cursor()
+            
             # Delete participants first (cascade should handle this, but being explicit)
-            self._execute_query("DELETE FROM participantes_evento WHERE evento_id = %s", (event_id,), commit=True)
+            cursor.execute("DELETE FROM participantes_evento WHERE evento_id = %s", (event_id,))
             
             # Delete event
-            result = self._execute_query("DELETE FROM eventos WHERE id = %s", (event_id,), commit=True)
-            return result > 0
+            cursor.execute("DELETE FROM eventos WHERE id = %s", (event_id,))
+            success = cursor.rowcount > 0
+            
+            conn.commit()
+            cursor.close()
+            self.db.close()
+            
+            return success
             
         except Exception as e:
             print(f"Error deleting event: {e}")
+            if 'conn' in locals():
+                conn.rollback()
+                cursor.close()
+                self.db.close()
             return False
     
     def list_events(self, include_past_events: bool = True, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -200,9 +255,8 @@ class EventsRepository:
                 return False
             
             query = """
-                INSERT INTO participantes_evento (evento_id, usuario_id)
+                INSERT IGNORE INTO participantes_evento (evento_id, usuario_id)
                 VALUES (%s, %s)
-                ON CONFLICT (evento_id, usuario_id) DO NOTHING
             """
             self._execute_query(query, (event_id, user_id), commit=True)
             return True
@@ -265,21 +319,23 @@ class EventsRepository:
                     print(f"Insufficient quantity for donation {donation_id}. Available: {donation_check['cantidad'] if donation_check else 0}, Requested: {quantity}")
                     continue
                 
-                # Insert distributed donation record
+                # Insert distributed donation record (MySQL no soporta RETURNING)
                 insert_query = """
                     INSERT INTO donaciones_repartidas (evento_id, donacion_id, cantidad_repartida, usuario_registro)
                     VALUES (%s, %s, %s, %s)
-                    RETURNING id, evento_id, donacion_id, cantidad_repartida, usuario_registro, fecha_registro
                 """
                 
-                result = self._execute_query(
-                    insert_query, 
-                    (event_id, donation_id, quantity, user_id), 
-                    fetch_one=True,
-                    commit=True
-                )
+                # Execute insert
+                conn = self.db.connect()
+                if not conn:
+                    continue
                 
-                if result:
+                cursor = self.db.get_cursor()
+                cursor.execute(insert_query, (event_id, donation_id, quantity, user_id))
+                distributed_id = cursor.lastrowid
+                conn.commit()
+                
+                if distributed_id:
                     # Decrement the donation quantity in inventory
                     update_query = """
                         UPDATE donaciones 
@@ -288,17 +344,26 @@ class EventsRepository:
                             usuario_modificacion = %s
                         WHERE id = %s
                     """
-                    update_result = self._execute_query(update_query, (quantity, user_id, donation_id), commit=True)
-                    print(f"Updated donation {donation_id}: decreased by {quantity}. Update result: {update_result}")
-                
-                if result:
+                    cursor.execute(update_query, (quantity, user_id, donation_id))
+                    conn.commit()
+                    print(f"Updated donation {donation_id}: decreased by {quantity}")
+                    
+                    # Get the created distributed donation record
+                    select_query = """
+                        SELECT id, evento_id, donacion_id, cantidad_repartida, usuario_registro, fecha_registro
+                        FROM donaciones_repartidas WHERE id = %s
+                    """
+                    cursor.execute(select_query, (distributed_id,))
+                    result = cursor.fetchone()
+                    
                     # Get donation details for response
                     donation_query = """
                         SELECT d.descripcion, d.categoria
                         FROM donaciones d
                         WHERE d.id = %s
                     """
-                    donation_details = self._execute_query(donation_query, (donation_id,), fetch_one=True)
+                    cursor.execute(donation_query, (donation_id,))
+                    donation_details = cursor.fetchone()
                     
                     registered_donation = {
                         'id': result['id'],
@@ -311,6 +376,9 @@ class EventsRepository:
                         'registration_date': str(result['fecha_registro'])
                     }
                     registered_donations.append(registered_donation)
+                
+                cursor.close()
+                self.db.close()
             
             return registered_donations
             

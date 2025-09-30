@@ -3,15 +3,15 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Helper function - localhost root root
+// Helper function for database connection with correct credentials (copied from user-service)
 async function createDbConnection() {
   const mysql = require('mysql2/promise');
   return await mysql.createConnection({
-    host: 'localhost',
-    database: 'ong_management',
-    user: 'root',
-    password: 'root',
-    port: 3306,
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'ong_management',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    port: parseInt(process.env.DB_PORT || '3306'),
     charset: 'utf8mb4'
   });
 }
@@ -84,7 +84,7 @@ router.post('/external-offers', authenticateToken, async (req, res) => {
 
     const offers = rows.map(row => ({
       offer_id: row.offer_id,
-      donor_organization: row.organization_id,
+      organization_id: row.organization_id,
       organization_name: row.organization_name,
       donations: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
       timestamp: row.timestamp,
@@ -129,13 +129,13 @@ router.post('/transfer-history', authenticateToken, async (req, res) => {
     await connection.end();
 
     const transfers = rows.map(row => ({
-      tipo: row.type,
-      organizacion_contraparte: row.counterpart_organization,
-      solicitud_id: row.request_id,
-      donaciones: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
-      estado: row.status,
-      fecha_transferencia: row.timestamp,
-      notas: row.notes
+      type: row.type,
+      counterpart_organization: row.counterpart_organization,
+      request_id: row.request_id,
+      donations: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
+      status: row.status,
+      timestamp: row.timestamp,
+      notes: row.notes
     }));
 
     res.json({

@@ -93,12 +93,19 @@ const errorHandler = (err, req, res, next) => {
  * Middleware para manejar rutas no encontradas
  */
 const notFoundHandler = (req, res) => {
+  console.log({
+    error: 'Ruta no encontrada',
+    message: `La ruta ${req.method} ${req.originalUrl} no existe`,
+    timestamp: new Date().toISOString()
+  })
   res.status(404).json({
     error: 'Ruta no encontrada',
     message: `La ruta ${req.method} ${req.originalUrl} no existe`,
     timestamp: new Date().toISOString()
   });
 };
+
+
 
 /**
  * Función helper para crear errores de autorización

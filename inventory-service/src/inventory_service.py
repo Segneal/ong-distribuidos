@@ -20,7 +20,7 @@ import inventory_pb2
 import inventory_pb2_grpc
 
 # Import repository and models
-from inventory_repository import InventoryRepository
+from inventory_repository_mysql_fixed import InventoryRepository
 from models.donation import DonationCategory
 
 class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):

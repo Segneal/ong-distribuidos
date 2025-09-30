@@ -9,8 +9,8 @@ import structlog
 import sys
 import os
 
-# Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'shared'))
+# Import network repository
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from network_repository import NetworkRepository
 
 # Add events service to path for event validation

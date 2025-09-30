@@ -14,6 +14,7 @@ import DistributedDonationsPage from './pages/DistributedDonations';
 import DistributedDonationsHistoryPage from './pages/DistributedDonationsHistory';
 import ExternalEvents from './pages/ExternalEvents';
 import Network from './pages/Network';
+import NotificationCenter from './components/notifications/NotificationCenter';
 import DonationRequests from './pages/DonationRequests';
 import DonationTransfers from './pages/DonationTransfers';
 import DonationOffers from './pages/DonationOffers';
@@ -53,6 +54,13 @@ function App() {
           <Route path="events" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOLUNTARIO']}>
               <Events />
+            </RoleProtectedRoute>
+          } />
+          
+          {/* Notificaciones - Todos los roles */}
+          <Route path="notifications" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOCAL', 'VOLUNTARIO']}>
+              <NotificationCenter />
             </RoleProtectedRoute>
           } />
           

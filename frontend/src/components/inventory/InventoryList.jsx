@@ -160,7 +160,6 @@ const InventoryList = () => {
                   <th>Categoría</th>
                   <th>Descripción</th>
                   <th>Cantidad</th>
-                  <th>Eliminado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -170,11 +169,6 @@ const InventoryList = () => {
                     <td>{getCategoryLabel(donation.category)}</td>
                     <td>{donation.description || 'Sin descripción'}</td>
                     <td>{donation.quantity}</td>
-                    <td>
-                      <span className={`status ${donation.deleted ? 'deleted' : 'active'}`}>
-                        {donation.deleted ? 'Sí' : 'No'}
-                      </span>
-                    </td>
                     <td>
                       {!donation.deleted && (
                         <div className="actions">

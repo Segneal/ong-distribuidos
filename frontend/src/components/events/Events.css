@@ -99,8 +99,9 @@
 
 .event-actions {
   display: flex;
-  flex-direction: column;
-  gap: 15px;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .primary-actions {
@@ -1312,4 +1313,187 @@ tilos para adhesiones */
 .event-summary p {
   margin: 0.25rem 0;
   color: #666;
+}/* Improv
+ed Event Buttons */
+.btn-volunteer {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+}
+
+.btn-volunteer:hover {
+  background: linear-gradient(135deg, #218838, #1ea085);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-registered {
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.registration-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.registration-note {
+  color: #28a745;
+  font-style: italic;
+  font-size: 0.85em;
+}
+
+.btn-icon {
+  font-size: 1.1em;
+}
+
+.btn-text {
+  font-size: 0.95em;
+}
+
+.event-status-container {
+  display: flex;
+  justify-content: center;
+}
+
+.event-status.past {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.status-icon {
+  font-size: 1em;
+}
+
+/* Donation Status Improvements */
+.quantity-badge {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-available {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.donation-status {
+  margin-top: 8px;
+}/
+* Own Event Styling in External Events */
+.event-card.own-event {
+  border: 2px solid #28a745;
+  background: linear-gradient(135deg, #f0fff4, #f8fff9);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+  position: relative;
+}
+
+.event-card.own-event::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #28a745, #20c997);
+}
+
+.own-event-badge {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7em;
+  font-weight: bold;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.organization-badge.own-org {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  font-weight: 600;
+}
+
+.organization-badge.external-org {
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: white;
+}
+
+.own-event-notice {
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  border: 1px solid #c3e6cb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.notice-icon {
+  font-size: 1.2em;
+}
+
+.notice-text {
+  color: #155724;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+/* External Event Styling */
+.event-card.external-event {
+  border: 1px solid #dee2e6;
+  background: white;
+}
+
+.event-card.external-event:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+}
+
+/* Organization Badge Improvements */
+.organization-badge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

@@ -156,7 +156,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
       );
 
       const transferData = {
-        targetOrganization: targetRequest.organization_id,
+        targetOrganization: targetRequest.requesting_organization,
         requestId: targetRequest.request_id,
         donations: validTransfers.map(transfer => {
           const selectedItem = availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId);
@@ -168,6 +168,19 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
           };
         })
       };
+
+      console.log('Transfer data being sent:', transferData);
+
+      // Validar que tenemos los datos necesarios
+      if (!transferData.targetOrganization) {
+        setError('Error: Organización destino no especificada');
+        return;
+      }
+
+      if (!transferData.donations || transferData.donations.length === 0) {
+        setError('Error: Debe seleccionar al menos una donación para transferir');
+        return;
+      }
 
       const response = await messagingService.transferDonations(transferData);
 
@@ -206,7 +219,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
       <div className="transfer-header">
         <h3>Transferir Donaciones</h3>
         <div className="target-info">
-          <strong>Organización destino:</strong> {targetRequest.organization_id}
+          <strong>Organización destino:</strong> {targetRequest.requesting_organization}
           <br />
           <strong>Solicitud ID:</strong> {targetRequest.request_id}
         </div>

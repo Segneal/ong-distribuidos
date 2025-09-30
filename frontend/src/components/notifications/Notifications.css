@@ -1,0 +1,170 @@
+/* Notification Center Styles */
+.notifications-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.notifications-header h3 {
+  margin: 0;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unread-badge {
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  padding: 4px 8px;
+  font-size: 0.75em;
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  background: white;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.notification-item.unread {
+  border-left: 4px solid #007bff;
+  background: #f8f9ff;
+}
+
+.notification-item.read {
+  opacity: 0.8;
+}
+
+/* Notification Types */
+.notification-error {
+  border-left-color: #dc3545 !important;
+  background: #fff5f5 !important;
+}
+
+.notification-warning {
+  border-left-color: #ffc107 !important;
+  background: #fffbf0 !important;
+}
+
+.notification-success {
+  border-left-color: #28a745 !important;
+  background: #f0fff4 !important;
+}
+
+.notification-info {
+  border-left-color: #17a2b8 !important;
+  background: #f0f9ff !important;
+}
+
+.notification-icon {
+  font-size: 1.5em;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unread-dot {
+  color: #007bff;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.notification-message {
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.notification-date {
+  color: #999;
+  font-size: 0.85em;
+}
+
+.no-notifications {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.no-notifications-icon {
+  font-size: 3em;
+  display: block;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.no-notifications p {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notifications-container {
+    padding: 15px;
+  }
+  
+  .notifications-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .notification-item {
+    padding: 12px;
+  }
+  
+  .notification-icon {
+    font-size: 1.3em;
+  }
+}

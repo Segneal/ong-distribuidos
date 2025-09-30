@@ -42,7 +42,8 @@ const usersRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const eventsRoutes = require('./routes/events');
 const donationRequestsRoutes = require('./routes/donationRequests');
-const messagingRoutes = require('./routes/messaging')
+const messagingRoutes = require('./routes/messaging');
+const notificationsRoutes = require('./routes/notifications');
 
 
 // Configurar rutas
@@ -52,6 +53,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/donation-requests', donationRequestsRoutes);
 app.use('/api/messaging', messagingRoutes);
+app.use('/api/notifications', notificationsRoutes);
+
 
 // Ruta por defecto
 app.get('/', (req, res) => {

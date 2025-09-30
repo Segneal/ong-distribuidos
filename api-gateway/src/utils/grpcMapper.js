@@ -88,6 +88,7 @@ const inventoryTransformers = {
     console.log('TRANSFORMER: id =', id);
     console.log('TRANSFORMER: restDonation =', JSON.stringify(restDonation, null, 2));
     console.log('TRANSFORMER: userId =', userId);
+    console.log('TRANSFORMER: CATEGORY_MAPPING =', CATEGORY_MAPPING);
 
     const grpcRequest = {
       id: parseInt(id),
@@ -96,13 +97,20 @@ const inventoryTransformers = {
       updated_by: parseInt(userId),
     };
 
-    // Solo agregar categoría si está presente
+    // Siempre agregar categoría (requerida en el proto)
     if (restDonation.category) {
       console.log('TRANSFORMER: Adding category:', restDonation.category);
-      grpcRequest.category = CATEGORY_MAPPING[restDonation.category] || 0;
-      console.log('TRANSFORMER: Mapped category to:', grpcRequest.category);
+      const mappedCategory = CATEGORY_MAPPING[restDonation.category];
+      console.log('TRANSFORMER: Mapped category to:', mappedCategory);
+      if (mappedCategory !== undefined) {
+        grpcRequest.category = mappedCategory;
+      } else {
+        console.log('TRANSFORMER: Category not found in mapping, using 0 as default');
+        grpcRequest.category = 0;
+      }
     } else {
-      console.log('TRANSFORMER: No category provided in restDonation');
+      console.log('TRANSFORMER: No category provided, using 0 as default');
+      grpcRequest.category = 0;
     }
 
     console.log('TRANSFORMER: Final grpcRequest =', JSON.stringify(grpcRequest, null, 2));

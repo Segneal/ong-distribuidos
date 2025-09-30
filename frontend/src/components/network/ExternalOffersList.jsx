@@ -180,10 +180,15 @@ const ExternalOffersList = () => {
                           </div>
                           <div className="donation-details">
                             <div className="donation-description">
-                              {donation.description}
+                              <strong>{donation.description}</strong>
                             </div>
                             <div className="donation-quantity">
-                              <strong>Cantidad disponible:</strong> {donation.quantity}
+                              <span className="quantity-badge">
+                                📦 {donation.cantidad || donation.quantity} disponible
+                              </span>
+                            </div>
+                            <div className="donation-status">
+                              <span className="status-available">✅ Disponible</span>
                             </div>
                           </div>
                         </div>

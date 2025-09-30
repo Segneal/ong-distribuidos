@@ -8,6 +8,9 @@ const ExternalEventList = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [registeredEvents, setRegisteredEvents] = useState(new Set());
+  const [userAdhesions, setUserAdhesions] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showAdhesionModal, setShowAdhesionModal] = useState(false);
   const [submittingAdhesion, setSubmittingAdhesion] = useState(false);
@@ -22,6 +25,7 @@ const ExternalEventList = () => {
 
   useEffect(() => {
     loadExternalEvents();
+    loadUserAdhesions();
     // Load user data for adhesion form
     if (user) {
       setAdhesionData({
@@ -32,6 +36,22 @@ const ExternalEventList = () => {
       });
     }
   }, [user, filterUpcoming]);
+
+  const loadUserAdhesions = async () => {
+    try {
+      const response = await messagingService.getVolunteerAdhesions();
+      if (response.data.success) {
+        setUserAdhesions(response.data.adhesions || []);
+        // Create set of registered event IDs
+        const registeredEventIds = new Set(
+          response.data.adhesions.map(adhesion => adhesion.event_id)
+        );
+        setRegisteredEvents(registeredEventIds);
+      }
+    } catch (err) {
+      console.error('Error loading user adhesions:', err);
+    }
+  };
 
   const handleSearch = () => {
     loadExternalEvents();
@@ -94,7 +114,18 @@ const ExternalEventList = () => {
       // Call messaging service to create adhesion
       const response = await messagingService.createEventAdhesion({
         eventId: selectedEvent.event_id,
-        targetOrganization: selectedEvent.organization_id,
+        targetOrganization: selectedEvent.source_organization,
+        volunteerData: {
+          name: adhesionData.name,
+          surname: adhesionData.surname,
+          phone: adhesionData.phone,
+          email: adhesionData.email
+        }
+      });
+
+      console.log('Adhesion data being sent:', {
+        eventId: selectedEvent.event_id,
+        targetOrganization: selectedEvent.source_organization,
         volunteerData: {
           name: adhesionData.name,
           surname: adhesionData.surname,
@@ -104,10 +135,21 @@ const ExternalEventList = () => {
       });
 
       if (response.data.success) {
-        alert('Adhesión enviada exitosamente. La organización será notificada.');
+        setSuccessMessage(`¡Te has inscrito exitosamente al evento "${selectedEvent.name}"!`);
         setShowAdhesionModal(false);
         setSelectedEvent(null);
         setError('');
+        
+        // Mark event as registered
+        setRegisteredEvents(prev => new Set([...prev, selectedEvent.event_id]));
+        
+        // Reload adhesions to get updated data
+        loadUserAdhesions();
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 5000);
       } else {
         setError(response.data.error || 'Error al enviar adhesión');
       }
@@ -122,7 +164,14 @@ const ExternalEventList = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('es-ES', {
+    if (!dateString) return 'Fecha no disponible';
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida';
+    }
+    
+    return date.toLocaleString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -145,7 +194,7 @@ const ExternalEventList = () => {
       return (
         event.name.toLowerCase().includes(searchLower) ||
         event.description?.toLowerCase().includes(searchLower) ||
-        event.organization_id.toLowerCase().includes(searchLower)
+        event.source_organization.toLowerCase().includes(searchLower)
       );
     }
     return true;
@@ -159,6 +208,7 @@ const ExternalEventList = () => {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+      {successMessage && <div className="success-message">{successMessage}</div>}
 
       {/* Filtros y búsqueda */}
       <div className="filters">
@@ -212,13 +262,19 @@ const ExternalEventList = () => {
           </div>
         ) : (
           <div className="events-grid">
-            {filteredEvents.map(event => (
-              <div key={`${event.organization_id}-${event.event_id}`} className="event-card external-event">
+            {filteredEvents.map(event => {
+              const isOwnEvent = event.source_organization === 'empuje-comunitario';
+              return (
+              <div key={`${event.source_organization}-${event.event_id}`} 
+                   className={`event-card ${isOwnEvent ? 'own-event' : 'external-event'}`}>
                 <div className="event-header">
-                  <h4>{event.name}</h4>
+                  <h4>
+                    {event.name}
+                    {isOwnEvent && <span className="own-event-badge">NUESTRO EVENTO</span>}
+                  </h4>
                   <div className="event-organization">
-                    <span className="organization-badge">
-                      {event.organization_id}
+                    <span className={`organization-badge ${isOwnEvent ? 'own-org' : 'external-org'}`}>
+                      {isOwnEvent ? 'Empuje Comunitario' : event.source_organization}
                     </span>
                   </div>
                 </div>
@@ -245,25 +301,46 @@ const ExternalEventList = () => {
                       <strong>ID del Evento:</strong> {event.event_id}
                     </div>
                     <div className="meta-item">
-                      <strong>Publicado:</strong> {formatDate(event.timestamp)}
+                      <strong>Publicado:</strong> {formatDate(event.published_date)}
                     </div>
                   </div>
                 </div>
 
                 <div className="event-actions">
-                  {isEventUpcoming(event.event_date) ? (
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleAdhesion(event)}
-                    >
-                      Adherirse como Voluntario
-                    </button>
+                  {isOwnEvent ? (
+                    <div className="own-event-notice">
+                      <span className="notice-icon">🏠</span>
+                      <span className="notice-text">Este es un evento de nuestra organización</span>
+                    </div>
+                  ) : isEventUpcoming(event.event_date) ? (
+                    registeredEvents.has(event.event_id) ? (
+                      <div className="registration-status">
+                        <button className="btn btn-registered" disabled>
+                          <span className="btn-icon">✓</span>
+                          <span className="btn-text">Ya estás inscrito</span>
+                        </button>
+                        <small className="registration-note">¡Nos vemos en el evento!</small>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-volunteer"
+                        onClick={() => handleAdhesion(event)}
+                      >
+                        <span className="btn-icon">🙋‍♀️</span>
+                        <span className="btn-text">Inscribirme como Voluntario</span>
+                      </button>
+                    )
                   ) : (
-                    <span className="event-status past">Evento Finalizado</span>
+                    <div className="event-status-container">
+                      <span className="event-status past">
+                        <span className="status-icon">📅</span>
+                        Evento Finalizado
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>
@@ -271,11 +348,12 @@ const ExternalEventList = () => {
       <div className="section-info">
         <h4>Información:</h4>
         <ul>
-          <li>Los eventos se actualizan automáticamente cuando otras ONGs los publican</li>
+          <li>Los eventos se actualizan automáticamente cuando las organizaciones los publican</li>
           <li>Puede buscar eventos por nombre, descripción u organización</li>
-          <li>Use "Adherirse como Voluntario" para participar en eventos de otras organizaciones</li>
+          <li>Los eventos con <strong>borde verde</strong> son de nuestra organización (solo para referencia)</li>
+          <li>Use "Inscribirme como Voluntario" para participar en eventos de otras organizaciones</li>
+          <li>Sus adhesiones se confirman automáticamente</li>
           <li>Sus adhesiones aparecerán en la pestaña "Mis Adhesiones"</li>
-          <li>La organización organizadora será notificada de su adhesión</li>
         </ul>
       </div>
 
@@ -295,7 +373,7 @@ const ExternalEventList = () => {
             <div className="modal-body">
               <div className="event-summary">
                 <h4>{selectedEvent.name}</h4>
-                <p><strong>Organización:</strong> {selectedEvent.organization_id}</p>
+                <p><strong>Organización:</strong> {selectedEvent.source_organization}</p>
                 <p><strong>Fecha:</strong> {formatDate(selectedEvent.event_date)}</p>
                 {selectedEvent.description && (
                   <p><strong>Descripción:</strong> {selectedEvent.description}</p>

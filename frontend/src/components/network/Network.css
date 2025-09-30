@@ -1693,4 +1693,39 @@ k Main Page Styles */
   .step-content h4 {
     font-size: 15px;
   }
+}/* Own Req
+uest Styling */
+.request-card.own-request {
+  border: 2px solid #ffc107;
+  background: linear-gradient(135deg, #fff9e6, #fffbf0);
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+
+.own-badge {
+  background: linear-gradient(135deg, #ffc107, #ffb300);
+  color: #212529;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.own-request-notice {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.notice-text {
+  color: #856404;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.request-card.external-request {
+  border: 1px solid #dee2e6;
+  background: white;
 }

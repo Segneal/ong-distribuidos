@@ -151,6 +151,26 @@ const DonationForm = ({ donation, onSuccess }) => {
           </div>
         )}
 
+        {/* Información de la donación existente */}
+        {donation && (
+          <div className="donation-info">
+            <div className="info-item">
+              <strong>Fecha de alta:</strong> {new Date(donation.createdAt).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+            {donation.createdBy && (
+              <div className="info-item">
+                <strong>Creado por:</strong> {donation.createdBy}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Categoría */}
         <div className="form-group">
           <label htmlFor="category">

@@ -119,6 +119,7 @@ export const messagingService = {
   publishEvent: (eventData) => api.post('/messaging/publish-event', eventData),
   getExternalEvents: (params = {}) => api.post('/messaging/external-events', params),
   cancelEvent: (eventId) => api.post('/messaging/cancel-event', { eventId }),
+  toggleEventExposure: (exposureData) => api.post('/messaging/toggle-event-exposure', exposureData),
   
   // Event adhesions
   createEventAdhesion: (adhesionData) => api.post('/messaging/create-event-adhesion', adhesionData),

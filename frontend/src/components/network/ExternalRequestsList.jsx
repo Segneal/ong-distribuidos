@@ -147,10 +147,16 @@ const ExternalRequestsList = () => {
           </div>
         ) : (
           <div className="requests-grid">
-            {requests.map(request => (
-              <div key={`${request.organization_id}-${request.request_id}`} className="request-card">
+            {requests.map(request => {
+              const isOwnRequest = request.requesting_organization === 'empuje-comunitario';
+              return (
+              <div key={`${request.requesting_organization}-${request.request_id}`} 
+                   className={`request-card ${isOwnRequest ? 'own-request' : 'external-request'}`}>
                 <div className="request-header">
-                  <h4>Solicitud de {request.organization_id}</h4>
+                  <h4>
+                    Solicitud de {request.requesting_organization}
+                    {isOwnRequest && <span className="own-badge">NUESTRA ORG</span>}
+                  </h4>
                   <span className="request-date">
                     {formatDate(request.timestamp)}
                   </span>
@@ -181,15 +187,21 @@ const ExternalRequestsList = () => {
                 </div>
 
                 <div className="request-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => handleTransferDonations(request)}
-                  >
-                    Transferir Donaciones
-                  </button>
+                  {isOwnRequest ? (
+                    <div className="own-request-notice">
+                      <span className="notice-text">📋 Esta es una solicitud de nuestra organización</span>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleTransferDonations(request)}
+                    >
+                      Transferir Donaciones
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>

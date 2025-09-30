@@ -5,6 +5,10 @@ import grpc
 from concurrent import futures
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(__file__))
@@ -22,13 +26,16 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
     
     def _create_event_message(self, event_data):
         """Create Event message from database data"""
+        print(f"DEBUG: event_data keys: {event_data.keys()}")
+        print(f"DEBUG: expuesto_red value: {event_data.get('expuesto_red', 'NOT_FOUND')}")
         return events_pb2.Event(
             id=event_data['id'],
             name=event_data['nombre'],
             description=event_data.get('descripcion', ''),
             event_date=str(event_data['fecha_evento']),
             created_at=str(event_data['fecha_creacion']),
-            updated_at=str(event_data.get('fecha_actualizacion', ''))
+            updated_at=str(event_data.get('fecha_actualizacion', '')),
+            expuesto_red=bool(event_data.get('expuesto_red', False))
         )
     
     def _create_participant_message(self, participant_data):

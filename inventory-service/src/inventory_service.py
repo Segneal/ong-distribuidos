@@ -10,6 +10,10 @@ import grpc
 from concurrent import futures
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import generated protobuf classes
 import inventory_pb2
@@ -328,20 +332,22 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
 
 def serve():
     """Start the gRPC server"""
+    port = os.getenv('GRPC_PORT', '50052')
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     inventory_pb2_grpc.add_InventoryServiceServicer_to_server(InventoryServiceImpl(), server)
     
-    # Configure server to listen on port 50052
-    listen_addr = '0.0.0.0:50052'
+    listen_addr = f'[::]:{port}'
     server.add_insecure_port(listen_addr)
     
-    print(f"Starting Inventory Service gRPC server on {listen_addr}")
+    print(f"🚀 Inventory Service iniciado en puerto {port}")
+    print(f"📊 Escuchando en {listen_addr}")
+    
     server.start()
     
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        print("Shutting down Inventory Service...")
+        print("\n🛑 Deteniendo Inventory Service...")
         server.stop(0)
 
 if __name__ == '__main__':

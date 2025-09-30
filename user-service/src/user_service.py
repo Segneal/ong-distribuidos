@@ -9,6 +9,10 @@ from email_sender import send_password_email
 import jwt
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class UserService(users_pb2_grpc.UserServiceServicer):
     def __init__(self):
@@ -290,3 +294,26 @@ class UserService(users_pb2_grpc.UserServiceServicer):
                 success=False,
                 message="Error interno del servidor"
             )
+
+def serve():
+    """Inicia el servidor gRPC"""
+    port = os.getenv('GRPC_PORT', '50051')
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    users_pb2_grpc.add_UserServiceServicer_to_server(UserService(), server)
+    
+    listen_addr = f'[::]:{port}'
+    server.add_insecure_port(listen_addr)
+    
+    print(f"🚀 User Service iniciado en puerto {port}")
+    print(f"📊 Escuchando en {listen_addr}")
+    
+    server.start()
+    
+    try:
+        server.wait_for_termination()
+    except KeyboardInterrupt:
+        print("\n🛑 Deteniendo User Service...")
+        server.stop(0)
+
+if __name__ == '__main__':
+    serve()

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuración base de Axios
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -128,7 +128,7 @@ export const messagingService = {
 
 // Servicio para health check
 export const healthService = {
-  check: () => api.get('/health', { baseURL: 'http://localhost:3000' }),
+  check: () => api.get('/health', { baseURL: 'http://localhost:3001' }),
 };
 
 export default api;

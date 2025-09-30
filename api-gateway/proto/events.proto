@@ -43,6 +43,7 @@ message Event {
   string event_date = 4;
   string created_at = 5;
   string updated_at = 6;
+  bool expuesto_red = 7;
 }
 
 // Mensaje de participante

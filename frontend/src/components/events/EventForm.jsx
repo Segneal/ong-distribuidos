@@ -13,7 +13,8 @@ const EventForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    eventDate: ''
+    eventDate: '',
+    expuesto_red: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +46,8 @@ const EventForm = () => {
       setFormData({
         name: event.name,
         description: event.description || '',
-        eventDate: event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 16) : ''
+        eventDate: event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 16) : '',
+        expuesto_red: event.expuesto_red || false
       });
 
       // Load participants
@@ -61,10 +63,10 @@ const EventForm = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -223,6 +225,22 @@ const EventForm = () => {
             required
             min={new Date().toISOString().slice(0, 16)}
           />
+        </div>
+
+        <div className="form-group">
+          <div className="checkbox-group">
+            <input
+              type="checkbox"
+              id="expuesto_red"
+              name="expuesto_red"
+              checked={formData.expuesto_red}
+              onChange={handleInputChange}
+            />
+            <label htmlFor="expuesto_red">
+              Exponer evento a la red de ONGs
+              <small>Permite que otras organizaciones vean y se adhieran a este evento</small>
+            </label>
+          </div>
         </div>
 
         <div className="form-actions">

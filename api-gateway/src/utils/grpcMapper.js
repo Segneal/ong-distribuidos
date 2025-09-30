@@ -185,6 +185,7 @@ const eventsTransformers = {
     eventDate: grpcEvent.event_date,
     createdAt: grpcEvent.created_at,
     updatedAt: grpcEvent.updated_at,
+    expuesto_red: grpcEvent.expuesto_red !== undefined ? grpcEvent.expuesto_red : false,
   }),
 
   fromGrpcParticipant: (grpcParticipant) => ({

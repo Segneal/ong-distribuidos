@@ -246,12 +246,10 @@ class NetworkConsumer(BaseConsumer):
         # Process the message directly
         success = consumer.process_message(message_data)
         if not success:
-            logger.error("Failed to process donation request", data=message_data)
-            "timestamp": message_data.get("timestamp"),
-            "data": message_data
-        }
-        
-        consumer.process_message(message_envelope)
+            logger.error("Failed to process donation request", extra={
+                "timestamp": message_data.get("timestamp"),
+                "data": message_data
+            })
     
     def _handle_donation_offer(self, message_data: Dict[str, Any]):
         """Handle incoming donation offer"""
@@ -276,16 +274,20 @@ class NetworkConsumer(BaseConsumer):
         """Handle request cancellation"""
         logger.info("Handling request cancellation", data=message_data)
         
-        # Use the dedicated request cancellation consumer logic
-        from .donation_request_consumer import RequestCancellationConsumer
-        consumer = RequestCancellationConsumer()
-        
-        # Process the message directly
-        success = consumer.process_message(message_data)
-        if not success:
-            logger.error("Failed to process request cancellation", data=message_data)
-        
-        consumer.process_message(message_envelope)
+        try:
+            # Use the dedicated request cancellation consumer logic
+            from .donation_request_consumer import RequestCancellationConsumer
+            consumer = RequestCancellationConsumer()
+            
+            # Process the message directly
+            success = consumer.process_message(message_data)
+            if not success:
+                logger.error("Failed to process request cancellation", data=message_data)
+            else:
+                logger.info("Request cancellation processed successfully", request_id=message_data.get('request_id'))
+                
+        except Exception as e:
+            logger.error("Error handling request cancellation", error=str(e), request_id=message_data.get('request_id'))
     
     def _handle_solidarity_event(self, message_data: Dict[str, Any]):
         """Handle incoming solidarity event"""

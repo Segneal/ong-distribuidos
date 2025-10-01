@@ -312,6 +312,7 @@ class UserService(users_pb2_grpc.UserServiceServicer):
                 'user_id': user_data['id'],
                 'username': user_data['nombre_usuario'],
                 'role': user_data['rol'],
+                'organization': user_data.get('organizacion', 'empuje-comunitario'),
                 'exp': datetime.utcnow() + timedelta(hours=24)
             }
             token = jwt.encode(payload, self.jwt_secret, algorithm='HS256')

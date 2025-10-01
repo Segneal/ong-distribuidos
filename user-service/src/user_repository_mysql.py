@@ -5,7 +5,7 @@ class UserRepository:
     def __init__(self):
         self.db = get_db_connection()
     
-    def create_user(self, username, first_name, last_name, email, phone, role, password_hash):
+    def create_user(self, username, first_name, last_name, email, phone, role, password_hash, organization='empuje-comunitario'):
         """Crea un nuevo usuario en la base de datos"""
         try:
             conn = self.db.connect()
@@ -13,17 +13,17 @@ class UserRepository:
             
             # Insert user (MySQL no soporta RETURNING)
             query = """
-                INSERT INTO usuarios (nombre_usuario, nombre, apellido, email, telefono, password_hash, rol)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO usuarios (nombre_usuario, nombre, apellido, email, telefono, password_hash, rol, organizacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
             
-            cursor.execute(query, (username, first_name, last_name, email, phone, password_hash, role))
+            cursor.execute(query, (username, first_name, last_name, email, phone, password_hash, role, organization))
             user_id = cursor.lastrowid
             conn.commit()
             
             # Fetch the created user
             select_query = """
-                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, organizacion, activo, fecha_creacion, fecha_actualizacion
                 FROM usuarios WHERE id = %s
             """
             cursor.execute(select_query, (user_id,))
@@ -47,7 +47,7 @@ class UserRepository:
             cursor = self.db.get_cursor()
             
             query = """
-                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, organizacion, activo, fecha_creacion, fecha_actualizacion
                 FROM usuarios WHERE id = %s
             """
             
@@ -70,7 +70,7 @@ class UserRepository:
             cursor = self.db.get_cursor()
             
             query = """
-                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion, password_hash
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, organizacion, activo, fecha_creacion, fecha_actualizacion, password_hash
                 FROM usuarios WHERE (nombre_usuario = %s OR email = %s) AND activo = true
             """
             
@@ -86,7 +86,7 @@ class UserRepository:
             cursor.close()
             self.db.close()
     
-    def update_user(self, user_id, username, first_name, last_name, email, phone, role):
+    def update_user(self, user_id, username, first_name, last_name, email, phone, role, organization='empuje-comunitario'):
         """Actualiza un usuario existente"""
         try:
             conn = self.db.connect()
@@ -95,16 +95,16 @@ class UserRepository:
             # Update user (MySQL no soporta RETURNING)
             query = """
                 UPDATE usuarios 
-                SET nombre_usuario = %s, nombre = %s, apellido = %s, email = %s, telefono = %s, rol = %s, fecha_actualizacion = CURRENT_TIMESTAMP
+                SET nombre_usuario = %s, nombre = %s, apellido = %s, email = %s, telefono = %s, rol = %s, organizacion = %s, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = %s
             """
             
-            cursor.execute(query, (username, first_name, last_name, email, phone, role, user_id))
+            cursor.execute(query, (username, first_name, last_name, email, phone, role, organization, user_id))
             conn.commit()
             
             # Fetch the updated user
             select_query = """
-                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, organizacion, activo, fecha_creacion, fecha_actualizacion
                 FROM usuarios WHERE id = %s
             """
             cursor.execute(select_query, (user_id,))
@@ -158,24 +158,35 @@ class UserRepository:
             cursor.close()
             self.db.close()
     
-    def list_users(self, include_inactive=False):
-        """Lista todos los usuarios"""
+    def list_users(self, include_inactive=False, organization=None):
+        """Lista usuarios, opcionalmente filtrados por organización"""
         try:
             conn = self.db.connect()
             cursor = self.db.get_cursor()
             
-            if include_inactive:
-                query = """
-                    SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
-                    FROM usuarios ORDER BY nombre, apellido
-                """
-            else:
-                query = """
-                    SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
-                    FROM usuarios WHERE activo = true ORDER BY nombre, apellido
-                """
+            base_query = """
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, organizacion, activo, fecha_creacion, fecha_actualizacion
+                FROM usuarios
+            """
             
-            cursor.execute(query)
+            conditions = []
+            params = []
+            
+            if not include_inactive:
+                conditions.append("activo = true")
+            
+            if organization:
+                conditions.append("organizacion = %s")
+                params.append(organization)
+            
+            if conditions:
+                query = base_query + " WHERE " + " AND ".join(conditions)
+            else:
+                query = base_query
+            
+            query += " ORDER BY nombre, apellido"
+            
+            cursor.execute(query, params)
             users = cursor.fetchall()
             return [dict(user) for user in users]
             

@@ -21,6 +21,7 @@ const userTransformers = {
     email: restUser.email,
     phone: restUser.phone || '',
     role: ROLE_MAPPING[restUser.role] || 0,
+    organization: restUser.organization || 'empuje-comunitario',
   }),
 
   toGrpcUpdateUser: (id, restUser) => ({
@@ -31,6 +32,7 @@ const userTransformers = {
     email: restUser.email,
     phone: restUser.phone || '',
     role: ROLE_MAPPING[restUser.role] || 0,
+    organization: restUser.organization || 'empuje-comunitario',
   }),
 
   toGrpcAuth: (credentials) => ({
@@ -54,6 +56,7 @@ const userTransformers = {
       email: grpcUser.email,
       phone: grpcUser.phone,
       role,
+      organization: grpcUser.organization,
       isActive: grpcUser.is_active,
       createdAt: grpcUser.created_at,
       updatedAt: grpcUser.updated_at,

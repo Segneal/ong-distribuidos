@@ -202,38 +202,36 @@ router.post('/external-requests', authenticateToken, async (req, res) => {
 router.post('/create-donation-request', authenticateToken, async (req, res) => {
   try {
     console.log('=== CREATE DONATION REQUEST ===');
+    console.log('User organization:', req.user.organization);
+    
     const { donations, notes } = req.body;
     
-    const connection = await createDbConnection();
-
-    // Generate unique request ID
-    const requestId = `REQ-${Date.now()}`;
-
-    const query = `
-      INSERT INTO solicitudes_donaciones 
-      (solicitud_id, donaciones, estado, fecha_creacion, notas)
-      VALUES (?, ?, 'ACTIVA', NOW(), ?)
-    `;
-
-    const [result] = await connection.execute(query, [
-      requestId,
-      JSON.stringify(donations),
-      notes || ''
-    ]);
-    
-    await connection.end();
-
-    res.json({
-      success: true,
-      request_id: requestId,
-      message: 'Solicitud de donación creada exitosamente'
+    // Call messaging service
+    const axios = require('axios');
+    const messagingResponse = await axios.post('http://localhost:8000/api/createDonationRequest', {
+      donations: donations,
+      userId: req.user.id,
+      notes: notes || ''
     });
+
+    if (messagingResponse.data.success) {
+      res.json({
+        success: true,
+        request_id: messagingResponse.data.request_id,
+        message: messagingResponse.data.message
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: messagingResponse.data.message || 'Error creating donation request'
+      });
+    }
   } catch (error) {
     console.error('Error creating donation request:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      message: error.message
+      message: error.response?.data?.detail || error.message
     });
   }
 });
@@ -242,38 +240,36 @@ router.post('/create-donation-request', authenticateToken, async (req, res) => {
 router.post('/create-donation-offer', authenticateToken, async (req, res) => {
   try {
     console.log('=== CREATE DONATION OFFER ===');
+    console.log('User organization:', req.user.organization);
+    
     const { donations, notes } = req.body;
     
-    const connection = await createDbConnection();
-
-    // Generate unique offer ID
-    const offerId = `OFE-${Date.now()}`;
-
-    const query = `
-      INSERT INTO ofertas_externas 
-      (organizacion_donante, oferta_id, donaciones, fecha_creacion, activa)
-      VALUES (?, ?, ?, NOW(), true)
-    `;
-
-    const [result] = await connection.execute(query, [
-      'empuje-comunitario',
-      offerId,
-      JSON.stringify(donations)
-    ]);
-    
-    await connection.end();
-
-    res.json({
-      success: true,
-      offer_id: offerId,
-      message: 'Oferta de donación creada exitosamente'
+    // Call messaging service
+    const axios = require('axios');
+    const messagingResponse = await axios.post('http://localhost:8000/api/createDonationOffer', {
+      donations: donations,
+      userId: req.user.id,
+      notes: notes || ''
     });
+
+    if (messagingResponse.data.success) {
+      res.json({
+        success: true,
+        offer_id: messagingResponse.data.offer_id,
+        message: messagingResponse.data.message
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: messagingResponse.data.message || 'Error creating donation offer'
+      });
+    }
   } catch (error) {
     console.error('Error creating donation offer:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      message: error.message
+      message: error.response?.data?.detail || error.message
     });
   }
 });
@@ -282,6 +278,7 @@ router.post('/create-donation-offer', authenticateToken, async (req, res) => {
 router.post('/transfer-donations', authenticateToken, async (req, res) => {
   try {
     console.log('=== TRANSFER DONATIONS ===');
+    console.log('User organization:', req.user.organization);
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
     const { targetOrganization, requestId, donations, notes } = req.body;
@@ -295,29 +292,27 @@ router.post('/transfer-donations', authenticateToken, async (req, res) => {
       });
     }
     
-    const connection = await createDbConnection();
-
-    const query = `
-      INSERT INTO transferencias_donaciones 
-      (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, notas)
-      VALUES (?, ?, ?, ?, 'COMPLETADA', NOW(), ?)
-    `;
-
-    const [result] = await connection.execute(query, [
-      'ENVIADA',
-      targetOrganization || 'organizacion-externa',
-      requestId || null,
-      JSON.stringify(donations),
-      notes || ''
-    ]);
-    
-    await connection.end();
-
-    res.json({
-      success: true,
-      transfer_id: result.insertId,
-      message: 'Transferencia de donaciones completada exitosamente'
+    // Call messaging service
+    const axios = require('axios');
+    const messagingResponse = await axios.post('http://localhost:8000/api/transferDonations', {
+      targetOrganization: targetOrganization,
+      requestId: requestId,
+      donations: donations,
+      userId: req.user.id
     });
+
+    if (messagingResponse.data.success) {
+      res.json({
+        success: true,
+        transfer_id: messagingResponse.data.transfer_id,
+        message: messagingResponse.data.message
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: messagingResponse.data.message || 'Error transferring donations'
+      });
+    }
   } catch (error) {
     console.error('Error transferring donations:', error);
     res.status(500).json({

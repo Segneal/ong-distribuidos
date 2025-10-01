@@ -35,12 +35,25 @@ router.post('/login', async (req, res) => {
     // Transformar respuesta
     const response = userTransformers.fromGrpcUserResponse(grpcResponse);
 
+    console.log('=== LOGIN DEBUG ===');
+    console.log('gRPC Response user:', grpcResponse.user ? {
+      id: grpcResponse.user.id,
+      username: grpcResponse.user.username,
+      organization: grpcResponse.user.organization
+    } : 'No user');
+    console.log('Transformed response user:', response.user ? {
+      id: response.user.id,
+      username: response.user.username,
+      organization: response.user.organization
+    } : 'No user');
+
     if (response.success) {
       // El token ya viene del microservicio, pero podemos generar uno nuevo si es necesario
       const token = response.token || authService.generateToken({
         user_id: response.user.id,
         username: response.user.username,
-        role: response.user.role
+        role: response.user.role,
+        organization: response.user.organization
       });
 
       res.status(200).json({
@@ -53,6 +66,7 @@ router.post('/login', async (req, res) => {
           lastName: response.user.lastName,
           email: response.user.email,
           role: response.user.role,
+          organization: response.user.organization,
           isActive: response.user.isActive
         },
         token: token,

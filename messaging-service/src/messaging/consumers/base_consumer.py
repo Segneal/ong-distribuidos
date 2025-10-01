@@ -240,14 +240,13 @@ class NetworkConsumer(BaseConsumer):
         logger.info("Handling donation request", data=message_data)
         
         # Use the dedicated donation request consumer logic
-        from .donation_consumer import DonationRequestConsumer
+        from .donation_request_consumer import DonationRequestConsumer
         consumer = DonationRequestConsumer()
         
-        # Create a message envelope for processing
-        message_envelope = {
-            "message_id": "network-consumer-msg",
-            "message_type": "donation_request",
-            "organization_id": message_data.get("organization_id"),
+        # Process the message directly
+        success = consumer.process_message(message_data)
+        if not success:
+            logger.error("Failed to process donation request", data=message_data)
             "timestamp": message_data.get("timestamp"),
             "data": message_data
         }
@@ -277,17 +276,14 @@ class NetworkConsumer(BaseConsumer):
         """Handle request cancellation"""
         logger.info("Handling request cancellation", data=message_data)
         
-        # Handle request cancellation inline for now
-        logger.info("Processing request cancellation", data=message_data)
+        # Use the dedicated request cancellation consumer logic
+        from .donation_request_consumer import RequestCancellationConsumer
+        consumer = RequestCancellationConsumer()
         
-        # Create a message envelope for processing
-        message_envelope = {
-            "message_id": "network-consumer-msg",
-            "message_type": "request_cancellation",
-            "organization_id": message_data.get("organization_id"),
-            "timestamp": message_data.get("timestamp"),
-            "data": message_data
-        }
+        # Process the message directly
+        success = consumer.process_message(message_data)
+        if not success:
+            logger.error("Failed to process request cancellation", data=message_data)
         
         consumer.process_message(message_envelope)
     

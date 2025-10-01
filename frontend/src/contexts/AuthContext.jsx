@@ -35,7 +35,7 @@ const authReducer = (state, action) => {
         status: AuthState.LOADING,
         error: null
       };
-    
+
     case AuthActions.SET_AUTHENTICATED:
       return {
         ...state,
@@ -44,7 +44,7 @@ const authReducer = (state, action) => {
         token: action.payload.token,
         error: null
       };
-    
+
     case AuthActions.SET_UNAUTHENTICATED:
       return {
         ...state,
@@ -53,20 +53,20 @@ const authReducer = (state, action) => {
         token: null,
         error: null
       };
-    
+
     case AuthActions.SET_ERROR:
       return {
         ...state,
         status: AuthState.ERROR,
         error: action.payload
       };
-    
+
     case AuthActions.CLEAR_ERROR:
       return {
         ...state,
         error: null
       };
-    
+
     default:
       return state;
   }
@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }) => {
         try {
           // Verificar si el token sigue siendo válido
           const response = await authService.verify({ token });
-          
+
           if (response.data.valid) {
             dispatch({
               type: AuthActions.SET_AUTHENTICATED,
@@ -131,21 +131,21 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       dispatch({ type: AuthActions.SET_LOADING });
-      
+
       const response = await authService.login(credentials);
-      
+
       if (response.data.success) {
         const { user, token } = response.data;
-        
+
         // Guardar en localStorage
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
-        
+
         dispatch({
           type: AuthActions.SET_AUTHENTICATED,
           payload: { user, token }
         });
-        
+
         return { success: true, user };
       } else {
         dispatch({
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: state.status === AuthState.AUTHENTICATED,
     isUnauthenticated: state.status === AuthState.UNAUTHENTICATED,
     hasError: state.status === AuthState.ERROR,
-    
+
     // Funciones
     login,
     logout,

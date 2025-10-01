@@ -26,7 +26,7 @@ const InventoryList = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = new URLSearchParams();
       if (selectedCategory) {
         params.append('category', selectedCategory);
@@ -36,7 +36,7 @@ const InventoryList = () => {
       }
 
       const response = await api.get(`/inventory?${params.toString()}`);
-      
+
       if (response.data.success) {
         setDonations(response.data.donations || []);
       } else {
@@ -66,7 +66,7 @@ const InventoryList = () => {
 
     try {
       const response = await api.delete(`/inventory/${donationId}`);
-      
+
       if (response.data.success) {
         await fetchDonations(); // Recargar la lista
       } else {
@@ -103,7 +103,7 @@ const InventoryList = () => {
     <div className="inventory-container">
       <div className="inventory-header">
         <h2>Inventario de Donaciones</h2>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => setShowForm(true)}
         >

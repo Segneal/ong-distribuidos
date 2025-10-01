@@ -136,6 +136,9 @@ const LoginForm = () => {
         <Box textAlign="center" mb={3}>
           <LoginIcon fontSize="large" color="primary" />
           <Typography variant="h4" component="h1" gutterBottom>
+            Sistema Multi-Organización
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
             Iniciar Sesión
           </Typography>
           <Typography variant="body2" color="text.secondary">

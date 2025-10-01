@@ -25,7 +25,7 @@ class InventoryRepository:
             print(f"Error connecting to database: {e}")
             return None
     
-    def create_donation(self, category: DonationCategory, description: str, quantity: int, created_by: int) -> Optional[Donation]:
+    def create_donation(self, category: DonationCategory, description: str, quantity: int, created_by: int, organization: str = 'empuje-comunitario') -> Optional[Donation]:
         """Create a new donation"""
         print("=== REPOSITORY: create_donation STARTED ===")
         try:
@@ -53,10 +53,10 @@ class InventoryRepository:
             
             # Insert donation
             query = """
-                INSERT INTO donaciones (categoria, descripcion, cantidad, usuario_alta, fecha_alta) 
-                VALUES (%s, %s, %s, %s, NOW())
+                INSERT INTO donaciones (categoria, descripcion, cantidad, usuario_alta, organizacion, fecha_alta) 
+                VALUES (%s, %s, %s, %s, %s, NOW())
             """
-            values = (category_str, description, quantity, created_by)
+            values = (category_str, description, quantity, created_by, organization)
             
             print(f"REPOSITORY: 7. Executing query: {query}")
             print(f"REPOSITORY: 8. With values: {values}")
@@ -107,8 +107,8 @@ class InventoryRepository:
                 conn.close()
             return None
     
-    def get_all_donations(self, include_deleted: bool = False) -> List[Donation]:
-        """Get all donations"""
+    def get_all_donations(self, include_deleted: bool = False, organization: str = None) -> List[Donation]:
+        """Get all donations, optionally filtered by organization"""
         try:
             conn = self._get_connection()
             if not conn:
@@ -116,12 +116,22 @@ class InventoryRepository:
             
             cursor = conn.cursor(dictionary=True)
             
-            if include_deleted:
-                query = "SELECT * FROM donaciones ORDER BY fecha_alta DESC"
-            else:
-                query = "SELECT * FROM donaciones WHERE eliminado = FALSE ORDER BY fecha_alta DESC"
+            conditions = []
+            params = []
             
-            cursor.execute(query)
+            if not include_deleted:
+                conditions.append("eliminado = FALSE")
+            
+            if organization:
+                conditions.append("organizacion = %s")
+                params.append(organization)
+            
+            if conditions:
+                query = f"SELECT * FROM donaciones WHERE {' AND '.join(conditions)} ORDER BY fecha_alta DESC"
+            else:
+                query = "SELECT * FROM donaciones ORDER BY fecha_alta DESC"
+            
+            cursor.execute(query, params)
             results = cursor.fetchall()
             
             donations = []

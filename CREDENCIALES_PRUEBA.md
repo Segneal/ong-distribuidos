@@ -59,3 +59,9 @@ O también puedes usar el email:
   "password": "admin123"
 }
 ```
+
+
+Empuje Comunitario (admin/admin123)
+Fundación Esperanza (esperanza_admin/password123)
+ONG Solidaria (solidaria_admin/password123)
+Centro Comunitario (centro_admin/password123)

@@ -20,10 +20,23 @@ router.get('/', requireRole(['PRESIDENTE']), async (req, res) => {
     const response = userTransformers.fromGrpcUsersList(grpcResponse);
 
     if (response.success) {
+      // Filtrar usuarios por organización del usuario logueado
+      const userOrganization = req.user.organization;
+      console.log(`=== USERS FILTER DEBUG ===`);
+      console.log(`User organization: ${userOrganization}`);
+      console.log(`Total users from service: ${response.users.length}`);
+      
+      const filteredUsers = response.users.filter(user => {
+        console.log(`User ${user.username}: ${user.organization} === ${userOrganization} ? ${user.organization === userOrganization}`);
+        return user.organization === userOrganization;
+      });
+      
+      console.log(`Filtered users: ${filteredUsers.length}`);
+      
       res.status(200).json({
         success: true,
-        message: response.message,
-        users: response.users
+        message: `Se encontraron ${filteredUsers.length} usuarios de ${userOrganization}`,
+        users: filteredUsers
       });
     } else {
       res.status(400).json({
@@ -87,6 +100,9 @@ router.post('/', requireRole(['PRESIDENTE']), async (req, res) => {
       });
     }
 
+    // Forzar la organización del usuario logueado
+    userData.organization = req.user.organization;
+    
     // Transformar datos para gRPC
     const grpcRequest = userTransformers.toGrpcCreateUser(userData);
 

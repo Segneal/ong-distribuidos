@@ -79,12 +79,23 @@ const userTransformers = {
 
 // Transformadores para inventario
 const inventoryTransformers = {
-  toGrpcCreateDonation: (restDonation, userId) => ({
-    category: CATEGORY_MAPPING[restDonation.category] || 0,
-    description: restDonation.description || '',
-    quantity: parseInt(restDonation.quantity) || 0,
-    created_by: parseInt(userId),
-  }),
+  toGrpcCreateDonation: (restDonation, userId, userOrganization = 'empuje-comunitario') => {
+    console.log('🔄 TRANSFORMER: toGrpcCreateDonation called');
+    console.log('🔄 TRANSFORMER: restDonation:', JSON.stringify(restDonation, null, 2));
+    console.log('🔄 TRANSFORMER: userId:', userId);
+    console.log('🔄 TRANSFORMER: userOrganization:', userOrganization);
+    
+    const result = {
+      category: CATEGORY_MAPPING[restDonation.category] || 0,
+      description: restDonation.description || '',
+      quantity: parseInt(restDonation.quantity) || 0,
+      created_by: parseInt(userId),
+      organization: userOrganization,
+    };
+    
+    console.log('🔄 TRANSFORMER: result:', JSON.stringify(result, null, 2));
+    return result;
+  },
 
   toGrpcUpdateDonation: (id, restDonation, userId) => {
     console.log('TRANSFORMER: toGrpcUpdateDonation called');
@@ -123,6 +134,7 @@ const inventoryTransformers = {
   toGrpcListDonations: (filters) => ({
     category: filters.category ? CATEGORY_MAPPING[filters.category] : undefined,
     include_deleted: filters.includeDeleted || false,
+    organization: filters.organization || undefined,
   }),
 
   // FIX: soportar números, strings numéricos y strings de categoría
@@ -166,12 +178,22 @@ const inventoryTransformers = {
 
 // Transformadores para eventos
 const eventsTransformers = {
-  toGrpcCreateEvent: (restEvent) => ({
-    name: restEvent.name,
-    description: restEvent.description || '',
-    event_date: restEvent.eventDate,
-    participant_ids: restEvent.participantIds || [],
-  }),
+  toGrpcCreateEvent: (restEvent, userOrganization = 'empuje-comunitario') => {
+    console.log('🔄 EVENTS TRANSFORMER: toGrpcCreateEvent called');
+    console.log('🔄 EVENTS TRANSFORMER: restEvent:', JSON.stringify(restEvent, null, 2));
+    console.log('🔄 EVENTS TRANSFORMER: userOrganization:', userOrganization);
+    
+    const result = {
+      name: restEvent.name,
+      description: restEvent.description || '',
+      event_date: restEvent.eventDate,
+      participant_ids: restEvent.participantIds || [],
+      organization: userOrganization,
+    };
+    
+    console.log('🔄 EVENTS TRANSFORMER: result:', JSON.stringify(result, null, 2));
+    return result;
+  },
 
   toGrpcUpdateEvent: (id, restEvent) => ({
     id: parseInt(id),

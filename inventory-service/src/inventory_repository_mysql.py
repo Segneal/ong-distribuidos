@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'shared'))
 
 from typing import Optional, List
 from datetime import datetime
-from models.donation import Donation, DonationCategory
+from donation_model_fixed import Donation, DonationCategory
 from database_mysql import get_db_connection
 
 class InventoryRepository:
@@ -80,12 +80,13 @@ class InventoryRepository:
             if result:
                 donation = Donation(
                     id=result['id'],
-                    category=DonationCategory(result['categoria']),
-                    description=result['descripcion'],
-                    quantity=result['cantidad'],
-                    deleted=result['eliminado'],
-                    created_at=result['fecha_alta'],
-                    created_by=result['usuario_alta']
+                    categoria=DonationCategory(result['categoria']),
+                    descripcion=result['descripcion'],
+                    cantidad=result['cantidad'],
+                    eliminado=result['eliminado'],
+                    fecha_alta=result['fecha_alta'],
+                    usuario_alta=result['usuario_alta'],
+                    organizacion=result.get('organizacion', 'empuje-comunitario')
                 )
                 print(f"REPOSITORY: 12. Created donation object: {donation}")
                 cursor.close()
@@ -138,12 +139,13 @@ class InventoryRepository:
             for row in results:
                 donation = Donation(
                     id=row['id'],
-                    category=DonationCategory(row['categoria']),
-                    description=row['descripcion'],
-                    quantity=row['cantidad'],
-                    deleted=row['eliminado'],
-                    created_at=row['fecha_alta'],
-                    created_by=row['usuario_alta']
+                    categoria=DonationCategory(row['categoria']),
+                    descripcion=row['descripcion'],
+                    cantidad=row['cantidad'],
+                    eliminado=row['eliminado'],
+                    fecha_alta=row['fecha_alta'],
+                    usuario_alta=row['usuario_alta'],
+                    organizacion=row.get('organizacion', 'empuje-comunitario')
                 )
                 donations.append(donation)
             
@@ -169,12 +171,13 @@ class InventoryRepository:
             if result:
                 donation = Donation(
                     id=result['id'],
-                    category=DonationCategory(result['categoria']),
-                    description=result['descripcion'],
-                    quantity=result['cantidad'],
-                    deleted=result['eliminado'],
-                    created_at=result['fecha_alta'],
-                    created_by=result['usuario_alta']
+                    categoria=DonationCategory(result['categoria']),
+                    descripcion=result['descripcion'],
+                    cantidad=result['cantidad'],
+                    eliminado=result['eliminado'],
+                    fecha_alta=result['fecha_alta'],
+                    usuario_alta=result['usuario_alta'],
+                    organizacion=result.get('organizacion', 'empuje-comunitario')
                 )
                 cursor.close()
                 conn.close()
@@ -271,55 +274,7 @@ class InventoryRepository:
                 conn.close()
             return False
     
-    def list_donations(self, category=None, include_deleted=False):
-        """List donations with optional filters"""
-        try:
-            conn = self._get_connection()
-            if not conn:
-                return []
-            
-            cursor = conn.cursor(dictionary=True)
-            
-            # Build query based on filters
-            query = "SELECT * FROM donaciones"
-            conditions = []
-            values = []
-            
-            if not include_deleted:
-                conditions.append("eliminado = FALSE")
-            
-            if category is not None:
-                conditions.append("categoria = %s")
-                values.append(category.value if hasattr(category, 'value') else str(category))
-            
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-            
-            query += " ORDER BY fecha_alta DESC"
-            
-            cursor.execute(query, values)
-            results = cursor.fetchall()
-            
-            donations = []
-            for row in results:
-                donation = Donation(
-                    id=row['id'],
-                    category=DonationCategory(row['categoria']),
-                    description=row['descripcion'],
-                    quantity=row['cantidad'],
-                    deleted=row['eliminado'],
-                    created_at=row['fecha_alta'],
-                    created_by=row['usuario_alta']
-                )
-                donations.append(donation)
-            
-            cursor.close()
-            conn.close()
-            return donations
-            
-        except Exception as e:
-            print(f"Error listing donations: {e}")
-            return []
+
     
     def transfer_donations(self, transfers, target_organization, transferred_by):
         """Transfer donations to another organization"""
@@ -342,4 +297,8 @@ class InventoryRepository:
             
         except Exception as e:
             print(f"Error transferring donations: {e}")
-            return []
+            return []    
+
+    def list_donations(self, category=None, include_deleted=False, organization=None):
+        """List donations with filters - alias for get_all_donations"""
+        return self.get_all_donations(include_deleted=include_deleted, organization=organization)

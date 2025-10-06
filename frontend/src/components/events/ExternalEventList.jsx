@@ -263,7 +263,7 @@ const ExternalEventList = () => {
         ) : (
           <div className="events-grid">
             {filteredEvents.map(event => {
-              const isOwnEvent = event.source_organization === 'empuje-comunitario';
+              const isOwnEvent = event.source_organization === user?.organization;
               return (
               <div key={`${event.source_organization}-${event.event_id}`} 
                    className={`event-card ${isOwnEvent ? 'own-event' : 'external-event'}`}>
@@ -274,7 +274,7 @@ const ExternalEventList = () => {
                   </h4>
                   <div className="event-organization">
                     <span className={`organization-badge ${isOwnEvent ? 'own-org' : 'external-org'}`}>
-                      {isOwnEvent ? 'Empuje Comunitario' : event.source_organization}
+                      {isOwnEvent ? user?.organization : event.source_organization}
                     </span>
                   </div>
                 </div>

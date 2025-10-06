@@ -148,7 +148,7 @@ const ExternalRequestsList = () => {
         ) : (
           <div className="requests-grid">
             {requests.map(request => {
-              const isOwnRequest = request.requesting_organization === 'empuje-comunitario';
+              const isOwnRequest = request.requesting_organization === user?.organization;
               return (
               <div key={`${request.requesting_organization}-${request.request_id}`} 
                    className={`request-card ${isOwnRequest ? 'own-request' : 'external-request'}`}>

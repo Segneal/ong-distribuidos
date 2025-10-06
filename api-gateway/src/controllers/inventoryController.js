@@ -7,11 +7,19 @@ class InventoryController {
     try {
       const { category, includeDeleted } = req.query;
 
-      // Transformar filtros para gRPC
+      console.log('=== API GATEWAY: getDonations STARTED ===');
+      console.log(`API GATEWAY: User organization: ${req.user.organization}`);
+      console.log(`API GATEWAY: User ID: ${req.user.id}`);
+      console.log(`API GATEWAY: Query params - category: ${category}, includeDeleted: ${includeDeleted}`);
+
+      // Transformar filtros para gRPC incluyendo la organización del usuario
       const grpcRequest = inventoryTransformers.toGrpcListDonations({
         category,
-        includeDeleted: includeDeleted === 'true'
+        includeDeleted: includeDeleted === 'true',
+        organization: req.user.organization
       });
+
+      console.log(`API GATEWAY: gRPC request:`, grpcRequest);
 
       // Llamar al microservicio de inventario
       const grpcResponse = await inventoryService.listDonations(grpcRequest);
@@ -27,8 +35,9 @@ class InventoryController {
         console.log(`Total donations from service: ${response.donations.length}`);
         
         const filteredDonations = response.donations.filter(donation => {
-          console.log(`Donation ${donation.id}: ${donation.organization} === ${userOrganization} ? ${donation.organization === userOrganization}`);
-          return donation.organization === userOrganization;
+          const matches = donation.organization === userOrganization;
+          console.log(`FILTER: Donation ${donation.id}: "${donation.organization}" === "${userOrganization}" ? ${matches}`);
+          return matches;
         });
         
         console.log(`Filtered donations: ${filteredDonations.length}`);
@@ -111,8 +120,13 @@ class InventoryController {
 
       // Transformar datos para gRPC (usar usuario autenticado)
       console.log('7. Starting gRPC transformation...');
-      const grpcRequest = inventoryTransformers.toGrpcCreateDonation(donationData, req.user.id);
+      console.log('7.1. User ID:', req.user.id);
+      console.log('7.2. User Organization:', req.user.organization);
+      console.log('7.3. Donation Data:', JSON.stringify(donationData, null, 2));
+      
+      const grpcRequest = inventoryTransformers.toGrpcCreateDonation(donationData, req.user.id, req.user.organization);
       console.log('8. gRPC request:', JSON.stringify(grpcRequest, null, 2));
+      console.log('8.1. gRPC request organization field:', grpcRequest.organization);
 
       // Llamar al microservicio de inventario
       console.log('9. Calling inventory service...');

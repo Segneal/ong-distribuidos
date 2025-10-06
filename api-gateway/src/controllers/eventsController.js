@@ -100,8 +100,8 @@ class EventsController {
         });
       }
 
-      // Transformar datos para gRPC
-      const grpcRequest = eventsTransformers.toGrpcCreateEvent(eventData);
+      // Transformar datos para gRPC (incluir organización del usuario)
+      const grpcRequest = eventsTransformers.toGrpcCreateEvent(eventData, req.user.organization);
 
       // Llamar al microservicio de eventos
       const grpcResponse = await eventsService.createEvent(grpcRequest);

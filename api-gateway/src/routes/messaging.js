@@ -1,7 +1,11 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const axios = require('axios');
 
 const router = express.Router();
+
+// Configuración del messaging service
+const MESSAGING_SERVICE_URL = process.env.MESSAGING_SERVICE_URL || 'http://localhost:50054';
 
 // Helper function - localhost root root
 async function createDbConnection() {
@@ -208,7 +212,7 @@ router.post('/create-donation-request', authenticateToken, async (req, res) => {
     
     // Call messaging service
     const axios = require('axios');
-    const messagingResponse = await axios.post('http://localhost:8000/api/createDonationRequest', {
+    const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/createDonationRequest`, {
       donations: donations,
       userId: req.user.id,
       notes: notes || ''
@@ -246,7 +250,7 @@ router.post('/create-donation-offer', authenticateToken, async (req, res) => {
     
     // Call messaging service
     const axios = require('axios');
-    const messagingResponse = await axios.post('http://localhost:8000/api/createDonationOffer', {
+    const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/createDonationOffer`, {
       donations: donations,
       userId: req.user.id,
       notes: notes || ''
@@ -294,7 +298,7 @@ router.post('/transfer-donations', authenticateToken, async (req, res) => {
     
     // Call messaging service
     const axios = require('axios');
-    const messagingResponse = await axios.post('http://localhost:8000/api/transferDonations', {
+    const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/transferDonations`, {
       targetOrganization: targetOrganization,
       requestId: requestId,
       donations: donations,
@@ -330,23 +334,26 @@ router.post('/external-events', authenticateToken, async (req, res) => {
     
     const connection = await createDbConnection();
 
+    const userOrganization = req.user.organization;
+    
     const query = `
       SELECT 
-        evento_id as event_id,
-        organizacion_origen as source_organization,
-        nombre as name,
-        descripcion as description,
-        fecha_evento as event_date,
-        fecha_publicacion as published_date,
-        activo as active
-      FROM eventos_red 
-      WHERE activo = true
+        er.evento_id as event_id,
+        er.organizacion_origen as source_organization,
+        e.nombre as name,
+        e.descripcion as description,
+        e.fecha_evento as event_date,
+        er.fecha_publicacion as published_date,
+        er.activo as active
+      FROM eventos_red er
+      JOIN eventos e ON er.evento_id = e.id
+      WHERE er.activo = true
       ORDER BY 
-        CASE WHEN organizacion_origen = 'empuje-comunitario' THEN 0 ELSE 1 END,
-        fecha_publicacion DESC
+        CASE WHEN er.organizacion_origen = ? THEN 0 ELSE 1 END,
+        er.fecha_publicacion DESC
     `;
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, [userOrganization]);
     await connection.end();
 
     const events = rows.map(row => ({
@@ -378,6 +385,8 @@ router.post('/toggle-event-exposure', authenticateToken, async (req, res) => {
   try {
     console.log('=== TOGGLE EVENT EXPOSURE ===');
     const { eventId, expuesto_red } = req.body;
+    console.log(`User organization: ${req.user.organization}`);
+    console.log(`Event ID: ${eventId}, Expose: ${expuesto_red}`);
     
     const connection = await createDbConnection();
 
@@ -408,13 +417,14 @@ router.post('/toggle-event-exposure', authenticateToken, async (req, res) => {
         const insertNetworkEventQuery = `
           INSERT INTO eventos_red 
           (evento_id, organizacion_origen, nombre, descripcion, fecha_evento, fecha_publicacion, activo)
-          VALUES (?, 'empuje-comunitario', ?, ?, ?, NOW(), true)
+          VALUES (?, ?, ?, ?, ?, NOW(), true)
           ON DUPLICATE KEY UPDATE
           activo = true, fecha_publicacion = NOW()
         `;
         
         await connection.execute(insertNetworkEventQuery, [
           eventId,
+          req.user.organization, // Usar la organización del usuario logueado
           event.name,
           event.description,
           event.eventDate
@@ -425,10 +435,10 @@ router.post('/toggle-event-exposure', authenticateToken, async (req, res) => {
       const deactivateNetworkEventQuery = `
         UPDATE eventos_red 
         SET activo = false
-        WHERE evento_id = ? AND organizacion_origen = 'empuje-comunitario'
+        WHERE evento_id = ? AND organizacion_origen = ?
       `;
       
-      await connection.execute(deactivateNetworkEventQuery, [eventId]);
+      await connection.execute(deactivateNetworkEventQuery, [eventId, req.user.organization]);
     }
     
     await connection.end();
@@ -497,12 +507,12 @@ router.post('/publish-event', authenticateToken, async (req, res) => {
     const query = `
       INSERT INTO eventos_red 
       (evento_id, organizacion_origen, nombre, descripcion, fecha_evento, fecha_publicacion, activo)
-      VALUES (?, 'empuje-comunitario', ?, ?, ?, NOW(), true)
+      VALUES (?, ?, ?, ?, ?, NOW(), true)
       ON DUPLICATE KEY UPDATE
       activo = true, fecha_publicacion = NOW()
     `;
 
-    await connection.execute(query, [eventId, name, description, eventDate]);
+    await connection.execute(query, [eventId, req.user.organization, name, description, eventDate]);
     
     // Update eventos table to mark as exposed
     const updateEventQuery = `
@@ -540,10 +550,10 @@ router.post('/cancel-event', authenticateToken, async (req, res) => {
     const query = `
       UPDATE eventos_red 
       SET activo = false
-      WHERE evento_id = ? AND organizacion_origen = 'empuje-comunitario'
+      WHERE evento_id = ? AND organizacion_origen = ?
     `;
 
-    await connection.execute(query, [eventId]);
+    await connection.execute(query, [eventId, req.user.organization]);
     
     // Update eventos table
     const updateEventQuery = `
@@ -779,12 +789,13 @@ router.post('/cancel-own-event', authenticateToken, async (req, res) => {
         UPDATE eventos_red 
         SET activo = false,
             descripcion = CONCAT(descripcion, ' - CANCELADO: ', ?)
-        WHERE evento_id = ? AND organizacion_origen = 'empuje-comunitario'
+        WHERE evento_id = ? AND organizacion_origen = ?
       `;
       
       await connection.execute(deactivateNetworkQuery, [
         cancellationReason || 'Evento cancelado',
-        eventId
+        eventId,
+        req.user.organization
       ]);
       
       // TODO: Enviar mensaje a Kafka topic /baja-evento-solidario
@@ -807,6 +818,195 @@ router.post('/cancel-own-event', authenticateToken, async (req, res) => {
       error: 'Internal server error',
       message: error.message
     });
+  }
+});
+
+// ==========================================
+// RUTAS PARA SOLICITUDES DE INSCRIPCIÓN
+// ==========================================
+
+// POST /api/messaging/inscription-request - Crear solicitud de inscripción
+router.post('/inscription-request', async (req, res) => {
+  try {
+    console.log('=== CREATE INSCRIPTION REQUEST ===');
+    console.log('Request body:', req.body);
+    
+    const { nombre, apellido, email, telefono, organizacion_destino, rol_solicitado, mensaje } = req.body;
+    
+    // Validaciones básicas
+    if (!nombre || !apellido || !email || !organizacion_destino || !rol_solicitado) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos requeridos: nombre, apellido, email, organizacion_destino, rol_solicitado'
+      });
+    }
+    
+    if (!['COORDINADOR', 'VOLUNTARIO'].includes(rol_solicitado)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Rol solicitado debe ser COORDINADOR o VOLUNTARIO'
+      });
+    }
+    
+    // Llamar al messaging service
+    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/inscription-request`, {
+      nombre,
+      apellido,
+      email,
+      telefono,
+      organizacion_destino,
+      rol_solicitado,
+      mensaje
+    });
+    
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error('Error creating inscription request:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
+  }
+});
+
+// GET /api/messaging/pending-inscriptions - Obtener solicitudes pendientes (PRESIDENTE/VOCAL)
+router.get('/pending-inscriptions', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET PENDING INSCRIPTIONS ===');
+    console.log('User:', req.user);
+    
+    // Verificar que el usuario tenga permisos
+    if (!['PRESIDENTE', 'VOCAL'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo PRESIDENTE y VOCAL pueden ver solicitudes de inscripción'
+      });
+    }
+    
+    // Llamar al messaging service
+    const response = await axios.get(`${MESSAGING_SERVICE_URL}/api/pending-inscriptions`, {
+      params: {
+        organizacion: req.user.organization,
+        usuario_id: req.user.id
+      }
+    });
+    
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error('Error getting pending inscriptions:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
+  }
+});
+
+// POST /api/messaging/process-inscription - Procesar solicitud (aprobar/denegar)
+router.post('/process-inscription', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== PROCESS INSCRIPTION ===');
+    console.log('User:', req.user);
+    console.log('Request body:', req.body);
+    
+    const { solicitud_id, accion, comentarios } = req.body;
+    
+    // Validaciones
+    if (!solicitud_id || !accion) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos requeridos: solicitud_id, accion'
+      });
+    }
+    
+    if (!['APROBAR', 'DENEGAR'].includes(accion)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Acción debe ser APROBAR o DENEGAR'
+      });
+    }
+    
+    // Verificar permisos
+    if (!['PRESIDENTE', 'VOCAL'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo PRESIDENTE y VOCAL pueden procesar solicitudes'
+      });
+    }
+    
+    // Llamar al messaging service
+    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/process-inscription`, {
+      solicitud_id,
+      accion,
+      comentarios,
+      usuario_revisor: {
+        id: req.user.id,
+        nombre: req.user.username,
+        rol: req.user.role
+      }
+    });
+    
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error('Error processing inscription:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
+  }
+});
+
+// GET /api/messaging/inscription-notifications - Obtener notificaciones de inscripción
+router.get('/inscription-notifications', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET INSCRIPTION NOTIFICATIONS ===');
+    console.log('User:', req.user);
+    
+    // Verificar permisos
+    if (!['PRESIDENTE', 'VOCAL'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo PRESIDENTE y VOCAL pueden ver notificaciones de inscripción'
+      });
+    }
+    
+    // Llamar al messaging service
+    const response = await axios.get(`${MESSAGING_SERVICE_URL}/api/inscription-notifications`, {
+      params: {
+        usuario_id: req.user.id
+      }
+    });
+    
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error('Error getting inscription notifications:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
   }
 });
 

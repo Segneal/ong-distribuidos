@@ -20,11 +20,11 @@ class Settings(BaseModel):
     organization_id: str = Field(default_factory=lambda: os.getenv("ORGANIZATION_ID", "empuje-comunitario"))
     
     # Database Configuration (MySQL)
-    db_host: str = Field(default_factory=lambda: os.getenv("DB_HOST", "mysql"))
+    db_host: str = Field(default_factory=lambda: os.getenv("DB_HOST", "localhost"))
     db_port: int = Field(default_factory=lambda: int(os.getenv("DB_PORT", "3306")))
     db_name: str = Field(default_factory=lambda: os.getenv("DB_NAME", "ong_management"))
-    db_user: str = Field(default_factory=lambda: os.getenv("DB_USER", "ong_user"))
-    db_password: str = Field(default_factory=lambda: os.getenv("DB_PASSWORD", "ong_pass"))
+    db_user: str = Field(default_factory=lambda: os.getenv("DB_USER", "root"))
+    db_password: str = Field(default_factory=lambda: os.getenv("DB_PASSWORD", "root"))
     
     # Service Configuration
     service_port: int = Field(default_factory=lambda: int(os.getenv("SERVICE_PORT", "50054")))

@@ -686,6 +686,119 @@ async def get_transfer_history(data: dict):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# ==========================================
+# INSCRIPTION REQUEST ENDPOINTS
+# ==========================================
+
+@app.post("/api/inscription-request")
+async def create_inscription_request(data: dict):
+    """Create a new inscription request"""
+    try:
+        logger.info("Creating inscription request", data=data)
+        
+        from messaging.services.inscription_service import inscription_service
+        
+        result = inscription_service.create_inscription_request(data)
+        
+        if result['success']:
+            return JSONResponse(
+                status_code=201,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content=result
+            )
+        
+    except Exception as e:
+        logger.error("Error in create_inscription_request API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/api/pending-inscriptions")
+async def get_pending_inscriptions(organizacion: str, usuario_id: int):
+    """Get pending inscription requests for an organization"""
+    try:
+        logger.info("Getting pending inscriptions", organizacion=organizacion, usuario_id=usuario_id)
+        
+        from messaging.services.inscription_service import inscription_service
+        
+        result = inscription_service.get_pending_requests(organizacion, usuario_id)
+        
+        if result['success']:
+            return JSONResponse(
+                status_code=200,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=403 if 'permisos' in result['message'] else 400,
+                content=result
+            )
+        
+    except Exception as e:
+        logger.error("Error in get_pending_inscriptions API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/process-inscription")
+async def process_inscription_request(data: dict):
+    """Process an inscription request (approve/deny)"""
+    try:
+        logger.info("Processing inscription request", data=data)
+        
+        from messaging.services.inscription_service import inscription_service
+        
+        result = inscription_service.process_inscription_request(
+            data['solicitud_id'],
+            data['accion'],
+            data['usuario_revisor'],
+            data.get('comentarios')
+        )
+        
+        if result['success']:
+            return JSONResponse(
+                status_code=200,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=403 if 'permisos' in result['message'] else 400,
+                content=result
+            )
+        
+    except Exception as e:
+        logger.error("Error in process_inscription_request API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/api/inscription-notifications")
+async def get_inscription_notifications(usuario_id: int):
+    """Get inscription notifications for a user"""
+    try:
+        logger.info("Getting inscription notifications", usuario_id=usuario_id)
+        
+        from messaging.services.inscription_service import inscription_service
+        
+        result = inscription_service.get_user_notifications(usuario_id)
+        
+        if result['success']:
+            return JSONResponse(
+                status_code=200,
+                content=result
+            )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content=result
+            )
+        
+    except Exception as e:
+        logger.error("Error in get_inscription_notifications API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 def signal_handler(signum, frame):
     """Handle shutdown signals"""
     logger.info("Received shutdown signal", signal=signum)
@@ -709,7 +822,7 @@ def main():
     )
     
     # Run the service
-    http_port = int(os.getenv("HTTP_PORT", "8000"))
+    http_port = int(os.getenv("HTTP_PORT", "50054"))
     uvicorn.run(
         app,
         host="0.0.0.0",

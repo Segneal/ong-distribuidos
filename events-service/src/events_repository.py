@@ -60,7 +60,7 @@ class EventsRepository:
             if conn:
                 self.db.close()
     
-    def create_event(self, name: str, description: str, event_date: str, participant_ids: List[int] = None) -> Optional[Dict[str, Any]]:
+    def create_event(self, name: str, description: str, event_date: str, participant_ids: List[int] = None, organization: str = 'empuje-comunitario') -> Optional[Dict[str, Any]]:
         """Create a new event"""
         try:
             # Parse event date
@@ -72,10 +72,10 @@ class EventsRepository:
             
             # Create event (MySQL no soporta RETURNING)
             query = """
-                INSERT INTO eventos (nombre, descripcion, fecha_evento)
-                VALUES (%s, %s, %s)
+                INSERT INTO eventos (nombre, descripcion, fecha_evento, organizacion)
+                VALUES (%s, %s, %s, %s)
             """
-            params = (name, description, event_datetime)
+            params = (name, description, event_datetime, organization)
             
             # Execute insert and get the ID
             conn = self.db.connect()
@@ -89,7 +89,7 @@ class EventsRepository:
             
             # Fetch the created event
             select_query = """
-                SELECT id, nombre, descripcion, fecha_evento, fecha_creacion, fecha_actualizacion, expuesto_red
+                SELECT id, nombre, descripcion, fecha_evento, organizacion, fecha_creacion, fecha_actualizacion, expuesto_red
                 FROM eventos WHERE id = %s
             """
             cursor.execute(select_query, (event_id,))

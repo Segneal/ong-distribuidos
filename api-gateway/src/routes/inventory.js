@@ -12,6 +12,8 @@ router.get('/', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
   try {
     const { category, includeDeleted } = req.query;
 
+    console.log(`🔍 INVENTORY ROUTE: User org = ${req.user.organization}`);
+
     // Transformar filtros para gRPC
     const grpcRequest = inventoryTransformers.toGrpcListDonations({
       category,
@@ -25,10 +27,20 @@ router.get('/', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
     const response = inventoryTransformers.fromGrpcDonationsList(grpcResponse);
 
     if (response.success) {
+      // FILTRO FORZADO POR ORGANIZACIÓN
+      const userOrganization = req.user.organization;
+      const filteredDonations = response.donations.filter(donation => {
+        const matches = donation.organization === userOrganization;
+        console.log(`🔍 FILTER: ${donation.id} (${donation.organization}) === ${userOrganization} ? ${matches}`);
+        return matches;
+      });
+
+      console.log(`🔍 FILTERED: ${filteredDonations.length} of ${response.donations.length} donations`);
+
       res.status(200).json({
         success: true,
-        message: response.message,
-        donations: response.donations
+        message: `Se encontraron ${filteredDonations.length} donaciones`,
+        donations: filteredDonations
       });
     } else {
       res.status(400).json({
@@ -103,8 +115,12 @@ router.post('/', requireRole(['PRESIDENTE', 'VOCAL']), async (req, res) => {
 
     // Transformar datos para gRPC (usar usuario autenticado)
     console.log('7. Starting gRPC transformation...');
-    const grpcRequest = inventoryTransformers.toGrpcCreateDonation(donationData, req.user.id);
+    console.log('7.1. User ID:', req.user.id);
+    console.log('7.2. User Organization:', req.user.organization);
+    
+    const grpcRequest = inventoryTransformers.toGrpcCreateDonation(donationData, req.user.id, req.user.organization);
     console.log('8. gRPC request:', JSON.stringify(grpcRequest, null, 2));
+    console.log('8.1. gRPC request organization field:', grpcRequest.organization);
 
     // Llamar al microservicio de inventario
     console.log('9. Calling inventory service...');

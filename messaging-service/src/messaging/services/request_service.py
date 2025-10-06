@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, Optional
 import structlog
 
 from messaging.config import settings
-from messaging.database.connection import get_db_connection
+from messaging.database.connection import get_database_connection
 from messaging.producers.base_producer import BaseProducer
 
 logger = structlog.get_logger(__name__)
@@ -40,43 +40,43 @@ class RequestService:
                 return False, "Donations list is required", None
             
             for donation in donations:
-                if not donation.get('category') or not donation.get('description'):
-                    return False, "Each donation must have category and description", None
+                # Accept both English and Spanish field names
+                category = donation.get('category') or donation.get('categoria')
+                description = donation.get('description') or donation.get('descripcion')
+                
+                if not category or not description:
+                    return False, "Each donation must have category/categoria and description/descripcion", None
             
             # Store request in database
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
-                # Insert into solicitudes_externas table
-                cursor.execute("""
-                    INSERT INTO solicitudes_externas 
-                    (solicitud_id, organizacion_solicitante, donaciones, fecha_creacion, activa, notas)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    request_id,
-                    settings.organization_id,
-                    str(donations),  # Store as JSON string
-                    datetime.now(),
-                    True,
-                    notes or ''
-                ))
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
                 
-                conn.commit()
-                
-                logger.info(
-                    "Donation request stored in database",
-                    request_id=request_id,
-                    donations_count=len(donations)
-                )
-                
-            except Exception as e:
-                conn.rollback()
-                logger.error("Failed to store donation request in database", error=str(e))
-                return False, f"Database error: {str(e)}", None
-            finally:
-                cursor.close()
-                conn.close()
+                try:
+                    # Insert into solicitudes_externas table
+                    import json
+                    cursor.execute("""
+                        INSERT INTO solicitudes_externas 
+                        (solicitud_id, organizacion_solicitante, donaciones, activa)
+                        VALUES (%s, %s, %s, %s)
+                    """, (
+                        request_id,
+                        settings.organization_id,
+                        json.dumps(donations),  # Store as proper JSON string
+                        True
+                    ))
+                    
+                    conn.commit()
+                    
+                    logger.info(
+                        "Donation request stored in database",
+                        request_id=request_id,
+                        donations_count=len(donations)
+                    )
+                    
+                except Exception as e:
+                    conn.rollback()
+                    logger.error("Failed to store donation request in database", error=str(e))
+                    return False, f"Database error: {str(e)}", None
             
             # Publish to Kafka
             success = self.producer.publish_donation_request(request_id, donations)
@@ -107,10 +107,9 @@ class RequestService:
             List of external donation requests
         """
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
                 query = """
                     SELECT 
                         solicitud_id as request_id,
@@ -118,8 +117,7 @@ class RequestService:
                         organizacion_solicitante as organization_name,
                         donaciones as donations,
                         fecha_creacion as timestamp,
-                        activa as active,
-                        notas as notes
+                        activa as active
                     FROM solicitudes_externas 
                     WHERE organizacion_solicitante != %s
                 """
@@ -154,7 +152,7 @@ class RequestService:
                         'donations': donations,
                         'timestamp': row[4].isoformat() if row[4] else None,
                         'active': row[5],
-                        'notes': row[6] or ''
+                        'notes': ''  # No notes column in current table
                     })
                 
                 logger.info(
@@ -164,10 +162,6 @@ class RequestService:
                 )
                 
                 return requests
-                
-            finally:
-                cursor.close()
-                conn.close()
                 
         except Exception as e:
             logger.error("Error getting external donation requests", error=str(e))
@@ -181,18 +175,16 @@ class RequestService:
             List of our active donation requests
         """
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
                 cursor.execute("""
                     SELECT 
                         solicitud_id as request_id,
                         organizacion_solicitante as organization_id,
                         donaciones as donations,
                         fecha_creacion as timestamp,
-                        activa as active,
-                        notas as notes
+                        activa as active
                     FROM solicitudes_externas 
                     WHERE organizacion_solicitante = %s AND activa = true
                     ORDER BY fecha_creacion DESC
@@ -219,7 +211,7 @@ class RequestService:
                         'donations': donations,
                         'timestamp': row[3].isoformat() if row[3] else None,
                         'active': row[4],
-                        'notes': row[5] or ''
+                        'notes': ''  # No notes column in current table
                     })
                 
                 logger.info(
@@ -228,10 +220,6 @@ class RequestService:
                 )
                 
                 return requests
-                
-            finally:
-                cursor.close()
-                conn.close()
                 
         except Exception as e:
             logger.error("Error getting active donation requests", error=str(e))
@@ -250,49 +238,46 @@ class RequestService:
         """
         try:
             # Update request in database
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
-                # Check if request exists and belongs to our organization
-                cursor.execute("""
-                    SELECT organizacion_solicitante, activa 
-                    FROM solicitudes_externas 
-                    WHERE solicitud_id = %s
-                """, (request_id,))
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
                 
-                row = cursor.fetchone()
-                if not row:
-                    return False, "Request not found"
-                
-                if row[0] != settings.organization_id:
-                    return False, "Cannot cancel request from another organization"
-                
-                if not row[1]:
-                    return False, "Request is already inactive"
-                
-                # Update request to inactive
-                cursor.execute("""
-                    UPDATE solicitudes_externas 
-                    SET activa = false 
-                    WHERE solicitud_id = %s
-                """, (request_id,))
-                
-                conn.commit()
-                
-                logger.info(
-                    "Donation request cancelled in database",
-                    request_id=request_id,
-                    user_id=user_id
-                )
-                
-            except Exception as e:
-                conn.rollback()
-                logger.error("Failed to cancel donation request in database", error=str(e))
-                return False, f"Database error: {str(e)}"
-            finally:
-                cursor.close()
-                conn.close()
+                try:
+                    # Check if request exists and belongs to our organization
+                    cursor.execute("""
+                        SELECT organizacion_solicitante, activa 
+                        FROM solicitudes_externas 
+                        WHERE solicitud_id = %s
+                    """, (request_id,))
+                    
+                    row = cursor.fetchone()
+                    if not row:
+                        return False, "Request not found"
+                    
+                    if row[0] != settings.organization_id:
+                        return False, "Cannot cancel request from another organization"
+                    
+                    if not row[1]:
+                        return False, "Request is already inactive"
+                    
+                    # Update request to inactive
+                    cursor.execute("""
+                        UPDATE solicitudes_externas 
+                        SET activa = false 
+                        WHERE solicitud_id = %s
+                    """, (request_id,))
+                    
+                    conn.commit()
+                    
+                    logger.info(
+                        "Donation request cancelled in database",
+                        request_id=request_id,
+                        user_id=user_id
+                    )
+                    
+                except Exception as e:
+                    conn.rollback()
+                    logger.error("Failed to cancel donation request in database", error=str(e))
+                    return False, f"Database error: {str(e)}"
             
             # Publish cancellation to Kafka
             success = self.producer.publish_request_cancellation(request_id)

@@ -41,9 +41,10 @@ message Event {
   string name = 2;
   string description = 3;
   string event_date = 4;
-  string created_at = 5;
-  string updated_at = 6;
-  bool expuesto_red = 7;
+  string organization = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  bool expuesto_red = 8;
 }
 
 // Mensaje de participante
@@ -73,6 +74,7 @@ message CreateEventRequest {
   string description = 2;
   string event_date = 3;
   repeated int32 participant_ids = 4;
+  string organization = 5;
 }
 
 // Mensajes de request para GetEvent

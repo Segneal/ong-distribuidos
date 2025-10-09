@@ -8,10 +8,10 @@ through donation requests, transfers, offers, events, and adhesions.
 __version__ = "1.0.0"
 __author__ = "ONG Management System"
 
-from .config import settings, Topics
-from .kafka_connection import kafka_manager
-from .base_producer import BaseProducer
-from .base_consumer import BaseConsumer, NetworkConsumer, OrganizationConsumer
+from .messaging.config import settings, Topics
+from .messaging.kafka.connection import kafka_manager
+from .messaging.producers.base_producer import BaseProducer
+from .messaging.consumers.base_consumer import BaseConsumer, NetworkConsumer, OrganizationConsumer
 
 __all__ = [
     "settings",

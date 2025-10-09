@@ -16,13 +16,14 @@ class Donation:
     """Donation model class"""
     
     def __init__(self, id: Optional[int] = None, categoria: DonationCategory = DonationCategory.ALIMENTOS,
-                 descripcion: Optional[str] = None, cantidad: int = 0, eliminado: bool = False,
-                 fecha_alta: Optional[datetime] = None, usuario_alta: Optional[int] = None,
+                 descripcion: Optional[str] = None, cantidad: int = 0, organizacion: str = 'empuje-comunitario',
+                 eliminado: bool = False, fecha_alta: Optional[datetime] = None, usuario_alta: Optional[int] = None,
                  fecha_modificacion: Optional[datetime] = None, usuario_modificacion: Optional[int] = None):
         self.id = id
         self.categoria = categoria if isinstance(categoria, DonationCategory) else DonationCategory(categoria)
         self.descripcion = descripcion
         self.cantidad = cantidad
+        self.organizacion = organizacion
         self.eliminado = eliminado
         self.fecha_alta = fecha_alta
         self.usuario_alta = usuario_alta
@@ -37,6 +38,7 @@ class Donation:
             categoria=data.get('categoria', DonationCategory.ALIMENTOS),
             descripcion=data.get('descripcion'),
             cantidad=data.get('cantidad', 0),
+            organizacion=data.get('organizacion', 'empuje-comunitario'),
             eliminado=data.get('eliminado', False),
             fecha_alta=data.get('fecha_alta'),
             usuario_alta=data.get('usuario_alta'),
@@ -51,6 +53,7 @@ class Donation:
             'categoria': self.categoria.value if isinstance(self.categoria, DonationCategory) else self.categoria,
             'descripcion': self.descripcion,
             'cantidad': self.cantidad,
+            'organizacion': self.organizacion,
             'eliminado': self.eliminado,
             'fecha_alta': self.fecha_alta,
             'usuario_alta': self.usuario_alta,

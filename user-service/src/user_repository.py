@@ -1,4 +1,4 @@
-from database_fixed import get_db_connection
+from database_mysql import get_db_connection
 from datetime import datetime
 
 class UserRepository:
@@ -54,15 +54,23 @@ class UserRepository:
             conn = self.db.connect()
             cursor = self.db.get_cursor()
             
+            # Insert user (MySQL no soporta RETURNING)
             query = """
                 INSERT INTO usuarios (nombre_usuario, nombre, apellido, email, telefono, password_hash, rol)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
             """
             
             cursor.execute(query, (username, first_name, last_name, email, phone, password_hash, role))
-            user = cursor.fetchone()
+            user_id = cursor.lastrowid
             conn.commit()
+            
+            # Fetch the created user
+            select_query = """
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
+                FROM usuarios WHERE id = %s
+            """
+            cursor.execute(select_query, (user_id,))
+            user = cursor.fetchone()
             
             return dict(user) if user else None
             
@@ -112,16 +120,23 @@ class UserRepository:
             conn = self.db.connect()
             cursor = self.db.get_cursor()
             
+            # Update user (MySQL no soporta RETURNING)
             query = """
                 UPDATE usuarios 
                 SET nombre_usuario = %s, nombre = %s, apellido = %s, email = %s, telefono = %s, rol = %s, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = %s
-                RETURNING id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
             """
             
             cursor.execute(query, (username, first_name, last_name, email, phone, role, user_id))
-            user = cursor.fetchone()
             conn.commit()
+            
+            # Fetch the updated user
+            select_query = """
+                SELECT id, nombre_usuario, nombre, apellido, email, telefono, rol, activo, fecha_creacion, fecha_actualizacion
+                FROM usuarios WHERE id = %s
+            """
+            cursor.execute(select_query, (user_id,))
+            user = cursor.fetchone()
             
             return dict(user) if user else None
             
@@ -154,14 +169,13 @@ class UserRepository:
                 UPDATE usuarios 
                 SET activo = false, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = %s
-                RETURNING id
             """
             
             cursor.execute(query, (user_id,))
-            result = cursor.fetchone()
+            success = cursor.rowcount > 0
             conn.commit()
             
-            return result is not None
+            return success
             
         except Exception as e:
             print(f"Error eliminando usuario: {e}")

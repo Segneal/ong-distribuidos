@@ -10,14 +10,18 @@ import grpc
 from concurrent import futures
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import generated protobuf classes
 import inventory_pb2
 import inventory_pb2_grpc
 
 # Import repository and models
-from inventory_repository import InventoryRepository
-from models.donation import DonationCategory
+from inventory_repository_simple import InventoryRepository
+from donation_model_fixed import DonationCategory
 
 class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
     """Implementation of the InventoryService gRPC service"""
@@ -70,6 +74,7 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
             category=category_proto,
             description=donation.descripcion or "",
             quantity=donation.cantidad,
+            organization=getattr(donation, 'organizacion', 'empuje-comunitario'),
             deleted=donation.eliminado,
             created_at=donation.fecha_alta.isoformat() if donation.fecha_alta else "",
             updated_at=donation.fecha_modificacion.isoformat() if donation.fecha_modificacion else "",
@@ -104,11 +109,18 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
             
             # Create donation
             print(f"INVENTORY SERVICE: 11. Calling repository.create_donation...")
+            print(f"INVENTORY SERVICE: 11.0. Request has organization field: {hasattr(request, 'organization')}")
+            if hasattr(request, 'organization'):
+                print(f"INVENTORY SERVICE: 11.0.1. Request.organization value: '{request.organization}'")
+            
+            organization = getattr(request, 'organization', 'empuje-comunitario')
+            print(f"INVENTORY SERVICE: 11.1. Final organization: {organization}")
             donation = self.repository.create_donation(
                 category=category,
                 description=request.description,
                 quantity=request.quantity,
-                created_by=request.created_by
+                created_by=request.created_by,
+                organization=organization
             )
             print(f"INVENTORY SERVICE: 12. Repository returned: {donation}")
             
@@ -197,14 +209,15 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
             else:
                 print(f"INVENTORY SERVICE: 12. No category field in request")
             
-            # Update donation
+            # Update donation (sin categoría - no se puede modificar)
             print(f"INVENTORY SERVICE: 13. Calling repository.update_donation...")
+            print(f"INVENTORY SERVICE: 13.1. Category ignored in updates for security")
             donation = self.repository.update_donation(
                 donation_id=request.id,
                 description=request.description,
                 quantity=request.quantity,
-                updated_by=request.updated_by,
-                category=category
+                updated_by=request.updated_by
+                # category=category  # ❌ Comentado - no se permite modificar categoría
             )
             print(f"INVENTORY SERVICE: 14. Repository returned: {donation}")
             
@@ -264,10 +277,18 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
             # Get include_deleted flag
             include_deleted = request.include_deleted if request.HasField('include_deleted') else False
             
+            # Get organization filter
+            organization = None
+            if request.HasField('organization'):
+                organization = request.organization
+            
+            print(f"INVENTORY SERVICE: ListDonations - organization filter: {organization}")
+            
             # Get donations
             donations = self.repository.list_donations(
                 category=category,
-                include_deleted=include_deleted
+                include_deleted=include_deleted,
+                organization=organization
             )
             
             # Convert to protobuf messages
@@ -325,23 +346,34 @@ class InventoryServiceImpl(inventory_pb2_grpc.InventoryServiceServicer):
                 message=f"Error interno del servidor: {str(e)}",
                 transfer_ids=[]
             )
+    
+    def _get_user_organization(self, user_id):
+        """Get user organization from database - TEMPORARY METHOD"""
+        try:
+            # This is a temporary method, should be removed once protobuf works correctly
+            return None  # Let the request.organization field be used instead
+        except Exception as e:
+            print(f"Error getting user organization: {e}")
+            return None
 
 def serve():
     """Start the gRPC server"""
+    port = os.getenv('GRPC_PORT', '50052')
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     inventory_pb2_grpc.add_InventoryServiceServicer_to_server(InventoryServiceImpl(), server)
     
-    # Configure server to listen on port 50052
-    listen_addr = '0.0.0.0:50052'
+    listen_addr = f'[::]:{port}'
     server.add_insecure_port(listen_addr)
     
-    print(f"Starting Inventory Service gRPC server on {listen_addr}")
+    print(f"🚀 Inventory Service iniciado en puerto {port}")
+    print(f"📊 Escuchando en {listen_addr}")
+    
     server.start()
     
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        print("Shutting down Inventory Service...")
+        print("\n🛑 Deteniendo Inventory Service...")
         server.stop(0)
 
 if __name__ == '__main__':

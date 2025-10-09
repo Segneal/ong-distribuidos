@@ -5,6 +5,10 @@ import grpc
 from concurrent import futures
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(__file__))
@@ -22,13 +26,18 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
     
     def _create_event_message(self, event_data):
         """Create Event message from database data"""
+        print(f"DEBUG: event_data keys: {event_data.keys()}")
+        print(f"DEBUG: expuesto_red value: {event_data.get('expuesto_red', 'NOT_FOUND')}")
+        print(f"DEBUG: organizacion value: {event_data.get('organizacion', 'NOT_FOUND')}")
         return events_pb2.Event(
             id=event_data['id'],
             name=event_data['nombre'],
             description=event_data.get('descripcion', ''),
             event_date=str(event_data['fecha_evento']),
+            organization=event_data.get('organizacion', 'empuje-comunitario'),
             created_at=str(event_data['fecha_creacion']),
-            updated_at=str(event_data.get('fecha_actualizacion', ''))
+            updated_at=str(event_data.get('fecha_actualizacion', '')),
+            expuesto_red=bool(event_data.get('expuesto_red', False))
         )
     
     def _create_participant_message(self, participant_data):
@@ -61,6 +70,11 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
     def CreateEvent(self, request, context):
         """Create a new event"""
         try:
+            print(f"EVENTS SERVICE: CreateEvent called")
+            print(f"EVENTS SERVICE: Request organization: {getattr(request, 'organization', 'NOT_FOUND')}")
+            print(f"EVENTS SERVICE: Request has organization field: {hasattr(request, 'organization')}")
+            if hasattr(request, 'organization'):
+                print(f"EVENTS SERVICE: Organization value: '{request.organization}'")
             # Validate required fields
             if not request.name.strip():
                 return events_pb2.EventResponse(
@@ -90,11 +104,13 @@ class EventsService(events_pb2_grpc.EventsServiceServicer):
             
             # Create event
             participant_ids = list(request.participant_ids) if request.participant_ids else None
+            organization = getattr(request, 'organization', 'empuje-comunitario')
             event_data = self.repository.create_event(
                 request.name,
                 request.description,
                 request.event_date,
-                participant_ids
+                participant_ids,
+                organization
             )
             
             if event_data:

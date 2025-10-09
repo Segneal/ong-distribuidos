@@ -21,6 +21,7 @@ const userTransformers = {
     email: restUser.email,
     phone: restUser.phone || '',
     role: ROLE_MAPPING[restUser.role] || 0,
+    organization: restUser.organization || 'empuje-comunitario',
   }),
 
   toGrpcUpdateUser: (id, restUser) => ({
@@ -31,6 +32,7 @@ const userTransformers = {
     email: restUser.email,
     phone: restUser.phone || '',
     role: ROLE_MAPPING[restUser.role] || 0,
+    organization: restUser.organization || 'empuje-comunitario',
   }),
 
   toGrpcAuth: (credentials) => ({
@@ -54,6 +56,7 @@ const userTransformers = {
       email: grpcUser.email,
       phone: grpcUser.phone,
       role,
+      organization: grpcUser.organization,
       isActive: grpcUser.is_active,
       createdAt: grpcUser.created_at,
       updatedAt: grpcUser.updated_at,
@@ -76,18 +79,30 @@ const userTransformers = {
 
 // Transformadores para inventario
 const inventoryTransformers = {
-  toGrpcCreateDonation: (restDonation, userId) => ({
-    category: CATEGORY_MAPPING[restDonation.category] || 0,
-    description: restDonation.description || '',
-    quantity: parseInt(restDonation.quantity) || 0,
-    created_by: parseInt(userId),
-  }),
+  toGrpcCreateDonation: (restDonation, userId, userOrganization = 'empuje-comunitario') => {
+    console.log('🔄 TRANSFORMER: toGrpcCreateDonation called');
+    console.log('🔄 TRANSFORMER: restDonation:', JSON.stringify(restDonation, null, 2));
+    console.log('🔄 TRANSFORMER: userId:', userId);
+    console.log('🔄 TRANSFORMER: userOrganization:', userOrganization);
+    
+    const result = {
+      category: CATEGORY_MAPPING[restDonation.category] || 0,
+      description: restDonation.description || '',
+      quantity: parseInt(restDonation.quantity) || 0,
+      created_by: parseInt(userId),
+      organization: userOrganization,
+    };
+    
+    console.log('🔄 TRANSFORMER: result:', JSON.stringify(result, null, 2));
+    return result;
+  },
 
   toGrpcUpdateDonation: (id, restDonation, userId) => {
     console.log('TRANSFORMER: toGrpcUpdateDonation called');
     console.log('TRANSFORMER: id =', id);
     console.log('TRANSFORMER: restDonation =', JSON.stringify(restDonation, null, 2));
     console.log('TRANSFORMER: userId =', userId);
+    console.log('TRANSFORMER: CATEGORY_MAPPING =', CATEGORY_MAPPING);
 
     const grpcRequest = {
       id: parseInt(id),
@@ -96,13 +111,20 @@ const inventoryTransformers = {
       updated_by: parseInt(userId),
     };
 
-    // Solo agregar categoría si está presente
+    // Siempre agregar categoría (requerida en el proto)
     if (restDonation.category) {
       console.log('TRANSFORMER: Adding category:', restDonation.category);
-      grpcRequest.category = CATEGORY_MAPPING[restDonation.category] || 0;
-      console.log('TRANSFORMER: Mapped category to:', grpcRequest.category);
+      const mappedCategory = CATEGORY_MAPPING[restDonation.category];
+      console.log('TRANSFORMER: Mapped category to:', mappedCategory);
+      if (mappedCategory !== undefined) {
+        grpcRequest.category = mappedCategory;
+      } else {
+        console.log('TRANSFORMER: Category not found in mapping, using 0 as default');
+        grpcRequest.category = 0;
+      }
     } else {
-      console.log('TRANSFORMER: No category provided in restDonation');
+      console.log('TRANSFORMER: No category provided, using 0 as default');
+      grpcRequest.category = 0;
     }
 
     console.log('TRANSFORMER: Final grpcRequest =', JSON.stringify(grpcRequest, null, 2));
@@ -112,6 +134,7 @@ const inventoryTransformers = {
   toGrpcListDonations: (filters) => ({
     category: filters.category ? CATEGORY_MAPPING[filters.category] : undefined,
     include_deleted: filters.includeDeleted || false,
+    organization: filters.organization || undefined,
   }),
 
   // FIX: soportar números, strings numéricos y strings de categoría
@@ -131,6 +154,7 @@ const inventoryTransformers = {
       category,
       description: grpcDonation.description,
       quantity: grpcDonation.quantity,
+      organization: grpcDonation.organization || 'empuje-comunitario',
       deleted: grpcDonation.deleted,
       createdAt: grpcDonation.created_at,
       updatedAt: grpcDonation.updated_at,
@@ -154,12 +178,22 @@ const inventoryTransformers = {
 
 // Transformadores para eventos
 const eventsTransformers = {
-  toGrpcCreateEvent: (restEvent) => ({
-    name: restEvent.name,
-    description: restEvent.description || '',
-    event_date: restEvent.eventDate,
-    participant_ids: restEvent.participantIds || [],
-  }),
+  toGrpcCreateEvent: (restEvent, userOrganization = 'empuje-comunitario') => {
+    console.log('🔄 EVENTS TRANSFORMER: toGrpcCreateEvent called');
+    console.log('🔄 EVENTS TRANSFORMER: restEvent:', JSON.stringify(restEvent, null, 2));
+    console.log('🔄 EVENTS TRANSFORMER: userOrganization:', userOrganization);
+    
+    const result = {
+      name: restEvent.name,
+      description: restEvent.description || '',
+      event_date: restEvent.eventDate,
+      participant_ids: restEvent.participantIds || [],
+      organization: userOrganization,
+    };
+    
+    console.log('🔄 EVENTS TRANSFORMER: result:', JSON.stringify(result, null, 2));
+    return result;
+  },
 
   toGrpcUpdateEvent: (id, restEvent) => ({
     id: parseInt(id),
@@ -183,8 +217,10 @@ const eventsTransformers = {
     name: grpcEvent.name,
     description: grpcEvent.description,
     eventDate: grpcEvent.event_date,
+    organization: grpcEvent.organization || 'empuje-comunitario',
     createdAt: grpcEvent.created_at,
     updatedAt: grpcEvent.updated_at,
+    expuesto_red: grpcEvent.expuesto_red !== undefined ? grpcEvent.expuesto_red : false,
   }),
 
   fromGrpcParticipant: (grpcParticipant) => ({

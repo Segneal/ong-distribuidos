@@ -37,11 +37,12 @@ message Donation {
   Category category = 2;
   string description = 3;
   int32 quantity = 4;
-  bool deleted = 5;
-  string created_at = 6;
-  string updated_at = 7;
-  int32 created_by = 8;
-  int32 updated_by = 9;
+  string organization = 5;
+  bool deleted = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  int32 created_by = 9;
+  int32 updated_by = 10;
 }
 
 // Mensajes de request para CreateDonation
@@ -50,6 +51,7 @@ message CreateDonationRequest {
   string description = 2;
   int32 quantity = 3;
   int32 created_by = 4;
+  string organization = 5;
 }
 
 // Mensajes de request para GetDonation
@@ -76,6 +78,7 @@ message DeleteDonationRequest {
 message ListDonationsRequest {
   optional Category category = 1;
   optional bool include_deleted = 2;
+  optional string organization = 3;
 }
 
 // Mensaje de transferencia de donaciones

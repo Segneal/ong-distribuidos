@@ -10,7 +10,7 @@ class AuthService {
    * Genera un JWT token
    */
   generateToken(payload) {
-    return jwt.sign(payload, this.jwtSecret, { 
+    return jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiresIn,
       algorithm: 'HS256'
     });

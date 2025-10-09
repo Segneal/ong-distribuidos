@@ -18,7 +18,8 @@ const authenticateToken = (req, res, next) => {
     req.user = {
       id: decoded.user_id,
       username: decoded.username,
-      role: decoded.role
+      role: decoded.role,
+      organization: decoded.organization
     };
     
     console.log(`authenticateToken - User set:`, req.user);

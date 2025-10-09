@@ -2,27 +2,23 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware básico
-app.use(helmet()); // Seguridad básica
-app.use(cors()); // CORS para frontend
-app.use(morgan('combined')); // Logging básico
-app.use(express.json({ limit: '10mb' })); // JSON parsing
-app.use(express.urlencoded({ extended: true })); // URL encoding
-
-
+app.use(helmet());
+app.use(cors());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
     const { checkServiceHealth } = require('./services/grpcClients');
     const serviceHealth = await checkServiceHealth();
-    
     res.status(200).json({
       status: 'OK',
       timestamp: new Date().toISOString(),
@@ -46,6 +42,9 @@ const usersRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const eventsRoutes = require('./routes/events');
 const donationRequestsRoutes = require('./routes/donationRequests');
+const messagingRoutes = require('./routes/messaging');
+const notificationsRoutes = require('./routes/notifications');
+
 
 // Configurar rutas
 app.use('/api/auth', authRoutes);
@@ -53,6 +52,9 @@ app.use('/api/users', usersRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/donation-requests', donationRequestsRoutes);
+app.use('/api/messaging', messagingRoutes);
+app.use('/api/notifications', notificationsRoutes);
+
 
 // Ruta por defecto
 app.get('/', (req, res) => {
@@ -65,7 +67,7 @@ app.get('/', (req, res) => {
       users: '/api/users',
       inventory: '/api/inventory',
       events: '/api/events',
-      donationRequests: '/api/donation-requests'
+      messaging: '/api/messaging'
     }
   });
 });

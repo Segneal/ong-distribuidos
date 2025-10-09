@@ -28,7 +28,8 @@ const UserForm = ({ user, onSave, onCancel, isEditing = false }) => {
     lastName: '',
     email: '',
     phone: '',
-    role: 'VOLUNTARIO'
+    role: 'VOLUNTARIO',
+    organization: 'empuje-comunitario'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -43,7 +44,8 @@ const UserForm = ({ user, onSave, onCancel, isEditing = false }) => {
         lastName: user.lastName || '',
         email: user.email || '',
         phone: user.phone || '',
-        role: user.role || 'VOLUNTARIO'
+        role: user.role || 'VOLUNTARIO',
+        organization: user.organization || 'empuje-comunitario'
       });
     }
   }, [user, isEditing]);
@@ -137,7 +139,8 @@ const UserForm = ({ user, onSave, onCancel, isEditing = false }) => {
             lastName: '',
             email: '',
             phone: '',
-            role: 'VOLUNTARIO'
+            role: 'VOLUNTARIO',
+            organization: 'empuje-comunitario'
           });
         }
       } else {
@@ -158,6 +161,16 @@ const UserForm = ({ user, onSave, onCancel, isEditing = false }) => {
       { value: 'COORDINADOR', label: 'Coordinador' },
       { value: 'VOLUNTARIO', label: 'Voluntario' }
     ];
+  };
+
+  const getOrganizationDisplayName = (orgId) => {
+    const orgNames = {
+      'empuje-comunitario': 'Empuje Comunitario',
+      'fundacion-esperanza': 'Fundación Esperanza',
+      'ong-solidaria': 'ONG Solidaria',
+      'centro-comunitario': 'Centro Comunitario Unidos'
+    };
+    return orgNames[orgId] || orgId || 'Organización';
   };
 
   // Solo PRESIDENTE puede gestionar usuarios
@@ -218,6 +231,16 @@ const UserForm = ({ user, onSave, onCancel, isEditing = false }) => {
                 </Typography>
               )}
             </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Organización"
+              value={getOrganizationDisplayName(currentUser?.organization)}
+              disabled
+              helperText="Los usuarios se crean en tu organización"
+            />
           </Grid>
 
           <Grid item xs={12} md={6}>

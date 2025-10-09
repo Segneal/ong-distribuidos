@@ -2,13 +2,17 @@ import grpc
 from concurrent import futures
 import users_pb2
 import users_pb2_grpc
-from user_repository import UserRepository
+from user_repository_mysql import UserRepository
 from password_generator import generate_random_password
 from crypto import hash_password, verify_password
 from email_sender import send_password_email
 import jwt
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class UserService(users_pb2_grpc.UserServiceServicer):
     def __init__(self):
@@ -47,12 +51,32 @@ class UserService(users_pb2_grpc.UserServiceServicer):
             role=self._convert_string_to_role(user_data['rol']),
             is_active=user_data['activo'],
             created_at=str(user_data['fecha_creacion']),
-            updated_at=str(user_data['fecha_actualizacion'])
+            updated_at=str(user_data['fecha_actualizacion']),
+            organization=user_data.get('organizacion', 'empuje-comunitario')
         )
     
     def CreateUser(self, request, context):
         """Crea un nuevo usuario"""
         try:
+            print(f"=== CreateUser DEBUG ===")
+            print(f"Request type: {type(request)}")
+            print(f"Request fields: {[field.name for field in request.DESCRIPTOR.fields]}")
+            print(f"Username: {request.username}")
+            print(f"First name: {request.first_name}")
+            print(f"Last name: {request.last_name}")
+            print(f"Email: {request.email}")
+            print(f"Phone: {request.phone}")
+            print(f"Role: {request.role}")
+            
+            # Verificar si tiene campo organization
+            has_org = hasattr(request, 'organization')
+            print(f"Has organization field: {has_org}")
+            if has_org:
+                print(f"Organization value: '{request.organization}'")
+            
+            org_value = getattr(request, 'organization', 'empuje-comunitario')
+            print(f"Organization to use: '{org_value}'")
+            
             # Validar que el username no exista
             if self.repository.username_exists(request.username):
                 return users_pb2.UserResponse(
@@ -75,6 +99,19 @@ class UserService(users_pb2_grpc.UserServiceServicer):
             role_string = self._convert_role_to_string(request.role)
             
             # Crear usuario en la base de datos
+            # Crear usuario en la base de datos
+            org_param = getattr(request, 'organization', 'empuje-comunitario')
+            print(f"=== Calling repository.create_user ===")
+            print(f"Args count: 8")
+            print(f"1. username: {request.username}")
+            print(f"2. first_name: {request.first_name}")
+            print(f"3. last_name: {request.last_name}")
+            print(f"4. email: {request.email}")
+            print(f"5. phone: {request.phone}")
+            print(f"6. role: {role_string}")
+            print(f"7. password_hash: {password_hash[:10]}...")
+            print(f"8. organization: {org_param}")
+            
             user_data = self.repository.create_user(
                 request.username,
                 request.first_name,
@@ -82,7 +119,8 @@ class UserService(users_pb2_grpc.UserServiceServicer):
                 request.email,
                 request.phone,
                 role_string,
-                password_hash
+                password_hash,
+                org_param
             )
             
             if user_data:
@@ -169,7 +207,8 @@ class UserService(users_pb2_grpc.UserServiceServicer):
                 request.last_name,
                 request.email,
                 request.phone,
-                role_string
+                role_string,
+                getattr(request, 'organization', 'empuje-comunitario')
             )
             
             if user_data:
@@ -218,11 +257,15 @@ class UserService(users_pb2_grpc.UserServiceServicer):
     def ListUsers(self, request, context):
         """Lista todos los usuarios"""
         try:
+            print(f"=== ListUsers DEBUG ===")
             users_data = self.repository.list_users(request.include_inactive)
+            print(f"Users from repository: {len(users_data)}")
             
             users_messages = []
             for user_data in users_data:
+                print(f"User: {user_data.get('nombre_usuario')} - Org: {user_data.get('organizacion')}")
                 user_message = self._create_user_message(user_data)
+                print(f"Message org: {user_message.organization}")
                 users_messages.append(user_message)
             
             return users_pb2.ListUsersResponse(
@@ -269,6 +312,7 @@ class UserService(users_pb2_grpc.UserServiceServicer):
                 'user_id': user_data['id'],
                 'username': user_data['nombre_usuario'],
                 'role': user_data['rol'],
+                'organization': user_data.get('organizacion', 'empuje-comunitario'),
                 'exp': datetime.utcnow() + timedelta(hours=24)
             }
             token = jwt.encode(payload, self.jwt_secret, algorithm='HS256')
@@ -286,7 +330,32 @@ class UserService(users_pb2_grpc.UserServiceServicer):
             
         except Exception as e:
             print(f"Error en AuthenticateUser: {e}")
+            import traceback
+            traceback.print_exc()
             return users_pb2.AuthResponse(
                 success=False,
                 message="Error interno del servidor"
             )
+
+def serve():
+    """Inicia el servidor gRPC"""
+    port = os.getenv('GRPC_PORT', '50051')
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    users_pb2_grpc.add_UserServiceServicer_to_server(UserService(), server)
+    
+    listen_addr = f'[::]:{port}'
+    server.add_insecure_port(listen_addr)
+    
+    print(f"🚀 User Service iniciado en puerto {port}")
+    print(f"📊 Escuchando en {listen_addr}")
+    
+    server.start()
+    
+    try:
+        server.wait_for_termination()
+    except KeyboardInterrupt:
+        print("\n🛑 Deteniendo User Service...")
+        server.stop(0)
+
+if __name__ == '__main__':
+    serve()

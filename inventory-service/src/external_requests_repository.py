@@ -6,7 +6,7 @@ Extiende la funcionalidad del inventory-service para manejar solicitudes de la r
 import json
 from datetime import datetime
 from typing import List, Dict, Optional, Any
-from database_fixed import get_db_connection
+from database_mysql import get_db_connection
 
 
 class ExternalRequestsRepository:

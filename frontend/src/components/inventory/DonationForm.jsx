@@ -8,6 +8,7 @@ const DonationForm = ({ donation, onSuccess }) => {
     description: '',
     quantity: ''
   });
+  const [createdByUser, setCreatedByUser] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
@@ -28,8 +29,28 @@ const DonationForm = ({ donation, onSuccess }) => {
         description: donation.description || '',
         quantity: donation.quantity?.toString() || ''
       });
+      
+      // Obtener nombre del usuario que creó la donación
+      if (donation.createdBy) {
+        fetchUserName(donation.createdBy);
+      }
     }
   }, [donation]);
+
+  const fetchUserName = async (userId) => {
+    try {
+      const response = await api.get(`/users/${userId}`);
+      if (response.data.success && response.data.user) {
+        const user = response.data.user;
+        setCreatedByUser(`${user.firstName} ${user.lastName}`.trim() || user.username);
+      } else {
+        setCreatedByUser(`Usuario ID: ${userId}`);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      setCreatedByUser(`Usuario ID: ${userId}`);
+    }
+  };
 
   const validateForm = () => {
     const errors = {};
@@ -151,10 +172,31 @@ const DonationForm = ({ donation, onSuccess }) => {
           </div>
         )}
 
+        {/* Información de la donación existente */}
+        {donation && (
+          <div className="donation-info">
+            <div className="info-item">
+              <strong>Fecha de alta:</strong> {new Date(donation.createdAt).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+            {donation.createdBy && (
+              <div className="info-item">
+                <strong>Creado por:</strong> {createdByUser || `Usuario ID: ${donation.createdBy}`}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Categoría */}
         <div className="form-group">
           <label htmlFor="category">
             Categoría <span className="required">*</span>
+            {donation && <span className="field-note"> (No modificable)</span>}
           </label>
           <select
             id="category"
@@ -162,7 +204,7 @@ const DonationForm = ({ donation, onSuccess }) => {
             value={formData.category}
             onChange={handleInputChange}
             className={validationErrors.category ? 'error' : ''}
-            disabled={loading}
+            disabled={loading || donation} // Deshabilitar si estamos editando
           >
             <option value="">Seleccionar categoría</option>
             {categories.map(category => (
@@ -215,40 +257,7 @@ const DonationForm = ({ donation, onSuccess }) => {
           )}
         </div>
 
-        {/* Información adicional para edición */}
-        {donation && (
-          <div className="form-info">
-            <div className="info-row">
-              <strong>ID:</strong> {donation.id}
-            </div>
-            <div className="info-row">
-              <strong>Fecha de alta:</strong> {
-                donation.created_at 
-                  ? new Date(donation.created_at).toLocaleDateString('es-ES', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : 'N/A'
-              }
-            </div>
-            {donation.updated_at && (
-              <div className="info-row">
-                <strong>Última modificación:</strong> {
-                  new Date(donation.updated_at).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })
-                }
-              </div>
-            )}
-          </div>
-        )}
+
 
         {/* Botones */}
         <div className="form-actions">

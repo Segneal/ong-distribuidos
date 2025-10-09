@@ -26,7 +26,7 @@ const InventoryList = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = new URLSearchParams();
       if (selectedCategory) {
         params.append('category', selectedCategory);
@@ -36,7 +36,7 @@ const InventoryList = () => {
       }
 
       const response = await api.get(`/inventory?${params.toString()}`);
-      
+
       if (response.data.success) {
         setDonations(response.data.donations || []);
       } else {
@@ -66,7 +66,7 @@ const InventoryList = () => {
 
     try {
       const response = await api.delete(`/inventory/${donationId}`);
-      
+
       if (response.data.success) {
         await fetchDonations(); // Recargar la lista
       } else {
@@ -103,7 +103,7 @@ const InventoryList = () => {
     <div className="inventory-container">
       <div className="inventory-header">
         <h2>Inventario de Donaciones</h2>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => setShowForm(true)}
         >
@@ -160,7 +160,6 @@ const InventoryList = () => {
                   <th>Categoría</th>
                   <th>Descripción</th>
                   <th>Cantidad</th>
-                  <th>Eliminado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -170,11 +169,6 @@ const InventoryList = () => {
                     <td>{getCategoryLabel(donation.category)}</td>
                     <td>{donation.description || 'Sin descripción'}</td>
                     <td>{donation.quantity}</td>
-                    <td>
-                      <span className={`status ${donation.deleted ? 'deleted' : 'active'}`}>
-                        {donation.deleted ? 'Sí' : 'No'}
-                      </span>
-                    </td>
                     <td>
                       {!donation.deleted && (
                         <div className="actions">

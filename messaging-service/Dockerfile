@@ -9,16 +9,19 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY messaging-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/ ./src/
-COPY docker-entrypoint.sh .
+COPY messaging-service/src/ ./src/
 
-# Make entrypoint executable
-RUN chmod +x docker-entrypoint.sh
+# Copy shared directory
+COPY shared/ ./shared/
+
+# Copy wait script
+COPY messaging-service/wait-for-services.sh ./
+RUN chmod +x wait-for-services.sh
 
 EXPOSE 50054 8000
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["./wait-for-services.sh", "mysql:3306", "kafka:9092", "--", "python", "src/main.py"]

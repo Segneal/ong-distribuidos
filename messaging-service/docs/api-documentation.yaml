@@ -1,0 +1,728 @@
+openapi: 3.0.3
+info:
+  title: Sistema de Mensajería para Red de ONGs
+  description: |
+    API REST para el sistema de mensajería que permite a las organizaciones participar en una red colaborativa de ONGs.
+    
+    Este sistema facilita:
+    - Solicitudes de donaciones entre organizaciones
+    - Transferencias de donaciones
+    - Ofertas de donaciones disponibles
+    - Publicación y gestión de eventos solidarios
+    - Adhesiones de voluntarios a eventos externos
+    
+    ## Autenticación
+    Todas las rutas requieren autenticación JWT válida excepto las rutas de salud del sistema.
+    
+    ## Formatos de Mensaje Kafka
+    El sistema utiliza Apache Kafka para la comunicación entre organizaciones. Ver sección de esquemas para formatos detallados.
+    
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo ONG
+    email: dev@empujecomunitario.org
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Servidor de desarrollo
+  - url: http://localhost:50054
+    description: Puerto alternativo gRPC
+
+paths:
+  /health:
+    get:
+      summary: Verificar estado del servicio
+      description: Endpoint para verificar que el servicio de mensajería está funcionando correctamente
+      tags:
+        - Sistema
+      responses:
+        '200':
+          description: Servicio funcionando correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  kafka_connected:
+                    type: boolean
+                  database_connected:
+                    type: boolean
+
+  /kafka/status:
+    get:
+      summary: Estado de conexión con Kafka
+      description: Verifica el estado de la conexión con el broker de Kafka
+      tags:
+        - Sistema
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Estado de Kafka
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                  brokers:
+                    type: array
+                    items:
+                      type: string
+                  topics:
+                    type: array
+                    items:
+                      type: string
+
+  /donation-requests:
+    post:
+      summary: Crear solicitud de donación
+      description: Publica una nueva solicitud de donación en la red de ONGs
+      tags:
+        - Solicitudes de Donación
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonationRequestInput'
+      responses:
+        '201':
+          description: Solicitud creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationRequestResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
+
+    get:
+      summary: Listar solicitudes externas
+      description: Obtiene todas las solicitudes de donación de otras organizaciones
+      tags:
+        - Solicitudes de Donación
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: active_only
+          in: query
+          description: Filtrar solo solicitudes activas
+          schema:
+            type: boolean
+            default: true
+        - name: category
+          in: query
+          description: Filtrar por categoría de donación
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de solicitudes externas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalDonationRequest'
+
+  /donation-requests/{request_id}/cancel:
+    post:
+      summary: Cancelar solicitud de donación
+      description: Da de baja una solicitud de donación propia
+      tags:
+        - Solicitudes de Donación
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Solicitud cancelada exitosamente
+        '404':
+          description: Solicitud no encontrada
+        '403':
+          description: No autorizado para cancelar esta solicitud
+
+  /donation-transfers:
+    post:
+      summary: Realizar transferencia de donación
+      description: Transfiere donaciones a una organización que las ha solicitado
+      tags:
+        - Transferencias
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonationTransferInput'
+      responses:
+        '201':
+          description: Transferencia realizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationTransferResponse'
+        '400':
+          description: Inventario insuficiente o datos inválidos
+        '401':
+          description: No autorizado
+
+    get:
+      summary: Historial de transferencias
+      description: Obtiene el historial de transferencias enviadas y recibidas
+      tags:
+        - Transferencias
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Tipo de transferencia
+          schema:
+            type: string
+            enum: [ENVIADA, RECIBIDA, ALL]
+            default: ALL
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Historial de transferencias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DonationTransferHistory'
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+
+  /donation-offers:
+    post:
+      summary: Crear oferta de donación
+      description: Publica una nueva oferta de donación disponible
+      tags:
+        - Ofertas de Donación
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonationOfferInput'
+      responses:
+        '201':
+          description: Oferta creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationOfferResponse'
+
+    get:
+      summary: Listar ofertas externas
+      description: Obtiene todas las ofertas de donación de otras organizaciones
+      tags:
+        - Ofertas de Donación
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: active_only
+          in: query
+          description: Filtrar solo ofertas activas
+          schema:
+            type: boolean
+            default: true
+        - name: category
+          in: query
+          description: Filtrar por categoría
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de ofertas externas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalDonationOffer'
+
+  /events:
+    post:
+      summary: Publicar evento solidario
+      description: Publica un evento solidario en la red de ONGs
+      tags:
+        - Eventos Solidarios
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPublishInput'
+      responses:
+        '201':
+          description: Evento publicado exitosamente
+
+    get:
+      summary: Listar eventos externos
+      description: Obtiene eventos de otras organizaciones
+      tags:
+        - Eventos Solidarios
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: upcoming_only
+          in: query
+          description: Solo eventos futuros
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Lista de eventos externos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalEvent'
+
+  /events/{event_id}/cancel:
+    post:
+      summary: Cancelar evento
+      description: Da de baja un evento solidario propio
+      tags:
+        - Eventos Solidarios
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evento cancelado exitosamente
+
+  /events/{event_id}/adhesions:
+    post:
+      summary: Adherirse a evento externo
+      description: Permite a un voluntario adherirse a un evento de otra organización
+      tags:
+        - Adhesiones a Eventos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventAdhesionInput'
+      responses:
+        '201':
+          description: Adhesión registrada exitosamente
+        '400':
+          description: Datos inválidos o evento no disponible
+        '409':
+          description: Ya existe una adhesión para este voluntario
+
+    get:
+      summary: Listar adhesiones recibidas
+      description: Obtiene las adhesiones de voluntarios externos a nuestros eventos
+      tags:
+        - Adhesiones a Eventos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de adhesiones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventAdhesion'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DonationRequestInput:
+      type: object
+      required:
+        - donations
+      properties:
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationItem'
+          minItems: 1
+      example:
+        donations:
+          - category: "ALIMENTOS"
+            description: "Puré de tomates"
+          - category: "ROPA"
+            description: "Abrigos para invierno"
+
+    DonationItem:
+      type: object
+      required:
+        - category
+        - description
+      properties:
+        category:
+          type: string
+          enum: [ALIMENTOS, ROPA, MEDICAMENTOS, JUGUETES, LIBROS, OTROS]
+        description:
+          type: string
+          maxLength: 255
+      example:
+        category: "ALIMENTOS"
+        description: "Puré de tomates"
+
+    DonationRequestResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+        organization_id:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationItem'
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, CANCELLED]
+
+    ExternalDonationRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+        organization_id:
+          type: string
+        organization_name:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationItem'
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, CANCELLED]
+
+    DonationTransferInput:
+      type: object
+      required:
+        - target_organization
+        - request_id
+        - donations
+      properties:
+        target_organization:
+          type: string
+        request_id:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationTransferItem'
+          minItems: 1
+
+    DonationTransferItem:
+      type: object
+      required:
+        - category
+        - description
+        - quantity
+      properties:
+        category:
+          type: string
+          enum: [ALIMENTOS, ROPA, MEDICAMENTOS, JUGUETES, LIBROS, OTROS]
+        description:
+          type: string
+        quantity:
+          type: string
+          description: "Cantidad con unidad (ej: '2kg', '5 unidades')"
+
+    DonationTransferResponse:
+      type: object
+      properties:
+        transfer_id:
+          type: string
+        target_organization:
+          type: string
+        request_id:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationTransferItem'
+        timestamp:
+          type: string
+          format: date-time
+
+    DonationTransferHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [ENVIADA, RECIBIDA]
+        organization_counterpart:
+          type: string
+        request_id:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationTransferItem'
+        transfer_date:
+          type: string
+          format: date-time
+
+    DonationOfferInput:
+      type: object
+      required:
+        - donations
+      properties:
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationOfferItem'
+          minItems: 1
+
+    DonationOfferItem:
+      type: object
+      required:
+        - category
+        - description
+        - quantity
+      properties:
+        category:
+          type: string
+          enum: [ALIMENTOS, ROPA, MEDICAMENTOS, JUGUETES, LIBROS, OTROS]
+        description:
+          type: string
+        quantity:
+          type: string
+
+    DonationOfferResponse:
+      type: object
+      properties:
+        offer_id:
+          type: string
+        organization_id:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationOfferItem'
+        timestamp:
+          type: string
+          format: date-time
+
+    ExternalDonationOffer:
+      type: object
+      properties:
+        offer_id:
+          type: string
+        organization_id:
+          type: string
+        organization_name:
+          type: string
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DonationOfferItem'
+        timestamp:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+
+    EventPublishInput:
+      type: object
+      required:
+        - event_id
+        - name
+        - description
+        - event_date
+      properties:
+        event_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        event_date:
+          type: string
+          format: date-time
+
+    ExternalEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        organization_id:
+          type: string
+        organization_name:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        event_date:
+          type: string
+          format: date-time
+        timestamp:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+
+    EventAdhesionInput:
+      type: object
+      required:
+        - volunteer_id
+        - volunteer_name
+        - volunteer_lastname
+        - volunteer_phone
+        - volunteer_email
+      properties:
+        volunteer_id:
+          type: integer
+        volunteer_name:
+          type: string
+        volunteer_lastname:
+          type: string
+        volunteer_phone:
+          type: string
+        volunteer_email:
+          type: string
+          format: email
+
+    EventAdhesion:
+      type: object
+      properties:
+        adhesion_id:
+          type: string
+        event_id:
+          type: string
+        volunteer:
+          $ref: '#/components/schemas/VolunteerInfo'
+        organization_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    VolunteerInfo:
+      type: object
+      properties:
+        volunteer_id:
+          type: integer
+        organization_id:
+          type: string
+        name:
+          type: string
+        lastname:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+
+tags:
+  - name: Sistema
+    description: Endpoints de estado y salud del sistema
+  - name: Solicitudes de Donación
+    description: Gestión de solicitudes de donaciones entre organizaciones
+  - name: Transferencias
+    description: Transferencias de donaciones entre organizaciones
+  - name: Ofertas de Donación
+    description: Publicación y consulta de ofertas de donaciones
+  - name: Eventos Solidarios
+    description: Gestión de eventos solidarios en la red
+  - name: Adhesiones a Eventos
+    description: Adhesiones de voluntarios a eventos externos

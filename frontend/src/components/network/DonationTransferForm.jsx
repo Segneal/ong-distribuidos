@@ -53,6 +53,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     if (!targetRequest || !targetRequest.donations) return;
 
     // Inicializar transferencias basadas en las donaciones solicitadas
+    // NOTA: Se ha deshabilitado la verificación de compatibilidad por categoría
     const initialTransfers = targetRequest.donations.map(requestedDonation => ({
       category: requestedDonation.category,
       description: requestedDonation.description,
@@ -217,7 +218,9 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
   };
 
   const getInventoryByCategory = (category) => {
-    return availableInventory.filter(item => item.category === category);
+    // DESHABILITADO: Filtrado por categoría para permitir cualquier donación
+    // return availableInventory.filter(item => item.category === category);
+    return availableInventory; // Devolver todas las donaciones disponibles
   };
 
   if (loadingInventory) {
@@ -249,7 +252,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
         <div className="form-section">
           <h4>Donaciones Solicitadas</h4>
           <p className="form-help">
-            Seleccione las donaciones de su inventario que desea transferir para cada solicitud.
+            Seleccione cualquier donación de su inventario que desea transferir.
+            No es necesario que coincida exactamente con lo solicitado.
             Solo se transferirán las donaciones con cantidad especificada.
           </p>
 
@@ -290,7 +294,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
                     )}
                     {categoryInventory.length === 0 && (
                       <div className="field-info">
-                        No hay donaciones disponibles en esta categoría
+                        No hay donaciones disponibles en el inventario
                       </div>
                     )}
                   </div>
@@ -348,7 +352,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
       <div className="form-info">
         <h4>Información importante:</h4>
         <ul>
-          <li>Solo puede transferir donaciones que tiene disponibles en su inventario</li>
+          <li>Puede transferir cualquier donación disponible en su inventario</li>
+          <li>No es necesario que coincida exactamente con lo solicitado</li>
           <li>La cantidad transferida se descontará automáticamente de su inventario</li>
           <li>La organización destino recibirá las donaciones en su inventario</li>
           <li>Esta acción no se puede deshacer</li>

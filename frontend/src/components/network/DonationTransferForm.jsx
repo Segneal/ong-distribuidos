@@ -11,6 +11,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [transferData, setTransferData] = useState(null);
   const { user } = useAuth();
 
   const categories = [
@@ -146,41 +148,48 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
       return;
     }
 
+    // Preparar datos de transferencia solo para items con cantidad > 0
+    const validTransfers = formData.transfers.filter(t => 
+      t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
+    );
+
+    const preparedTransferData = {
+      targetOrganization: targetRequest.requesting_organization,
+      requestId: targetRequest.request_id,
+      donations: validTransfers.map(transfer => {
+        const selectedItem = availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId);
+        return {
+          category: transfer.category,
+          description: transfer.description,
+          quantity: `${transfer.quantity}${selectedItem?.unit || ''}`,
+          inventoryId: parseInt(transfer.selectedInventoryId)
+        };
+      })
+    };
+
+    // Validar que tenemos los datos necesarios
+    if (!preparedTransferData.targetOrganization) {
+      setError('Error: Organización destino no especificada');
+      return;
+    }
+
+    if (!preparedTransferData.donations || preparedTransferData.donations.length === 0) {
+      setError('Error: Debe seleccionar al menos una donación para transferir');
+      return;
+    }
+
+    // Mostrar confirmación
+    setTransferData(preparedTransferData);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmTransfer = async () => {
     setLoading(true);
     setError('');
+    setShowConfirmation(false);
 
     try {
-      // Preparar datos de transferencia solo para items con cantidad > 0
-      const validTransfers = formData.transfers.filter(t => 
-        t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
-      );
-
-      const transferData = {
-        targetOrganization: targetRequest.requesting_organization,
-        requestId: targetRequest.request_id,
-        donations: validTransfers.map(transfer => {
-          const selectedItem = availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId);
-          return {
-            category: transfer.category,
-            description: transfer.description,
-            quantity: `${transfer.quantity}${selectedItem?.unit || ''}`,
-            inventoryId: parseInt(transfer.selectedInventoryId)
-          };
-        })
-      };
-
       console.log('Transfer data being sent:', transferData);
-
-      // Validar que tenemos los datos necesarios
-      if (!transferData.targetOrganization) {
-        setError('Error: Organización destino no especificada');
-        return;
-      }
-
-      if (!transferData.donations || transferData.donations.length === 0) {
-        setError('Error: Debe seleccionar al menos una donación para transferir');
-        return;
-      }
 
       const response = await messagingService.transferDonations(transferData);
 
@@ -195,6 +204,11 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+    setTransferData(null);
   };
 
   const getCategoryLabel = (categoryValue) => {
@@ -340,6 +354,48 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
           <li>Esta acción no se puede deshacer</li>
         </ul>
       </div>
+
+      {/* Modal de confirmación */}
+      {showConfirmation && transferData && (
+        <div className="modal-overlay">
+          <div className="modal-content simple-modal">
+            <div className="modal-body">
+              <p>
+                <strong>
+                  ¿Transferir {transferData.donations.length} donación{transferData.donations.length > 1 ? 'es' : ''} a {transferData.targetOrganization}?
+                </strong>
+              </p>
+              <p className="transfer-summary">
+                {transferData.donations.map((donation, index) => (
+                  <span key={index}>
+                    {donation.quantity} {getCategoryLabel(donation.category)}
+                    {index < transferData.donations.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelConfirmation}
+                disabled={loading}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmTransfer}
+                disabled={loading}
+              >
+                {loading ? 'Transfiriendo...' : 'Sí'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

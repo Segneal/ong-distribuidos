@@ -227,22 +227,6 @@ const EventForm = () => {
           />
         </div>
 
-        <div className="form-group">
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              id="expuesto_red"
-              name="expuesto_red"
-              checked={formData.expuesto_red}
-              onChange={handleInputChange}
-            />
-            <label htmlFor="expuesto_red">
-              Exponer evento a la red de ONGs
-              <small>Permite que otras organizaciones vean y se adhieran a este evento</small>
-            </label>
-          </div>
-        </div>
-
         <div className="form-actions">
           <button
             type="button"

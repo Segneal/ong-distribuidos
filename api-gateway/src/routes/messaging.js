@@ -23,22 +23,45 @@ async function createDbConnection() {
 router.post('/active-requests', authenticateToken, async (req, res) => {
   try {
     console.log('=== GET ACTIVE REQUESTS ===');
+    console.log('User organization:', req.user.organization);
     
     const connection = await createDbConnection();
 
-    const query = `
-      SELECT 
-        solicitud_id as request_id,
-        donaciones as donations,
-        estado as status,
-        fecha_creacion as timestamp,
-        notas as notes
-      FROM solicitudes_donaciones 
-      WHERE estado = 'ACTIVA'
-      ORDER BY fecha_creacion DESC
-    `;
+    // Para empuje-comunitario, usar solicitudes_donaciones
+    // Para otras organizaciones, usar solicitudes_externas
+    let query, params;
+    
+    if (req.user.organization === 'empuje-comunitario') {
+      query = `
+        SELECT 
+          solicitud_id as request_id,
+          donaciones as donations,
+          estado as status,
+          fecha_creacion as timestamp,
+          notas as notes
+        FROM solicitudes_donaciones 
+        WHERE estado = 'ACTIVA'
+        AND organization_id = ?
+        ORDER BY fecha_creacion DESC
+      `;
+      params = [req.user.organization];
+    } else {
+      query = `
+        SELECT 
+          solicitud_id as request_id,
+          donaciones as donations,
+          activa as status,
+          fecha_creacion as timestamp,
+          '' as notes
+        FROM solicitudes_externas 
+        WHERE activa = 1
+        AND organizacion_solicitante = ?
+        ORDER BY fecha_creacion DESC
+      `;
+      params = [req.user.organization];
+    }
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, params);
     await connection.end();
 
     const requests = rows.map(row => ({
@@ -46,8 +69,10 @@ router.post('/active-requests', authenticateToken, async (req, res) => {
       donations: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
       status: row.status,
       timestamp: row.timestamp,
-      notes: row.notes
+      notes: row.notes || ''
     }));
+
+    console.log(`Found ${requests.length} active requests for organization: ${req.user.organization}`);
 
     res.json({
       success: true,
@@ -160,23 +185,26 @@ router.post('/transfer-history', authenticateToken, async (req, res) => {
 router.post('/external-requests', authenticateToken, async (req, res) => {
   try {
     console.log('=== GET EXTERNAL REQUESTS ===');
+    console.log('User organization:', req.user.organization);
     
     const connection = await createDbConnection();
 
+    // Obtener solicitudes de otras organizaciones desde solicitudes_externas
     const query = `
       SELECT 
-        solicitud_id as request_id,
-        'external-org' as requesting_organization,
-        donaciones as donations,
-        estado as status,
-        fecha_creacion as timestamp,
-        notas as notes
-      FROM solicitudes_donaciones 
-      WHERE estado = 'ACTIVA'
-      ORDER BY fecha_creacion DESC
+        se.solicitud_id as request_id,
+        se.organizacion_solicitante as requesting_organization,
+        se.donaciones as donations,
+        se.activa as status,
+        se.fecha_creacion as timestamp,
+        '' as notes
+      FROM solicitudes_externas se
+      WHERE se.activa = 1
+      AND se.organizacion_solicitante != ?
+      ORDER BY se.fecha_creacion DESC
     `;
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, [req.user.organization]);
     await connection.end();
 
     const requests = rows.map(row => ({
@@ -187,6 +215,8 @@ router.post('/external-requests', authenticateToken, async (req, res) => {
       timestamp: row.timestamp,
       notes: row.notes
     }));
+
+    console.log(`Found ${requests.length} external requests`);
 
     res.json({
       success: true,
@@ -215,6 +245,7 @@ router.post('/create-donation-request', authenticateToken, async (req, res) => {
     const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/createDonationRequest`, {
       donations: donations,
       userId: req.user.id,
+      userOrganization: req.user.organization,
       notes: notes || ''
     });
 
@@ -461,17 +492,37 @@ router.post('/toggle-event-exposure', authenticateToken, async (req, res) => {
 router.post('/cancel-donation-request', authenticateToken, async (req, res) => {
   try {
     console.log('=== CANCEL DONATION REQUEST ===');
+    console.log('User organization:', req.user.organization);
     const { requestId } = req.body;
     
+    if (!requestId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Request ID es requerido'
+      });
+    }
+    
     const connection = await createDbConnection();
+    let result;
 
-    const query = `
-      UPDATE solicitudes_donaciones 
-      SET estado = 'DADA_DE_BAJA', fecha_actualizacion = NOW()
-      WHERE solicitud_id = ?
-    `;
-
-    const [result] = await connection.execute(query, [requestId]);
+    // Para empuje-comunitario, actualizar solicitudes_donaciones
+    // Para otras organizaciones, actualizar solicitudes_externas
+    if (req.user.organization === 'empuje-comunitario') {
+      const query = `
+        UPDATE solicitudes_donaciones 
+        SET estado = 'DADA_DE_BAJA', fecha_actualizacion = NOW()
+        WHERE solicitud_id = ? AND organization_id = ?
+      `;
+      [result] = await connection.execute(query, [requestId, req.user.organization]);
+    } else {
+      const query = `
+        UPDATE solicitudes_externas 
+        SET activa = 0
+        WHERE solicitud_id = ? AND organizacion_solicitante = ?
+      `;
+      [result] = await connection.execute(query, [requestId, req.user.organization]);
+    }
+    
     await connection.end();
 
     if (result.affectedRows > 0) {
@@ -482,7 +533,7 @@ router.post('/cancel-donation-request', authenticateToken, async (req, res) => {
     } else {
       res.status(404).json({
         success: false,
-        error: 'Solicitud no encontrada'
+        error: 'Solicitud no encontrada o no pertenece a su organización'
       });
     }
   } catch (error) {

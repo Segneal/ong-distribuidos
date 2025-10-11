@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, Optional
 import structlog
 
 from messaging.config import settings
-from messaging.database.connection import get_db_connection
+from messaging.database.connection import get_db_connection, get_database_connection
 from messaging.producers.base_producer import BaseProducer
 
 logger = structlog.get_logger(__name__)
@@ -41,73 +41,99 @@ class TransferService:
                 return False, "Donations list is required", None
             
             for donation in donations:
-                if not donation.get('donation_id') or not donation.get('quantity'):
-                    return False, "Each donation must have donation_id and quantity", None
+                # Accept both formats: frontend format (inventoryId) and legacy format (donation_id)
+                inventory_id = donation.get('inventoryId') or donation.get('donation_id')
+                quantity_str = donation.get('quantity', '')
                 
-                if donation.get('quantity', 0) <= 0:
-                    return False, "Donation quantity must be positive", None
+                if not inventory_id:
+                    return False, "Each donation must have inventoryId or donation_id", None
+                
+                # Extract numeric quantity from string (e.g., "5kg" -> 5)
+                try:
+                    if isinstance(quantity_str, str):
+                        # Extract number from string like "5kg", "10 unidades", etc.
+                        import re
+                        quantity_match = re.search(r'(\d+)', quantity_str)
+                        if quantity_match:
+                            quantity = int(quantity_match.group(1))
+                        else:
+                            quantity = 0
+                    else:
+                        quantity = int(quantity_str) if quantity_str else 0
+                except (ValueError, TypeError):
+                    quantity = 0
+                
+                if quantity <= 0:
+                    return False, f"Donation quantity must be positive, got: {quantity_str}", None
+                
+                # Store the parsed quantity back in the donation for later use
+                donation['parsed_quantity'] = quantity
+                donation['inventory_id'] = inventory_id
             
             # Store transfer in database
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
-                # Check if we have enough inventory for each donation
-                for donation in donations:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
+                try:
+                    # Check if we have enough inventory for each donation
+                    for donation in donations:
+                        inventory_id = donation['inventory_id']
+                        requested_quantity = donation['parsed_quantity']
+                        
+                        cursor.execute("""
+                            SELECT cantidad FROM donaciones 
+                            WHERE id = %s AND eliminado = 0
+                        """, (inventory_id,))
+                        
+                        row = cursor.fetchone()
+                        if not row:
+                            return False, f"Donation {inventory_id} not found in inventory", None
+                        
+                        available_quantity = row[0]
+                        
+                        if available_quantity < requested_quantity:
+                            return False, f"Insufficient quantity for donation {inventory_id}. Available: {available_quantity}, Requested: {requested_quantity}", None
+                    
+                    # Create transfer record
+                    import json
                     cursor.execute("""
-                        SELECT quantity FROM donations 
-                        WHERE id = %s AND organization_id = %s
-                    """, (donation['donation_id'], settings.organization_id))
+                        INSERT INTO transferencias_donaciones 
+                        (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, notas)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        'ENVIADA',
+                        target_organization,
+                        request_id,
+                        json.dumps(donations),  # Store as proper JSON string
+                        'COMPLETADA',
+                        datetime.now(),
+                        f'Transfer {transfer_id} by user {user_id}'
+                    ))
                     
-                    row = cursor.fetchone()
-                    if not row:
-                        return False, f"Donation {donation['donation_id']} not found", None
+                    # Update inventory quantities
+                    for donation in donations:
+                        inventory_id = donation['inventory_id']
+                        requested_quantity = donation['parsed_quantity']
+                        
+                        cursor.execute("""
+                            UPDATE donaciones 
+                            SET cantidad = cantidad - %s 
+                            WHERE id = %s
+                        """, (requested_quantity, inventory_id))
                     
-                    available_quantity = row[0]
-                    requested_quantity = donation['quantity']
+                    conn.commit()
                     
-                    if available_quantity < requested_quantity:
-                        return False, f"Insufficient quantity for donation {donation['donation_id']}. Available: {available_quantity}, Requested: {requested_quantity}", None
-                
-                # Create transfer record
-                cursor.execute("""
-                    INSERT INTO transferencias_donaciones 
-                    (transferencia_id, organizacion_origen, organizacion_destino, solicitud_id, donaciones, fecha_transferencia, usuario_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    transfer_id,
-                    settings.organization_id,
-                    target_organization,
-                    request_id,
-                    str(donations),  # Store as JSON string
-                    datetime.now(),
-                    user_id
-                ))
-                
-                # Update inventory quantities
-                for donation in donations:
-                    cursor.execute("""
-                        UPDATE donations 
-                        SET quantity = quantity - %s 
-                        WHERE id = %s AND organization_id = %s
-                    """, (donation['quantity'], donation['donation_id'], settings.organization_id))
-                
-                conn.commit()
-                
-                logger.info(
-                    "Donation transfer stored in database",
-                    transfer_id=transfer_id,
-                    target_organization=target_organization,
-                    donations_count=len(donations)
-                )
-                
-            except Exception as e:
-                conn.rollback()
-                logger.error("Failed to store donation transfer in database", error=str(e))
-                return False, f"Database error: {str(e)}", None
-            finally:
-                cursor.close()
-                conn.close()
+                    logger.info(
+                        "Donation transfer stored in database",
+                        transfer_id=transfer_id,
+                        target_organization=target_organization,
+                        donations_count=len(donations)
+                    )
+                    
+                except Exception as e:
+                    conn.rollback()
+                    logger.error("Failed to store donation transfer in database", error=str(e))
+                    return False, f"Database error: {str(e)}", None
             
             # Publish to Kafka
             transfer_data = {
@@ -152,10 +178,8 @@ class TransferService:
             if organization_id is None:
                 organization_id = settings.organization_id
             
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
                 cursor.execute("""
                     SELECT 
                         transferencia_id as transfer_id,
@@ -203,10 +227,6 @@ class TransferService:
                 )
                 
                 return transfers
-                
-            finally:
-                cursor.close()
-                conn.close()
                 
         except Exception as e:
             logger.error("Error getting transfer history", error=str(e))

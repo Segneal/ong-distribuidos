@@ -1,83 +1,71 @@
 #!/usr/bin/env python3
 """
-Script para verificar las organizaciones en usuarios y donaciones
+Script para verificar la estructura de organizaciones
 """
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'user-service', 'src'))
-
-from database_mysql import get_db_connection
+import mysql.connector
 
 def check_organizations():
-    """Verificar organizaciones en usuarios y donaciones"""
+    """Verifica la estructura y datos de organizaciones"""
     try:
-        db = get_db_connection()
-        conn = db.connect()
-        cursor = conn.cursor(dictionary=True)
+        conn = mysql.connector.connect(
+            host='localhost',
+            user='root',
+            password='root',
+            database='ong_management',
+            port=3306
+        )
+        cursor = conn.cursor()
         
-        print("🏢 ORGANIZACIONES EN USUARIOS:")
-        print("=" * 50)
+        print("=== VERIFICANDO ORGANIZACIONES ===\n")
         
-        cursor.execute("""
-            SELECT DISTINCT organizacion, COUNT(*) as usuarios
-            FROM usuarios 
-            GROUP BY organizacion
-            ORDER BY organizacion
-        """)
+        # Verificar estructura
+        print("1. Estructura de la tabla organizaciones:")
+        cursor.execute("DESCRIBE organizaciones")
+        columns = cursor.fetchall()
+        for col in columns:
+            print(f"  - {col[0]} ({col[1]}) - {col[2]} - {col[3]} - {col[4]} - {col[5]}")
         
-        user_orgs = cursor.fetchall()
-        for org in user_orgs:
-            print(f"  📋 {org['organizacion']} - {org['usuarios']} usuarios")
-        
-        print("\n🏢 ORGANIZACIONES EN DONACIONES:")
-        print("=" * 50)
-        
-        cursor.execute("""
-            SELECT DISTINCT organizacion, COUNT(*) as donaciones
-            FROM donaciones 
-            GROUP BY organizacion
-            ORDER BY organizacion
-        """)
-        
-        donation_orgs = cursor.fetchall()
-        for org in donation_orgs:
-            print(f"  📦 {org['organizacion']} - {org['donaciones']} donaciones")
-        
-        print("\n🔍 COMPARACIÓN:")
-        print("=" * 50)
-        
-        user_org_names = {org['organizacion'] for org in user_orgs}
-        donation_org_names = {org['organizacion'] for org in donation_orgs}
-        
-        print(f"Organizaciones en usuarios: {user_org_names}")
-        print(f"Organizaciones en donaciones: {donation_org_names}")
-        
-        if user_org_names == donation_org_names:
-            print("✅ Las organizaciones coinciden")
+        # Verificar datos
+        print("\n2. Datos en la tabla organizaciones:")
+        cursor.execute("SELECT * FROM organizaciones")
+        rows = cursor.fetchall()
+        if rows:
+            # Obtener nombres de columnas
+            cursor.execute("SHOW COLUMNS FROM organizaciones")
+            column_names = [col[0] for col in cursor.fetchall()]
+            print(f"  Columnas: {column_names}")
+            
+            for row in rows:
+                print(f"  - {dict(zip(column_names, row))}")
         else:
-            print("❌ Las organizaciones NO coinciden")
-            print(f"Solo en usuarios: {user_org_names - donation_org_names}")
-            print(f"Solo en donaciones: {donation_org_names - user_org_names}")
+            print("  No hay datos en organizaciones")
         
-        # Verificar usuarios específicos
-        print("\n👤 USUARIOS ESPECÍFICOS:")
-        print("=" * 50)
+        # Verificar si necesitamos crear la organización empuje-comunitario
+        print("\n3. Buscando 'empuje-comunitario':")
+        cursor.execute("SELECT * FROM organizaciones WHERE name = 'empuje-comunitario' OR nombre = 'empuje-comunitario'")
+        result = cursor.fetchone()
+        if result:
+            print(f"  ✓ Encontrada: {result}")
+        else:
+            print("  ⚠ No encontrada")
+            
+            # Crear la organización si no existe
+            try:
+                cursor.execute("""
+                    INSERT INTO organizaciones (name, description) 
+                    VALUES ('empuje-comunitario', 'Organización Empuje Comunitario')
+                """)
+                conn.commit()
+                print("  ✓ Organización 'empuje-comunitario' creada")
+            except Exception as e:
+                print(f"  Error creando organización: {e}")
         
-        cursor.execute("""
-            SELECT nombre_usuario, organizacion
-            FROM usuarios 
-            WHERE nombre_usuario IN ('admin', 'esperanza_admin')
-        """)
-        
-        specific_users = cursor.fetchall()
-        for user in specific_users:
-            print(f"  {user['nombre_usuario']}: {user['organizacion']}")
-        
-        cursor.close()
         conn.close()
+        return True
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
+        return False
 
 if __name__ == "__main__":
     check_organizations()

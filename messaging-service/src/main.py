@@ -479,12 +479,14 @@ async def create_donation_request(data: dict):
         
         donations = data.get('donations', [])
         user_id = data.get('userId')
+        user_organization = data.get('userOrganization')
         notes = data.get('notes')
         
         logger.info(
             "Creating donation request via API",
             donations_count=len(donations),
-            user_id=user_id
+            user_id=user_id,
+            user_organization=user_organization
         )
         
         # Validate donations
@@ -497,7 +499,7 @@ async def create_donation_request(data: dict):
         
         # Create donation request
         request_service = RequestService()
-        success, message, request_id = request_service.create_donation_request(donations, user_id, notes)
+        success, message, request_id = request_service.create_donation_request(donations, user_id, user_organization, notes)
         
         if success:
             return {

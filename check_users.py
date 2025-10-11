@@ -1,58 +1,66 @@
 #!/usr/bin/env python3
 """
-Script para verificar qué usuarios existen en la base de datos
+Script para verificar usuarios existentes
 """
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'user-service', 'src'))
-
-from database_mysql import get_db_connection
+import mysql.connector
 
 def check_users():
-    """Verificar usuarios existentes"""
+    """Verifica usuarios existentes"""
     try:
-        db = get_db_connection()
-        conn = db.connect()
-        cursor = conn.cursor(dictionary=True)
+        conn = mysql.connector.connect(
+            host='localhost',
+            user='root',
+            password='root',
+            database='ong_management',
+            port=3306
+        )
+        cursor = conn.cursor()
         
-        print("🔍 USUARIOS EN LA BASE DE DATOS:")
-        print("=" * 60)
+        print("=== VERIFICANDO USUARIOS ===\n")
         
-        # Primero ver la estructura de la tabla
+        # Verificar estructura de usuarios
         cursor.execute("DESCRIBE usuarios")
         columns = cursor.fetchall()
-        print("📋 ESTRUCTURA DE LA TABLA USUARIOS:")
+        print("Estructura de usuarios:")
         for col in columns:
-            print(f"  - {col['Field']}: {col['Type']}")
+            print(f"  - {col[0]} ({col[1]})")
         
-        print("\n" + "=" * 60)
-        
-        cursor.execute("""
-            SELECT id, nombre_usuario, email, organizacion, rol, activo 
-            FROM usuarios 
-            ORDER BY organizacion, rol, nombre_usuario
-        """)
-        
+        # Verificar usuarios
+        cursor.execute("SELECT * FROM usuarios LIMIT 5")
         users = cursor.fetchall()
         
-        current_org = None
-        for user in users:
-            if user['organizacion'] != current_org:
-                current_org = user['organizacion']
-                print(f"\n🏢 {current_org.upper()}")
-                print("-" * 40)
-            
-            status = "✅ ACTIVO" if user['activo'] else "❌ INACTIVO"
-            print(f"  👤 {user['nombre_usuario']} ({user['email']})")
-            print(f"     Rol: {user['rol']} | ID: {user['id']} | {status}")
+        if users:
+            # Obtener nombres de columnas
+            cursor.execute("SHOW COLUMNS FROM usuarios")
+            column_names = [col[0] for col in cursor.fetchall()]
+            print(f"\nColumnas: {column_names}")
         
-        cursor.close()
+        # Buscar usuarios específicos
+        cursor.execute("SELECT id, nombre_usuario, organizacion FROM usuarios WHERE nombre_usuario IN ('admin', 'esperanza_admin')")
+        specific_users = cursor.fetchall()
+        
+        if users:
+            print("\nPrimeros usuarios:")
+            for i, user in enumerate(users):
+                print(f"  - Usuario {i+1}: {user}")
+        else:
+            print("No hay usuarios en la base de datos")
+        
+        if specific_users:
+            print("\nUsuarios específicos encontrados:")
+            for user in specific_users:
+                print(f"  - ID: {user[0]}, Username: {user[1]}, Org: {user[2]}")
+        
         conn.close()
-        
-        print(f"\n📊 Total de usuarios: {len(users)}")
+        return specific_users[0][0] if specific_users else (users[0][0] if users else None)
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
+        return None
 
 if __name__ == "__main__":
-    check_users()
+    user_id = check_users()
+    if user_id:
+        print(f"\nUsando usuario ID: {user_id} para las pruebas")
+    else:
+        print("\nNo se encontraron usuarios válidos")

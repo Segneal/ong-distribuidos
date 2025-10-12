@@ -696,25 +696,25 @@ router.post('/volunteer-adhesions', authenticateToken, async (req, res) => {
         er.nombre as event_name,
         er.descripcion as event_description,
         er.fecha_evento as event_date,
-        er.organizacion_origen as source_organization
+        er.organizacion_origen as organization_id
       FROM adhesiones_eventos_externos aee
       LEFT JOIN eventos_red er ON aee.evento_externo_id = er.evento_id
+      WHERE aee.voluntario_id = ?
       ORDER BY aee.fecha_adhesion DESC
     `;
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, [req.user.id]);
     await connection.end();
 
     const adhesions = rows.map(row => ({
-      adhesion_id: row.adhesion_id,
+      id: row.adhesion_id,
       event_id: row.event_id,
-      volunteer_id: row.volunteer_id,
-      status: row.status,
-      adhesion_date: row.adhesion_date,
-      event_name: row.event_name,
-      event_description: row.event_description,
+      event_name: row.event_name || 'Evento no encontrado',
+      event_description: row.event_description || '',
       event_date: row.event_date,
-      source_organization: row.source_organization
+      organization_id: row.organization_id || 'Organización no especificada',
+      adhesion_date: row.adhesion_date,
+      status: row.status
     }));
 
     res.json({
@@ -746,9 +746,10 @@ router.post('/event-adhesions', authenticateToken, async (req, res) => {
         aee.estado as status,
         aee.fecha_adhesion as adhesion_date,
         aee.datos_voluntario as volunteer_data,
-        u.name as volunteer_name,
-        u.lastName as volunteer_last_name,
-        u.email as volunteer_email
+        u.nombre as volunteer_name,
+        u.apellido as volunteer_surname,
+        u.email as volunteer_email,
+        u.telefono as volunteer_phone
       FROM adhesiones_eventos_externos aee
       LEFT JOIN usuarios u ON aee.voluntario_id = u.id
       WHERE aee.evento_externo_id = ?
@@ -758,16 +759,29 @@ router.post('/event-adhesions', authenticateToken, async (req, res) => {
     const [rows] = await connection.execute(query, [eventId]);
     await connection.end();
 
-    const adhesions = rows.map(row => ({
-      adhesion_id: row.adhesion_id,
-      volunteer_id: row.volunteer_id,
-      status: row.status,
-      adhesion_date: row.adhesion_date,
-      volunteer_data: typeof row.volunteer_data === 'string' ? JSON.parse(row.volunteer_data) : row.volunteer_data,
-      volunteer_name: row.volunteer_name,
-      volunteer_last_name: row.volunteer_last_name,
-      volunteer_email: row.volunteer_email
-    }));
+    const adhesions = rows.map(row => {
+      let volunteerData = {};
+      try {
+        volunteerData = typeof row.volunteer_data === 'string' ? JSON.parse(row.volunteer_data) : row.volunteer_data || {};
+      } catch (e) {
+        console.warn('Error parsing volunteer_data:', e);
+        volunteerData = {};
+      }
+
+      return {
+        id: row.adhesion_id,
+        adhesion_id: row.adhesion_id,
+        volunteer_id: row.volunteer_id,
+        status: row.status,
+        adhesion_date: row.adhesion_date,
+        volunteer_name: row.volunteer_name || volunteerData.name || 'No especificado',
+        volunteer_surname: row.volunteer_surname || volunteerData.surname || 'No especificado',
+        volunteer_email: row.volunteer_email || volunteerData.email || 'No especificado',
+        volunteer_phone: row.volunteer_phone || volunteerData.phone || 'No especificado',
+        organization_id: volunteerData.organization_id || 'No especificada',
+        external_volunteer: volunteerData.organization_id && volunteerData.organization_id !== req.user.organizacion
+      };
+    });
 
     res.json({
       success: true,

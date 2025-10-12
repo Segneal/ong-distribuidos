@@ -122,13 +122,25 @@ const EventAdhesionManager = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'No especificada';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.warn('Error formatting date:', dateString, error);
+      return 'Fecha inválida';
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -200,7 +212,7 @@ const EventAdhesionManager = () => {
                   onClick={() => handleEventSelect(event)}
                 >
                   <div className="event-name">{event.name}</div>
-                  <div className="event-date">{formatDate(event.date)}</div>
+                  <div className="event-date">{formatDate(event.eventDate || event.date)}</div>
                 </div>
               ))}
             </div>
@@ -217,7 +229,7 @@ const EventAdhesionManager = () => {
             <>
               <div className="event-info">
                 <h4>{selectedEvent.name}</h4>
-                <p><strong>Fecha:</strong> {formatDate(selectedEvent.date)}</p>
+                <p><strong>Fecha:</strong> {formatDate(selectedEvent.eventDate || selectedEvent.date)}</p>
                 {selectedEvent.description && (
                   <p><strong>Descripción:</strong> {selectedEvent.description}</p>
                 )}

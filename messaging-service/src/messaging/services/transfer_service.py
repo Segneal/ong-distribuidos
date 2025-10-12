@@ -98,8 +98,8 @@ class TransferService:
                     import json
                     cursor.execute("""
                         INSERT INTO transferencias_donaciones 
-                        (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, notas)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, notas, organizacion_propietaria)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         'ENVIADA',
                         target_organization,
@@ -107,7 +107,8 @@ class TransferService:
                         json.dumps(donations),  # Store as proper JSON string
                         'COMPLETADA',
                         datetime.now(),
-                        f'Transfer {transfer_id} by user {user_id}'
+                        f'Transfer {transfer_id} by user {user_id}',
+                        settings.organization_id  # Current organization is the owner
                     ))
                     
                     # Update inventory quantities
@@ -146,7 +147,9 @@ class TransferService:
                 'user_id': user_id
             }
             
+            logger.info("About to publish to Kafka", transfer_data=transfer_data, target_org=target_organization)
             success = self.producer.publish_donation_transfer(target_organization, transfer_data)
+            logger.info("Kafka publish result", success=success)
             
             if success:
                 logger.info(
@@ -178,27 +181,40 @@ class TransferService:
             if organization_id is None:
                 organization_id = settings.organization_id
             
+            logger.info("Getting transfer history", organization_id=organization_id, limit=limit)
+            
             with get_database_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                
+                # Query using the actual table structure
+                query = """
                     SELECT 
-                        transferencia_id as transfer_id,
-                        organizacion_origen as source_organization,
-                        organizacion_destino as target_organization,
-                        solicitud_id as request_id,
-                        donaciones as donations,
-                        fecha_transferencia as timestamp,
-                        usuario_id as user_id
+                        id,
+                        tipo,
+                        organizacion_contraparte,
+                        solicitud_id,
+                        donaciones,
+                        estado,
+                        fecha_transferencia,
+                        usuario_registro,
+                        notas,
+                        organizacion_propietaria
                     FROM transferencias_donaciones 
-                    WHERE organizacion_origen = %s OR organizacion_destino = %s
+                    WHERE organizacion_propietaria = %s
                     ORDER BY fecha_transferencia DESC
                     LIMIT %s
-                """, (organization_id, organization_id, limit))
+                """
+                
+                logger.info("Executing query", query=query, params=(organization_id, limit))
+                cursor.execute(query, (organization_id, limit))
                 
                 rows = cursor.fetchall()
+                logger.info("Query executed", rows_found=len(rows))
                 
                 transfers = []
                 for row in rows:
+                    logger.info("Processing row", row=row)
+                    
                     # Parse donations JSON
                     donations_str = row[4]
                     try:
@@ -207,18 +223,37 @@ class TransferService:
                             donations = json.loads(donations_str)
                         else:
                             donations = donations_str
-                    except:
+                    except Exception as json_error:
+                        logger.error("Error parsing donations JSON", error=str(json_error), donations_str=donations_str)
                         donations = []
                     
-                    transfers.append({
-                        'transfer_id': row[0],
-                        'source_organization': row[1],
-                        'target_organization': row[2],
+                    # Determine source and target based on type
+                    if row[1] == 'ENVIADA':  # tipo = 'ENVIADA'
+                        source_org = organization_id
+                        target_org = row[2]  # organizacion_contraparte
+                    else:  # tipo = 'RECIBIDA'
+                        source_org = row[2]  # organizacion_contraparte
+                        target_org = organization_id
+                    
+                    transfer_record = {
+                        'id': row[0],
+                        'transfer_id': f"transfer-{row[0]}",
+                        'tipo': row[1],
+                        'source_organization': source_org,
+                        'target_organization': target_org,
+                        'organizacion_contraparte': row[2],
                         'request_id': row[3],
                         'donations': donations,
-                        'timestamp': row[5].isoformat() if row[5] else None,
-                        'user_id': row[6]
-                    })
+                        'estado': row[5],
+                        'timestamp': row[6].isoformat() if row[6] else None,
+                        'fecha_transferencia': row[6].isoformat() if row[6] else None,
+                        'user_id': row[7],
+                        'notas': row[8],
+                        'organizacion_propietaria': row[9]
+                    }
+                    
+                    logger.info("Created transfer record", transfer=transfer_record)
+                    transfers.append(transfer_record)
                 
                 logger.info(
                     "Retrieved transfer history",
@@ -229,5 +264,5 @@ class TransferService:
                 return transfers
                 
         except Exception as e:
-            logger.error("Error getting transfer history", error=str(e))
+            logger.error("Error getting transfer history", error=str(e), organization_id=organization_id)
             return []

@@ -20,6 +20,95 @@ async function createDbConnection() {
   });
 }
 
+// GET /api/messaging/transfer-history - Obtener historial de transferencias directamente de DB
+router.get('/transfer-history', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET TRANSFER HISTORY DIRECT ===');
+    const userOrg = req.user?.organization;
+    const limit = parseInt(req.query.limit) || 50;
+    
+    if (!userOrg) {
+      return res.status(401).json({
+        success: false,
+        error: 'Usuario no autenticado'
+      });
+    }
+    
+    const connection = await createDbConnection();
+
+    const query = `
+      SELECT 
+        id,
+        tipo,
+        organizacion_contraparte,
+        solicitud_id,
+        donaciones,
+        estado,
+        fecha_transferencia,
+        usuario_registro,
+        notas,
+        organizacion_propietaria
+      FROM transferencias_donaciones 
+      WHERE organizacion_propietaria = ?
+      ORDER BY fecha_transferencia DESC
+      LIMIT ?
+    `;
+
+    const [rows] = await connection.execute(query, [userOrg, limit.toString()]);
+    await connection.end();
+
+    // Procesar las transferencias
+    const transfers = rows.map(row => {
+      let donations = [];
+      try {
+        donations = typeof row.donaciones === 'string' ? JSON.parse(row.donaciones) : row.donaciones;
+      } catch (e) {
+        donations = [];
+      }
+
+      // Determinar source y target basado en tipo
+      let source_org, target_org;
+      if (row.tipo === 'ENVIADA') {
+        source_org = userOrg;
+        target_org = row.organizacion_contraparte;
+      } else {
+        source_org = row.organizacion_contraparte;
+        target_org = userOrg;
+      }
+
+      return {
+        id: row.id,
+        transfer_id: `transfer-${row.id}`,
+        tipo: row.tipo,
+        source_organization: source_org,
+        target_organization: target_org,
+        organizacion_contraparte: row.organizacion_contraparte,
+        request_id: row.solicitud_id,
+        donations: donations,
+        estado: row.estado,
+        timestamp: row.fecha_transferencia ? row.fecha_transferencia.toISOString() : null,
+        fecha_transferencia: row.fecha_transferencia ? row.fecha_transferencia.toISOString() : null,
+        user_id: row.usuario_registro,
+        notas: row.notas,
+        organizacion_propietaria: row.organizacion_propietaria
+      };
+    });
+
+    res.json({
+      success: true,
+      transfers: transfers
+    });
+    
+  } catch (error) {
+    console.error('Error getting transfer history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
 router.post('/active-requests', authenticateToken, async (req, res) => {
   try {
     console.log('=== GET ACTIVE REQUESTS ===');
@@ -140,6 +229,8 @@ router.post('/transfer-history', authenticateToken, async (req, res) => {
     
     const connection = await createDbConnection();
 
+    const userOrganization = req.user.organization;
+    
     const query = `
       SELECT 
         tipo as type,
@@ -148,13 +239,15 @@ router.post('/transfer-history', authenticateToken, async (req, res) => {
         donaciones as donations,
         estado as status,
         fecha_transferencia as timestamp,
-        notas as notes
+        notas as notes,
+        organizacion_propietaria as owner_organization
       FROM transferencias_donaciones 
+      WHERE organizacion_propietaria = ?
       ORDER BY fecha_transferencia DESC
       LIMIT 50
     `;
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, [userOrganization]);
     await connection.end();
 
     const transfers = rows.map(row => ({
@@ -164,7 +257,8 @@ router.post('/transfer-history', authenticateToken, async (req, res) => {
       donaciones: typeof row.donations === 'string' ? JSON.parse(row.donations) : row.donations,
       estado: row.status,
       fecha_transferencia: row.timestamp,
-      notas: row.notes
+      notas: row.notes,
+      organizacion_propietaria: row.owner_organization
     }));
 
     res.json({

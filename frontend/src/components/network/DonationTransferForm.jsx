@@ -31,7 +31,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     try {
       setLoadingInventory(true);
       const response = await inventoryService.getDonations();
-      
+
       if (response.data.success) {
         // Filtrar solo donaciones activas (no eliminadas) con cantidad > 0
         const activeInventory = (response.data.donations || []).filter(
@@ -69,7 +69,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     const errors = {};
 
     // Validar que hay al menos una transferencia con cantidad > 0
-    const validTransfers = formData.transfers.filter(t => 
+    const validTransfers = formData.transfers.filter(t =>
       t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
     );
 
@@ -123,7 +123,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
         newTransfers[index].description = selectedItem.description || selectedItem.category;
       }
     }
-    
+
     setFormData(prev => ({
       ...prev,
       transfers: newTransfers
@@ -144,13 +144,13 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     // Preparar datos de transferencia solo para items con cantidad > 0
-    const validTransfers = formData.transfers.filter(t => 
+    const validTransfers = formData.transfers.filter(t =>
       t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
     );
 
@@ -259,7 +259,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
 
           {formData.transfers.map((transfer, index) => {
             const categoryInventory = getInventoryByCategory(transfer.category);
-            
+
             return (
               <div key={index} className="transfer-item">
                 <div className="transfer-header-item">
@@ -310,8 +310,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
                       onChange={(e) => handleTransferChange(index, 'quantity', e.target.value)}
                       placeholder="Cantidad"
                       min="1"
-                      max={transfer.selectedInventoryId ? 
-                        availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId)?.quantity : 
+                      max={transfer.selectedInventoryId ?
+                        availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId)?.quantity :
                         undefined
                       }
                       className={validationErrors.transfers?.[index]?.quantity ? 'error' : ''}
@@ -379,7 +379,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
                 ))}
               </p>
             </div>
-            
+
             <div className="modal-actions">
               <button
                 type="button"

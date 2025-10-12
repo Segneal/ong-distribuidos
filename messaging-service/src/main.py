@@ -366,6 +366,7 @@ async def create_event_adhesion(data: dict):
         event_id = data.get('eventId')
         volunteer_id = data.get('volunteerId')
         target_organization = data.get('targetOrganization')
+        volunteer_data = data.get('volunteerData', {})
         
         logger.info(
             "Creating event adhesion via API",
@@ -387,7 +388,7 @@ async def create_event_adhesion(data: dict):
         # Create adhesion service and create adhesion
         adhesion_service = AdhesionService()
         success, message = adhesion_service.create_event_adhesion(
-            event_id, volunteer_id, target_organization
+            event_id, volunteer_id, target_organization, volunteer_data
         )
         
         if success:

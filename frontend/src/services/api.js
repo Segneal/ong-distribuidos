@@ -125,6 +125,8 @@ export const messagingService = {
   createEventAdhesion: (adhesionData) => api.post('/messaging/create-event-adhesion', adhesionData),
   getVolunteerAdhesions: () => api.post('/messaging/volunteer-adhesions'),
   getEventAdhesions: (eventId) => api.post('/messaging/event-adhesions', { eventId }),
+  approveEventAdhesion: (adhesionId) => api.post('/messaging/approve-event-adhesion', { adhesionId }),
+  rejectEventAdhesion: (adhesionId, reason) => api.post('/messaging/reject-event-adhesion', { adhesionId, reason }),
 };
 
 // Servicio para health check

@@ -49,9 +49,10 @@ const VolunteerAdhesions = () => {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      'PENDIENTE': { class: 'status-pending', text: 'Pendiente' },
-      'CONFIRMADA': { class: 'status-confirmed', text: 'Confirmada' },
-      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' }
+      'PENDIENTE': { class: 'status-pending', text: 'Pendiente de Aprobación' },
+      'CONFIRMADA': { class: 'status-confirmed', text: 'Aprobada' },
+      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' },
+      'RECHAZADA': { class: 'status-rejected', text: 'Rechazada' }
     };
     
     const statusInfo = statusMap[status] || { class: 'status-unknown', text: status };
@@ -154,6 +155,13 @@ const VolunteerAdhesions = () => {
                   <div className="cancelled-message">
                     <i className="icon-x"></i>
                     Adhesión cancelada
+                  </div>
+                )}
+                
+                {adhesion.status === 'RECHAZADA' && (
+                  <div className="rejected-message">
+                    <i className="icon-x"></i>
+                    Adhesión rechazada por la organización
                   </div>
                 )}
               </div>

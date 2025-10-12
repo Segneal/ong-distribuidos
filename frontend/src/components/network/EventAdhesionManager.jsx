@@ -9,6 +9,8 @@ const EventAdhesionManager = () => {
   const [loading, setLoading] = useState(true);
   const [loadingAdhesions, setLoadingAdhesions] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [processingAdhesion, setProcessingAdhesion] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -61,6 +63,64 @@ const EventAdhesionManager = () => {
     loadEventAdhesions(event.id);
   };
 
+  const handleApproveAdhesion = async (adhesionId) => {
+    try {
+      setProcessingAdhesion(true);
+      setError('');
+      setSuccess('');
+      
+      const response = await messagingService.approveEventAdhesion(adhesionId);
+      
+      if (response.data.success) {
+        setSuccess('Adhesión aprobada exitosamente');
+        // Recargar las adhesiones para mostrar el cambio de estado
+        if (selectedEvent) {
+          loadEventAdhesions(selectedEvent.id);
+        }
+        
+        // Limpiar mensaje de éxito después de 3 segundos
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.data.error || 'Error al aprobar la adhesión');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al aprobar la adhesión');
+      console.error('Error approving adhesion:', err);
+    } finally {
+      setProcessingAdhesion(false);
+    }
+  };
+
+  const handleRejectAdhesion = async (adhesionId) => {
+    const reason = prompt('¿Motivo del rechazo? (opcional)');
+    
+    try {
+      setProcessingAdhesion(true);
+      setError('');
+      setSuccess('');
+      
+      const response = await messagingService.rejectEventAdhesion(adhesionId, reason);
+      
+      if (response.data.success) {
+        setSuccess('Adhesión rechazada exitosamente');
+        // Recargar las adhesiones para mostrar el cambio de estado
+        if (selectedEvent) {
+          loadEventAdhesions(selectedEvent.id);
+        }
+        
+        // Limpiar mensaje de éxito después de 3 segundos
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.data.error || 'Error al rechazar la adhesión');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al rechazar la adhesión');
+      console.error('Error rejecting adhesion:', err);
+    } finally {
+      setProcessingAdhesion(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -75,7 +135,8 @@ const EventAdhesionManager = () => {
     const statusMap = {
       'PENDIENTE': { class: 'status-pending', text: 'Pendiente' },
       'CONFIRMADA': { class: 'status-confirmed', text: 'Confirmada' },
-      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' }
+      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' },
+      'RECHAZADA': { class: 'status-rejected', text: 'Rechazada' }
     };
     
     const statusInfo = statusMap[status] || { class: 'status-unknown', text: status };
@@ -113,6 +174,12 @@ const EventAdhesionManager = () => {
       {error && (
         <div className="error-message">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="success-message">
+          {success}
         </div>
       )}
 
@@ -180,9 +247,9 @@ const EventAdhesionManager = () => {
                       </div>
                       <div className="stat-item">
                         <span className="stat-number">
-                          {adhesions.filter(a => a.external_volunteer).length}
+                          {adhesions.filter(a => a.status === 'RECHAZADA').length}
                         </span>
-                        <span className="stat-label">Externos</span>
+                        <span className="stat-label">Rechazadas</span>
                       </div>
                     </div>
                   </div>
@@ -244,21 +311,17 @@ const EventAdhesionManager = () => {
                               <div className="action-buttons">
                                 <button 
                                   className="btn btn-success btn-sm"
-                                  onClick={() => {
-                                    // TODO: Implement confirm adhesion
-                                    console.log('Confirming adhesion:', adhesion.id);
-                                  }}
+                                  onClick={() => handleApproveAdhesion(adhesion.adhesion_id)}
+                                  disabled={loadingAdhesions || processingAdhesion}
                                 >
-                                  Confirmar
+                                  {processingAdhesion ? 'Procesando...' : 'Aprobar'}
                                 </button>
                                 <button 
                                   className="btn btn-danger btn-sm"
-                                  onClick={() => {
-                                    // TODO: Implement reject adhesion
-                                    console.log('Rejecting adhesion:', adhesion.id);
-                                  }}
+                                  onClick={() => handleRejectAdhesion(adhesion.adhesion_id)}
+                                  disabled={loadingAdhesions || processingAdhesion}
                                 >
-                                  Rechazar
+                                  {processingAdhesion ? 'Procesando...' : 'Rechazar'}
                                 </button>
                               </div>
                             )}
@@ -272,6 +335,12 @@ const EventAdhesionManager = () => {
                             {adhesion.status === 'CANCELADA' && (
                               <div className="cancelled-indicator">
                                 ✗ Cancelada
+                              </div>
+                            )}
+                            
+                            {adhesion.status === 'RECHAZADA' && (
+                              <div className="rejected-indicator">
+                                ✗ Rechazada
                               </div>
                             )}
                           </div>

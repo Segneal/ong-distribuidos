@@ -39,6 +39,14 @@ const Network = () => {
       path: '/external-events',
       permission: 'events',
       color: '#9b59b6'
+    },
+    {
+      title: 'Gestión de Adhesiones',
+      description: 'Administre las adhesiones a sus eventos y vea sus participaciones externas',
+      icon: '👥',
+      path: '/adhesion-management',
+      permission: 'events',
+      color: '#2ecc71'
     }
   ];
 

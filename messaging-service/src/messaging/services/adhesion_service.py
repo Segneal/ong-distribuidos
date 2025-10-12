@@ -18,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 
 
 from ..producers.base_producer import BaseProducer
 from ..config import settings
+from .notification_service import NotificationService
 
 logger = structlog.get_logger(__name__)
 
@@ -28,10 +29,11 @@ class AdhesionService:
     def __init__(self):
         self.network_repo = NetworkRepository()
         self.producer = BaseProducer()
+        self.notification_service = NotificationService()
         self.organization_id = settings.organization_id
     
     def create_event_adhesion(self, event_id: str, volunteer_id: int, 
-                            target_organization: str) -> Tuple[bool, str]:
+                            target_organization: str, volunteer_data: Dict[str, Any] = None) -> Tuple[bool, str]:
         """
         Create an adhesion to an external event
         
@@ -55,30 +57,40 @@ class AdhesionService:
             if not all([event_id, volunteer_id, target_organization]):
                 return False, "Event ID, volunteer ID, and target organization are required"
             
-            # Get volunteer data from user service
-            volunteer_data = self._get_volunteer_data(volunteer_id)
+            # Use provided volunteer data or get from user service
             if not volunteer_data:
-                return False, "Volunteer not found or invalid"
+                volunteer_data = self._get_volunteer_data(volunteer_id)
+                if not volunteer_data:
+                    return False, "Volunteer not found or invalid"
+            else:
+                # Ensure volunteer_id is set in the data
+                volunteer_data['volunteer_id'] = volunteer_id
             
-            # Validate that the event exists and is external
-            external_event = self._get_external_event(event_id, target_organization)
-            if not external_event:
-                return False, "External event not found or not available"
+            # Create local adhesion record directly in database
+            from ..database.connection import get_database_connection
+            import json
             
-            # Check if volunteer already has an adhesion to this event
-            existing_adhesion = self._check_existing_adhesion(external_event['id'], volunteer_id)
-            if existing_adhesion:
-                return False, "Volunteer already has an adhesion to this event"
-            
-            # Create local adhesion record
-            adhesion_record = self.network_repo.create_external_event_adhesion(
-                external_event['id'],
-                volunteer_id,
-                volunteer_data
-            )
-            
-            if not adhesion_record:
-                return False, "Failed to create local adhesion record"
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if adhesion already exists
+                cursor.execute("""
+                    SELECT id FROM adhesiones_eventos_externos 
+                    WHERE evento_externo_id = %s AND voluntario_id = %s
+                """, (event_id, volunteer_id))
+                
+                if cursor.fetchone():
+                    return False, "Ya tienes una adhesión a este evento"
+                
+                # Create adhesion record
+                cursor.execute("""
+                    INSERT INTO adhesiones_eventos_externos 
+                    (evento_externo_id, voluntario_id, estado, datos_voluntario, fecha_adhesion)
+                    VALUES (%s, %s, 'PENDIENTE', %s, NOW())
+                """, (event_id, volunteer_id, json.dumps(volunteer_data)))
+                
+                conn.commit()
+                adhesion_id = cursor.lastrowid
             
             # Publish adhesion to Kafka
             success = self.producer.publish_event_adhesion(
@@ -97,7 +109,7 @@ class AdhesionService:
                 event_id=event_id,
                 volunteer_id=volunteer_id,
                 target_organization=target_organization,
-                adhesion_id=adhesion_record['id']
+                adhesion_id=adhesion_id
             )
             
             return True, f"Adhesion to event {event_id} created successfully"

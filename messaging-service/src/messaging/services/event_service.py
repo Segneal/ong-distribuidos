@@ -18,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 
 
 from ..producers.base_producer import BaseProducer
 from ..config import settings
+from .notification_service import NotificationService
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +29,7 @@ class EventService:
     def __init__(self):
         self.network_repo = NetworkRepository()
         self.producer = BaseProducer()
+        self.notification_service = NotificationService()
         self.organization_id = settings.organization_id
     
     def publish_event(self, event_id: str, name: str, description: str, 

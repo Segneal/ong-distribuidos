@@ -505,26 +505,51 @@ router.post('/transfer-donations', authenticateToken, async (req, res) => {
       });
     }
     
-    // Call messaging service
-    const axios = require('axios');
-    const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/transferDonations`, {
-      targetOrganization: targetOrganization,
-      requestId: requestId,
-      donations: donations,
-      userId: req.user.id
-    });
-
-    if (messagingResponse.data.success) {
+    // Create transfer directly in database
+    const connection = await createDbConnection();
+    
+    try {
+      // Insert ENVIADA transfer
+      const [result] = await connection.execute(`
+        INSERT INTO transferencias_donaciones 
+        (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, usuario_registro, notas, organizacion_propietaria)
+        VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?)
+      `, [
+        'ENVIADA',
+        targetOrganization,
+        requestId || `direct-${Date.now()}`,
+        JSON.stringify(donations),
+        'COMPLETADA',
+        req.user.userId || req.user.id,
+        notes || 'Transferencia directa',
+        req.user.organization
+      ]);
+      
+      const transferId = result.insertId;
+      console.log(`Transfer created with ID: ${transferId}`);
+      
+      await connection.end();
+      
+      // Automatically process pending transfers after successful transfer
+      try {
+        console.log('Auto-processing pending transfers...');
+        const axios = require('axios');
+        const processResponse = await axios.post(`http://localhost:3001/api/messaging/process-pending-transfers`);
+        console.log('Auto-processing result:', processResponse.data);
+      } catch (processError) {
+        console.error('Error auto-processing transfers:', processError.message);
+        // Don't fail the main request if auto-processing fails
+      }
+      
       res.json({
         success: true,
-        transfer_id: messagingResponse.data.transfer_id,
-        message: messagingResponse.data.message
+        transfer_id: `transfer-${transferId}`,
+        message: 'Transferencia completada exitosamente'
       });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: messagingResponse.data.message || 'Error transferring donations'
-      });
+      
+    } catch (dbError) {
+      await connection.end();
+      throw dbError;
     }
   } catch (error) {
     console.error('Error transferring donations:', error);
@@ -1461,6 +1486,104 @@ router.post('/reject-event-adhesion', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/messaging/process-pending-transfers - Procesar transferencias pendientes automáticamente
+router.post('/process-pending-transfers', async (req, res) => {
+  try {
+    const connection = await createDbConnection();
+    
+    // Buscar transferencias ENVIADAS que no tienen su contraparte RECIBIDA
+    const [pendingTransfers] = await connection.execute(`
+      SELECT t1.* FROM transferencias_donaciones t1
+      WHERE t1.tipo = 'ENVIADA' 
+      AND t1.fecha_transferencia > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      AND NOT EXISTS (
+        SELECT 1 FROM transferencias_donaciones t2 
+        WHERE t2.tipo = 'RECIBIDA' 
+        AND t2.solicitud_id = t1.solicitud_id 
+        AND t2.organizacion_contraparte = t1.organizacion_propietaria
+        AND t2.organizacion_propietaria = t1.organizacion_contraparte
+      )
+      ORDER BY t1.fecha_transferencia DESC
+    `);
+    
+    console.log(`Processing ${pendingTransfers.length} pending transfers`);
+    
+    for (const transfer of pendingTransfers) {
+      // Crear transferencia RECIBIDA
+      await connection.execute(`
+        INSERT INTO transferencias_donaciones 
+        (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, usuario_registro, notas, organizacion_propietaria)
+        VALUES (?, ?, ?, ?, ?, NOW(), NULL, ?, ?)
+      `, [
+        'RECIBIDA',
+        transfer.organizacion_propietaria,  // Quien envió
+        transfer.solicitud_id,
+        transfer.donaciones,
+        'COMPLETADA',
+        'Transferencia recibida automáticamente - procesada por consumer automático',
+        transfer.organizacion_contraparte  // Quien recibe
+      ]);
+      
+      // Buscar admin de la organización receptora
+      const [userRows] = await connection.execute(`
+        SELECT id FROM usuarios 
+        WHERE organizacion = ? AND rol IN ('PRESIDENTE', 'COORDINADOR') 
+        LIMIT 1
+      `, [transfer.organizacion_contraparte]);
+      
+      if (userRows.length > 0) {
+        const targetUserId = userRows[0].id;
+        
+        // Parsear donaciones
+        let donations = [];
+        try {
+          donations = typeof transfer.donaciones === 'string' ? JSON.parse(transfer.donaciones) : transfer.donaciones;
+        } catch (e) {
+          donations = [];
+        }
+        
+        const donationsText = donations.map(d => 
+          `• ${d.descripcion || d.description || 'Donación'} (${d.cantidad || d.quantity || '1'})`
+        ).join('\n');
+        
+        // Crear notificación
+        await connection.execute(`
+          INSERT INTO notificaciones 
+          (usuario_id, tipo, titulo, mensaje, datos_adicionales, leida, fecha_creacion)
+          VALUES (?, ?, ?, ?, ?, false, NOW())
+        `, [
+          targetUserId,
+          'transferencia_recibida',
+          '🎁 ¡Nueva donación recibida!',
+          `Has recibido una donación de ${transfer.organizacion_propietaria}:\n\n${donationsText}\n\nLas donaciones ya están disponibles en tu inventario.`,
+          JSON.stringify({
+            organizacion_origen: transfer.organizacion_propietaria,
+            request_id: transfer.solicitud_id,
+            cantidad_items: donations.length,
+            transfer_id: `auto-${transfer.id}`
+          })
+        ]);
+      }
+    }
+    
+    await connection.end();
+    
+    res.json({
+      success: true,
+      processed: pendingTransfers.length,
+      message: `Procesadas ${pendingTransfers.length} transferencias pendientes`
+    });
+    
+  } catch (error) {
+    console.error('Error processing pending transfers:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error procesando transferencias pendientes',
       message: error.message
     });
   }

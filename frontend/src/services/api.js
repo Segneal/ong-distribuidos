@@ -109,7 +109,14 @@ export const messagingService = {
   
   // Donation transfers
   transferDonations: (transferData) => api.post('/messaging/transfer-donations', transferData),
-  getTransferHistory: (params = {}) => api.post('/messaging/transfer-history', params),
+  getTransferHistory: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.type) queryParams.append('type', params.type);
+    if (params.category) queryParams.append('category', params.category);
+    const queryString = queryParams.toString();
+    return api.get(`/messaging/transfer-history${queryString ? `?${queryString}` : ''}`);
+  },
   
   // Donation offers
   createDonationOffer: (offerData) => api.post('/messaging/create-donation-offer', offerData),

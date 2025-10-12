@@ -20,6 +20,90 @@ async function createDbConnection() {
   });
 }
 
+// POST /api/messaging/simulate-transfer-received - Simular transferencia recibida
+router.post('/simulate-transfer-received', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== SIMULATE TRANSFER RECEIVED ===');
+    const { transferId, sourceOrg, targetOrg, requestId, donations } = req.body;
+    
+    if (!transferId || !sourceOrg || !targetOrg || !requestId || !donations) {
+      return res.status(400).json({
+        success: false,
+        error: 'Faltan datos requeridos para simular transferencia'
+      });
+    }
+    
+    const connection = await createDbConnection();
+
+    // 1. Crear transferencia RECIBIDA
+    const insertQuery = `
+      INSERT INTO transferencias_donaciones 
+      (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, usuario_registro, notas, organizacion_propietaria)
+      VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?)
+    `;
+
+    await connection.execute(insertQuery, [
+      'RECIBIDA',
+      sourceOrg,
+      requestId,
+      JSON.stringify(donations),
+      'COMPLETADA',
+      null, // usuario_registro
+      `Transferencia recibida automáticamente - ${transferId}`,
+      targetOrg
+    ]);
+
+    // 2. Crear notificación
+    const notificationQuery = `
+      INSERT INTO notificaciones 
+      (usuario_id, tipo, titulo, mensaje, datos_adicionales, leida, fecha_creacion)
+      VALUES (?, ?, ?, ?, ?, false, NOW())
+    `;
+
+    // Buscar admin de la organización destino
+    const userQuery = `
+      SELECT id FROM usuarios 
+      WHERE organizacion = ? AND rol IN ('PRESIDENTE', 'COORDINADOR') 
+      LIMIT 1
+    `;
+    
+    const [userRows] = await connection.execute(userQuery, [targetOrg]);
+    
+    if (userRows.length > 0) {
+      const userId = userRows[0].id;
+      const donationsList = donations.map(d => `• ${d.descripcion} (${d.cantidad})`).join('\n');
+      
+      await connection.execute(notificationQuery, [
+        userId,
+        'transferencia_recibida',
+        '🎁 ¡Nueva donación recibida!',
+        `Has recibido una donación de ${sourceOrg}:\n\n${donationsList}\n\nLas donaciones ya están disponibles en tu inventario.`,
+        JSON.stringify({
+          organizacion_origen: sourceOrg,
+          request_id: requestId,
+          cantidad_items: donations.length,
+          transfer_id: transferId
+        })
+      ]);
+    }
+
+    await connection.end();
+
+    res.json({
+      success: true,
+      message: 'Transferencia recibida simulada correctamente'
+    });
+    
+  } catch (error) {
+    console.error('Error simulating transfer received:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/messaging/transfer-history - Obtener historial de transferencias directamente de DB
 router.get('/transfer-history', authenticateToken, async (req, res) => {
   try {

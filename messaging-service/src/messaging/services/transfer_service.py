@@ -122,6 +122,73 @@ class TransferService:
                             WHERE id = %s
                         """, (requested_quantity, inventory_id))
                     
+                    # Crear transferencia RECIBIDA directamente (temporal fix para consumer)
+                    try:
+                        logger.info("Creating RECIBIDA transfer", target_org=target_organization, source_org=settings.organization_id)
+                        
+                        cursor.execute("""
+                            INSERT INTO transferencias_donaciones 
+                            (tipo, organizacion_contraparte, solicitud_id, donaciones, estado, fecha_transferencia, notas, organizacion_propietaria)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            'RECIBIDA',
+                            settings.organization_id,  # Organización que envía
+                            request_id,
+                            json.dumps(donations),
+                            'COMPLETADA',
+                            datetime.now(),
+                            f'Transferencia recibida automáticamente - {transfer_id}',
+                            target_organization  # Organización que recibe es la propietaria
+                        ))
+                        
+                        recibida_id = cursor.lastrowid
+                        logger.info("RECIBIDA transfer created", transfer_id=recibida_id)
+                        
+                        # Crear notificación para la organización receptora
+                        # Buscar un admin de la organización destino
+                        cursor.execute("""
+                            SELECT id FROM usuarios 
+                            WHERE organizacion = %s AND rol IN ('PRESIDENTE', 'COORDINADOR') 
+                            LIMIT 1
+                        """, (target_organization,))
+                        
+                        user_row = cursor.fetchone()
+                        logger.info("Found target user", user_found=user_row is not None, target_org=target_organization)
+                        
+                        if user_row:
+                            target_user_id = user_row[0]
+                            
+                            donations_text = "\n".join([
+                                f"• {d.get('description', 'Donación')} ({d.get('quantity', '1')})"
+                                for d in donations
+                            ])
+                            
+                            cursor.execute("""
+                                INSERT INTO notificaciones 
+                                (usuario_id, tipo, titulo, mensaje, datos_adicionales, leida, fecha_creacion)
+                                VALUES (%s, %s, %s, %s, %s, false, NOW())
+                            """, (
+                                target_user_id,
+                                'transferencia_recibida',
+                                '🎁 ¡Nueva donación recibida!',
+                                f'Has recibido una donación de {settings.organization_id}:\n\n{donations_text}\n\nLas donaciones ya están disponibles en tu inventario.',
+                                json.dumps({
+                                    'organizacion_origen': settings.organization_id,
+                                    'request_id': request_id,
+                                    'cantidad_items': len(donations),
+                                    'transfer_id': transfer_id
+                                })
+                            ))
+                            
+                            notification_id = cursor.lastrowid
+                            logger.info("Notification created", notification_id=notification_id, user_id=target_user_id)
+                        
+                    except Exception as e:
+                        logger.error("Error creating transfer reception", error=str(e))
+                        import traceback
+                        logger.error("Traceback", traceback=traceback.format_exc())
+                        # No hacer rollback del transfer principal
+                    
                     conn.commit()
                     
                     logger.info(
@@ -157,6 +224,9 @@ class TransferService:
                     transfer_id=transfer_id,
                     target_organization=target_organization
                 )
+                
+
+                
                 return True, "Donation transfer completed successfully", transfer_id
             else:
                 logger.error("Failed to publish donation transfer to Kafka")

@@ -276,12 +276,12 @@ router.post('/external-offers', authenticateToken, async (req, res) => {
         fecha_creacion as timestamp,
         activa as active
       FROM ofertas_externas 
-      WHERE organizacion_donante != 'empuje-comunitario'
+      WHERE organizacion_donante != ?
       AND activa = true
       ORDER BY fecha_creacion DESC
     `;
 
-    const [rows] = await connection.execute(query);
+    const [rows] = await connection.execute(query, [req.user.organization]);
     await connection.end();
 
     const offers = rows.map(row => ({
@@ -1643,6 +1643,112 @@ router.post('/process-pending-transfers', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error procesando transferencias pendientes',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/messaging/contact-offer - Contactar sobre una oferta
+router.post('/contact-offer', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== CONTACT OFFER ===');
+    const { offerId, targetOrganization, message } = req.body;
+    
+    if (!offerId || !targetOrganization) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID de oferta y organización destino son requeridos'
+      });
+    }
+    
+    const connection = await createDbConnection();
+    
+    try {
+      // Verificar que la oferta existe
+      const offerQuery = `
+        SELECT oferta_id, organizacion_donante, donaciones
+        FROM ofertas_externas 
+        WHERE oferta_id = ? AND organizacion_donante = ? AND activa = true
+      `;
+      
+      const [offerRows] = await connection.execute(offerQuery, [offerId, targetOrganization]);
+      
+      if (offerRows.length === 0) {
+        await connection.end();
+        return res.status(404).json({
+          success: false,
+          error: 'Oferta no encontrada o no activa'
+        });
+      }
+      
+      const offer = offerRows[0];
+      
+      // Obtener admin de la organización que tiene la oferta (targetOrganization)
+      const targetAdminQuery = `
+        SELECT id, nombre, apellido
+        FROM usuarios 
+        WHERE organizacion = ? AND rol IN ('PRESIDENTE', 'COORDINADOR')
+        ORDER BY CASE WHEN rol = 'PRESIDENTE' THEN 1 ELSE 2 END
+        LIMIT 1
+      `;
+      
+      const [targetAdminRows] = await connection.execute(targetAdminQuery, [targetOrganization]);
+      
+      if (targetAdminRows.length > 0) {
+        const targetAdmin = targetAdminRows[0];
+        
+        // Crear notificación para la organización que tiene la oferta
+        const targetNotificationQuery = `
+          INSERT INTO notificaciones 
+          (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
+          VALUES (?, ?, ?, ?, NOW(), false)
+        `;
+        
+        const targetTitle = "📞 Solicitud de contacto por oferta";
+        const targetMessage = `${req.user.organization} está interesada en su oferta de donaciones (ID: ${offerId}). ${message ? 'Mensaje: ' + message : 'Quieren coordinar la obtención de las donaciones.'}`;
+        
+        await connection.execute(targetNotificationQuery, [
+          targetAdmin.id,
+          targetTitle,
+          targetMessage,
+          'solicitud_donacion'
+        ]);
+      }
+      
+      // Crear notificación para quien solicita el contacto
+      const senderNotificationQuery = `
+        INSERT INTO notificaciones 
+        (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
+        VALUES (?, ?, ?, ?, NOW(), false)
+      `;
+      
+      const senderTitle = "✅ Solicitud de contacto enviada";
+      const senderMessage = `Hemos notificado a ${targetOrganization} sobre su interés en la oferta ${offerId}. Deberían contactarlos pronto para coordinar la obtención de las donaciones.`;
+      
+      await connection.execute(senderNotificationQuery, [
+        req.user.id,
+        senderTitle,
+        senderMessage,
+        'solicitud_donacion'
+      ]);
+      
+      await connection.end();
+      
+      res.json({
+        success: true,
+        message: 'Solicitud de contacto enviada exitosamente'
+      });
+      
+    } catch (dbError) {
+      await connection.end();
+      throw dbError;
+    }
+    
+  } catch (error) {
+    console.error('Error contacting about offer:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
       message: error.message
     });
   }

@@ -121,6 +121,7 @@ export const messagingService = {
   // Donation offers
   createDonationOffer: (offerData) => api.post('/messaging/create-donation-offer', offerData),
   getExternalOffers: (params = {}) => api.post('/messaging/external-offers', params),
+  contactOffer: (contactData) => api.post('/messaging/contact-offer', contactData),
   
   // Events
   publishEvent: (eventData) => api.post('/messaging/publish-event', eventData),

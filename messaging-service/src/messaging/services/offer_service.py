@@ -118,11 +118,11 @@ class OfferService:
             logger.info("Getting external donation offers", active_only=active_only)
             
             if active_only:
-                offers = self.network_repo.get_active_external_offers()
+                offers = self.network_repo.get_active_external_offers(exclude_organization=self.organization_id)
             else:
                 # For now, we only support active offers
                 # Could be extended to include inactive offers if needed
-                offers = self.network_repo.get_active_external_offers()
+                offers = self.network_repo.get_active_external_offers(exclude_organization=self.organization_id)
             
             # Parse donations JSON and format response
             formatted_offers = []

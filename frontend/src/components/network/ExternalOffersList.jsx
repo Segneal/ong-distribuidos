@@ -6,8 +6,13 @@ const ExternalOffersList = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactLoading, setContactLoading] = useState(false);
   const { user } = useAuth();
 
   const categories = [
@@ -76,8 +81,53 @@ const ExternalOffersList = () => {
   };
 
   const handleContactOrganization = (offer) => {
-    // Esta funcionalidad podría expandirse para incluir un sistema de mensajería
-    alert(`Para contactar a ${offer.donor_organization}, use los canales oficiales de la red de ONGs.`);
+    setSelectedOffer(offer);
+    setContactMessage(`Estamos interesados en coordinar la obtención de las donaciones de su oferta. Nos gustaría establecer contacto para discutir los detalles de la transferencia.`);
+    setShowContactModal(true);
+  };
+
+  const handleSendContact = async () => {
+    if (!selectedOffer || !contactMessage.trim()) return;
+    
+    try {
+      setContactLoading(true);
+      
+      const response = await messagingService.contactOffer({
+        offerId: selectedOffer.offer_id,
+        targetOrganization: selectedOffer.donor_organization,
+        message: contactMessage.trim()
+      });
+      
+      if (response.data.success) {
+        setShowContactModal(false);
+        setSelectedOffer(null);
+        setContactMessage('');
+        setError('');
+        
+        // Mostrar mensaje de éxito integrado
+        setSuccessMessage(`✅ Solicitud enviada exitosamente a ${selectedOffer.donor_organization}. Recibirán una notificación y deberían contactarlos pronto.`);
+        
+        // Limpiar mensaje después de 5 segundos
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 5000);
+      } else {
+        setError(response.data.error || 'Error al enviar solicitud');
+      }
+    } catch (error) {
+      console.error('Error contactando organización:', error);
+      setError(error.response?.data?.error || 'Error al enviar solicitud');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const handleCancelContact = () => {
+    setShowContactModal(false);
+    setSelectedOffer(null);
+    setContactMessage('');
+    setError('');
+    setSuccessMessage('');
   };
 
   if (loading) {
@@ -98,6 +148,12 @@ const ExternalOffersList = () => {
       {error && (
         <div className="error-message">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
         </div>
       )}
 
@@ -221,6 +277,83 @@ const ExternalOffersList = () => {
           <li>Las cantidades mostradas pueden cambiar si otras organizaciones ya han solicitado parte de las donaciones</li>
         </ul>
       </div>
+
+      {/* Modal de contacto */}
+      {showContactModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Contactar a {selectedOffer?.donor_organization}</h3>
+              <button 
+                className="modal-close"
+                onClick={handleCancelContact}
+                disabled={contactLoading}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="offer-summary">
+                <h4>Oferta seleccionada:</h4>
+                <p><strong>ID:</strong> {selectedOffer?.offer_id}</p>
+                <p><strong>Organización:</strong> {selectedOffer?.donor_organization}</p>
+                <div className="donations-summary">
+                  <strong>Donaciones disponibles:</strong>
+                  <ul>
+                    {selectedOffer?.donations?.map((donation, index) => (
+                      <li key={index}>
+                        {donation.description} - {donation.cantidad || donation.quantity}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="contact-form">
+                <label htmlFor="contact-message">
+                  <strong>Mensaje para {selectedOffer?.donor_organization}:</strong>
+                </label>
+                <textarea
+                  id="contact-message"
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Escriba su mensaje aquí..."
+                  rows={4}
+                  disabled={contactLoading}
+                  maxLength={500}
+                />
+                <div className="character-count">
+                  {contactMessage.length}/500 caracteres
+                </div>
+              </div>
+              
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary"
+                onClick={handleCancelContact}
+                disabled={contactLoading}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={handleSendContact}
+                disabled={contactLoading || !contactMessage.trim()}
+              >
+                {contactLoading ? 'Enviando...' : 'Enviar Solicitud'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

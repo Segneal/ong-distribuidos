@@ -852,25 +852,84 @@ router.post('/create-event-adhesion', authenticateToken, async (req, res) => {
     // Use authenticated user's ID as volunteer ID
     const volunteerId = req.user?.id || 1; // Fallback to 1 if no user in token
     
-    // Call messaging service to create adhesion and send to Kafka
-    const axios = require('axios');
-    const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/createEventAdhesion`, {
-      eventId: eventId,
-      volunteerId: volunteerId,
-      targetOrganization: targetOrganization,
-      volunteerData: volunteerData
-    });
-
-    if (messagingResponse.data.success) {
+    // Create adhesion directly in database
+    const connection = await createDbConnection();
+    
+    try {
+      // Check if adhesion already exists
+      const checkQuery = `
+        SELECT id FROM adhesiones_eventos_externos 
+        WHERE evento_externo_id = ? AND voluntario_id = ?
+      `;
+      
+      const [existingRows] = await connection.execute(checkQuery, [eventId, volunteerId]);
+      
+      if (existingRows.length > 0) {
+        await connection.end();
+        return res.status(400).json({
+          success: false,
+          error: 'Ya tienes una adhesión a este evento'
+        });
+      }
+      
+      // Create new adhesion
+      const insertQuery = `
+        INSERT INTO adhesiones_eventos_externos 
+        (evento_externo_id, voluntario_id, fecha_adhesion, estado, datos_voluntario)
+        VALUES (?, ?, NOW(), 'PENDIENTE', ?)
+      `;
+      
+      await connection.execute(insertQuery, [
+        eventId,
+        volunteerId,
+        JSON.stringify(volunteerData)
+      ]);
+      
+      // Get event details and organization admin for notification
+      const eventQuery = `
+        SELECT er.nombre as event_name, er.organizacion_origen,
+               u.id as admin_id
+        FROM eventos_red er
+        LEFT JOIN usuarios u ON u.organizacion = er.organizacion_origen 
+                             AND u.rol IN ('PRESIDENTE', 'COORDINADOR')
+        WHERE er.evento_id = ?
+        ORDER BY CASE WHEN u.rol = 'PRESIDENTE' THEN 1 ELSE 2 END
+        LIMIT 1
+      `;
+      
+      const [eventRows] = await connection.execute(eventQuery, [eventId]);
+      
+      if (eventRows.length > 0) {
+        const eventData = eventRows[0];
+        
+        // Create notification for event organizer
+        const notificationQuery = `
+          INSERT INTO notificaciones 
+          (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
+          VALUES (?, ?, ?, ?, NOW(), false)
+        `;
+        
+        const title = "🎯 Nueva solicitud de adhesión a evento";
+        const message = `${volunteerData.nombre} quiere participar en tu evento '${eventData.event_name}'. Revisa la solicitud en la sección de adhesiones.`;
+        
+        await connection.execute(notificationQuery, [
+          eventData.admin_id,
+          title,
+          message,
+          'adhesion_evento'
+        ]);
+      }
+      
+      await connection.end();
+      
       res.json({
         success: true,
-        message: messagingResponse.data.message || 'Tu solicitud de adhesión ha sido enviada y está pendiente de aprobación'
+        message: 'Tu solicitud de adhesión ha sido enviada y está pendiente de aprobación'
       });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: messagingResponse.data.message || 'Error al crear adhesión'
-      });
+      
+    } catch (dbError) {
+      await connection.end();
+      throw dbError;
     }
   } catch (error) {
     console.error('Error creating event adhesion:', error);
@@ -1349,19 +1408,19 @@ router.post('/approve-event-adhesion', authenticateToken, async (req, res) => {
     // Crear notificación para el voluntario
     if (adhesionData) {
       const notificationQuery = `
-        INSERT INTO notificaciones_usuarios 
+        INSERT INTO notificaciones 
         (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
         VALUES (?, ?, ?, ?, NOW(), false)
       `;
       
-      const title = "Adhesión a evento aprobada";
+      const title = "✅ Adhesión a evento aprobada";
       const message = `¡Genial! Tu solicitud para participar en '${adhesionData.event_name}' ha sido aprobada. ¡Nos vemos en el evento!`;
       
       await connection.execute(notificationQuery, [
         adhesionData.voluntario_id,
         title,
         message,
-        'SUCCESS'
+        'adhesion_evento'
       ]);
     }
     
@@ -1456,12 +1515,12 @@ router.post('/reject-event-adhesion', authenticateToken, async (req, res) => {
     // Crear notificación para el voluntario
     if (adhesionData) {
       const notificationQuery = `
-        INSERT INTO notificaciones_usuarios 
+        INSERT INTO notificaciones 
         (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
         VALUES (?, ?, ?, ?, NOW(), false)
       `;
       
-      const title = "Adhesión a evento rechazada";
+      const title = "❌ Adhesión a evento rechazada";
       let message = `Tu solicitud para participar en '${adhesionData.event_name}' no fue aprobada.`;
       if (reason) {
         message += ` Motivo: ${reason}`;
@@ -1471,7 +1530,7 @@ router.post('/reject-event-adhesion', authenticateToken, async (req, res) => {
         adhesionData.voluntario_id,
         title,
         message,
-        'WARNING'
+        'adhesion_evento'
       ]);
     }
     

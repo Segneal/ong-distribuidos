@@ -172,6 +172,9 @@ class DonationTransferConsumer(BaseConsumer):
                 # Record transfer history
                 self._record_transfer_history(cursor, transfer, 'RECIBIDA')
                 
+                # Send notification to the user who made the original request
+                self._notify_request_fulfilled(cursor, transfer)
+                
                 # Commit transaction
                 conn.commit()
                 logger.info("Transfer processing committed successfully")
@@ -239,7 +242,6 @@ class DonationTransferConsumer(BaseConsumer):
             query = """
                 INSERT INTO donaciones (categoria, descripcion, cantidad, usuario_alta)
                 VALUES (%s, %s, %s, 1)
-                RETURNING id
             """
             cursor.execute(query, (
                 donation_item.category,
@@ -247,8 +249,8 @@ class DonationTransferConsumer(BaseConsumer):
                 quantity_num
             ))
             
-            result = cursor.fetchone()
-            return result[0] if result else None
+            # Get the last inserted ID
+            return cursor.lastrowid
             
         except Exception as e:
             logger.error("Error creating new donation", error=str(e))
@@ -274,23 +276,108 @@ class DonationTransferConsumer(BaseConsumer):
             
             query = """
                 INSERT INTO transferencias_donaciones 
-                (tipo, organizacion_contraparte, solicitud_id, donaciones, usuario_registro, notas)
-                VALUES (%s, %s, %s, %s, 1, %s)
+                (tipo, organizacion_contraparte, solicitud_id, donaciones, usuario_registro, notas, organizacion_propietaria)
+                VALUES (%s, %s, %s, %s, 1, %s, %s)
             """
             
             notas = f"Transferencia {tipo.lower()} procesada automáticamente"
+            
+            # Import settings to get current organization
+            from ..config import settings
             
             cursor.execute(query, (
                 tipo,
                 transfer.donor_organization,
                 transfer.request_id,
                 json.dumps(donations_data),
-                notas
+                notas,
+                settings.organization_id  # Current organization is the owner
             ))
             
         except Exception as e:
             logger.error("Error recording transfer history", error=str(e))
             raise
+    
+    def _notify_request_fulfilled(self, cursor, transfer: DonationTransfer):
+        """Send notification to user who made the original request"""
+        try:
+            if not transfer.request_id:
+                logger.debug("No request_id provided, skipping notification")
+                return
+            
+            # Find the user who made the original request
+            query = """
+                SELECT sd.usuario_creacion, u.nombre, u.apellido
+                FROM solicitudes_donaciones sd
+                LEFT JOIN usuarios u ON sd.usuario_creacion = u.id
+                WHERE sd.solicitud_id = %s
+                LIMIT 1
+            """
+            cursor.execute(query, (transfer.request_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                logger.warning("Could not find original request user", request_id=transfer.request_id)
+                return
+            
+            user_id, user_name, user_surname = result
+            user_full_name = f"{user_name or ''} {user_surname or ''}".strip() or "Usuario"
+            
+            # Count donations received
+            donations_count = len(transfer.donations)
+            donation_summary = []
+            
+            for donation in transfer.donations[:3]:  # Show first 3 donations
+                donation_summary.append(f"• {donation.description} ({donation.quantity})")
+            
+            if donations_count > 3:
+                donation_summary.append(f"• ... y {donations_count - 3} más")
+            
+            donations_text = "\n".join(donation_summary)
+            
+            # Create notification
+            title = "🎁 ¡Donación recibida!"
+            message = f"""¡Excelente noticia {user_full_name}!
+
+La organización '{transfer.donor_organization}' ha respondido a tu solicitud de donaciones.
+
+Donaciones recibidas:
+{donations_text}
+
+Las donaciones ya están disponibles en tu inventario. ¡Gracias por usar la red de colaboración!"""
+            
+            # Insert notification
+            notification_query = """
+                INSERT INTO notificaciones 
+                (usuario_id, tipo, titulo, mensaje, datos_adicionales, leida, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, false, NOW())
+            """
+            
+            datos_adicionales = json.dumps({
+                'organizacion_origen': transfer.donor_organization,
+                'request_id': transfer.request_id,
+                'cantidad_items': donations_count
+            })
+            
+            cursor.execute(notification_query, (
+                user_id,
+                'transferencia_recibida',
+                title,
+                message,
+                datos_adicionales
+            ))
+            
+            logger.info(
+                "Notification sent for fulfilled donation request",
+                user_id=user_id,
+                request_id=transfer.request_id,
+                donor_org=transfer.donor_organization,
+                donations_count=donations_count
+            )
+            
+        except Exception as e:
+            logger.error("Error sending notification for fulfilled request", error=str(e))
+            # Don't raise - notification failure shouldn't break transfer processing
     
     def process_message(self, message_envelope: Dict[str, Any]):
         """Process message envelope (for compatibility with existing code)"""

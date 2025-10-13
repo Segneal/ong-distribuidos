@@ -366,6 +366,7 @@ async def create_event_adhesion(data: dict):
         event_id = data.get('eventId')
         volunteer_id = data.get('volunteerId')
         target_organization = data.get('targetOrganization')
+        volunteer_data = data.get('volunteerData', {})
         
         logger.info(
             "Creating event adhesion via API",
@@ -387,7 +388,7 @@ async def create_event_adhesion(data: dict):
         # Create adhesion service and create adhesion
         adhesion_service = AdhesionService()
         success, message = adhesion_service.create_event_adhesion(
-            event_id, volunteer_id, target_organization
+            event_id, volunteer_id, target_organization, volunteer_data
         )
         
         if success:
@@ -479,12 +480,14 @@ async def create_donation_request(data: dict):
         
         donations = data.get('donations', [])
         user_id = data.get('userId')
+        user_organization = data.get('userOrganization')
         notes = data.get('notes')
         
         logger.info(
             "Creating donation request via API",
             donations_count=len(donations),
-            user_id=user_id
+            user_id=user_id,
+            user_organization=user_organization
         )
         
         # Validate donations
@@ -497,7 +500,7 @@ async def create_donation_request(data: dict):
         
         # Create donation request
         request_service = RequestService()
-        success, message, request_id = request_service.create_donation_request(donations, user_id, notes)
+        success, message, request_id = request_service.create_donation_request(donations, user_id, user_organization, notes)
         
         if success:
             return {

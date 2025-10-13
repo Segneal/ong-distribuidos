@@ -42,9 +42,11 @@ const ExternalEventList = () => {
       const response = await messagingService.getVolunteerAdhesions();
       if (response.data.success) {
         setUserAdhesions(response.data.adhesions || []);
-        // Create set of registered event IDs
+        // Create set of registered event IDs (only confirmed adhesions)
         const registeredEventIds = new Set(
-          response.data.adhesions.map(adhesion => adhesion.event_id)
+          response.data.adhesions
+            .filter(adhesion => adhesion.status === 'CONFIRMADA')
+            .map(adhesion => adhesion.event_id)
         );
         setRegisteredEvents(registeredEventIds);
       }
@@ -135,15 +137,12 @@ const ExternalEventList = () => {
       });
 
       if (response.data.success) {
-        setSuccessMessage(`¡Te has inscrito exitosamente al evento "${selectedEvent.name}"!`);
+        setSuccessMessage(`Tu solicitud de adhesión al evento "${selectedEvent.name}" ha sido enviada y está pendiente de aprobación por la organización.`);
         setShowAdhesionModal(false);
         setSelectedEvent(null);
         setError('');
         
-        // Mark event as registered
-        setRegisteredEvents(prev => new Set([...prev, selectedEvent.event_id]));
-        
-        // Reload adhesions to get updated data
+        // Reload adhesions to get updated data (this will show the pending status)
         loadUserAdhesions();
         
         // Clear success message after 5 seconds
@@ -182,6 +181,11 @@ const ExternalEventList = () => {
 
   const isEventUpcoming = (eventDate) => {
     return new Date(eventDate) > new Date();
+  };
+
+  const getAdhesionStatus = (eventId) => {
+    const adhesion = userAdhesions.find(adh => adh.event_id === eventId);
+    return adhesion ? adhesion.status : null;
   };
 
   if (loading) {
@@ -313,23 +317,51 @@ const ExternalEventList = () => {
                       <span className="notice-text">Este es un evento de nuestra organización</span>
                     </div>
                   ) : isEventUpcoming(event.event_date) ? (
-                    registeredEvents.has(event.event_id) ? (
-                      <div className="registration-status">
-                        <button className="btn btn-registered" disabled>
-                          <span className="btn-icon">✓</span>
-                          <span className="btn-text">Ya estás inscrito</span>
-                        </button>
-                        <small className="registration-note">¡Nos vemos en el evento!</small>
-                      </div>
-                    ) : (
-                      <button
-                        className="btn btn-volunteer"
-                        onClick={() => handleAdhesion(event)}
-                      >
-                        <span className="btn-icon">🙋‍♀️</span>
-                        <span className="btn-text">Inscribirme como Voluntario</span>
-                      </button>
-                    )
+                    (() => {
+                      const adhesionStatus = getAdhesionStatus(event.event_id);
+                      
+                      if (adhesionStatus === 'CONFIRMADA') {
+                        return (
+                          <div className="registration-status confirmed">
+                            <button className="btn btn-confirmed" disabled>
+                              <span className="btn-icon">✓</span>
+                              <span className="btn-text">Inscripción Aprobada</span>
+                            </button>
+                            <small className="registration-note">¡Nos vemos en el evento!</small>
+                          </div>
+                        );
+                      } else if (adhesionStatus === 'PENDIENTE') {
+                        return (
+                          <div className="registration-status pending">
+                            <button className="btn btn-pending" disabled>
+                              <span className="btn-icon">⏳</span>
+                              <span className="btn-text">Pendiente de Aprobación</span>
+                            </button>
+                            <small className="registration-note">Esperando respuesta de la organización</small>
+                          </div>
+                        );
+                      } else if (adhesionStatus === 'RECHAZADA') {
+                        return (
+                          <div className="registration-status rejected">
+                            <button className="btn btn-rejected" disabled>
+                              <span className="btn-icon">✗</span>
+                              <span className="btn-text">Inscripción Rechazada</span>
+                            </button>
+                            <small className="registration-note">La organización no aprobó tu solicitud</small>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <button
+                            className="btn btn-volunteer"
+                            onClick={() => handleAdhesion(event)}
+                          >
+                            <span className="btn-icon">🙋‍♀️</span>
+                            <span className="btn-text">Inscribirme como Voluntario</span>
+                          </button>
+                        );
+                      }
+                    })()
                   ) : (
                     <div className="event-status-container">
                       <span className="event-status past">
@@ -352,7 +384,8 @@ const ExternalEventList = () => {
           <li>Puede buscar eventos por nombre, descripción u organización</li>
           <li>Los eventos con <strong>borde verde</strong> son de nuestra organización (solo para referencia)</li>
           <li>Use "Inscribirme como Voluntario" para participar en eventos de otras organizaciones</li>
-          <li>Sus adhesiones se confirman automáticamente</li>
+          <li>Sus adhesiones quedan pendientes de aprobación por la organización</li>
+          <li>Recibirá notificación cuando su adhesión sea aprobada o rechazada</li>
           <li>Sus adhesiones aparecerán en la pestaña "Mis Adhesiones"</li>
         </ul>
       </div>

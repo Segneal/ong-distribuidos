@@ -20,17 +20,23 @@ const VolunteerAdhesions = () => {
       setLoading(true);
       setError('');
       
+      console.log('🔄 Loading volunteer adhesions...');
       const response = await messagingService.getVolunteerAdhesions();
+      console.log('📊 Volunteer adhesions response:', response.data);
       
       if (response.data.success) {
-        setAdhesions(response.data.adhesions || []);
+        const adhesions = response.data.adhesions || [];
+        console.log(`✅ Loaded ${adhesions.length} adhesions:`, adhesions);
+        setAdhesions(adhesions);
       } else {
         setError('Error al cargar adhesiones');
+        console.error('❌ API returned error:', response.data);
       }
     } catch (err) {
       const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Error al cargar adhesiones';
       setError(errorMessage);
-      console.error('Error loading volunteer adhesions:', err);
+      console.error('❌ Error loading volunteer adhesions:', err);
+      console.error('❌ Error response:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -49,9 +55,10 @@ const VolunteerAdhesions = () => {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      'PENDIENTE': { class: 'status-pending', text: 'Pendiente' },
-      'CONFIRMADA': { class: 'status-confirmed', text: 'Confirmada' },
-      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' }
+      'PENDIENTE': { class: 'status-pending', text: 'Pendiente de Aprobación' },
+      'CONFIRMADA': { class: 'status-confirmed', text: 'Aprobada' },
+      'CANCELADA': { class: 'status-cancelled', text: 'Cancelada' },
+      'RECHAZADA': { class: 'status-rejected', text: 'Rechazada' }
     };
     
     const statusInfo = statusMap[status] || { class: 'status-unknown', text: status };
@@ -79,8 +86,9 @@ const VolunteerAdhesions = () => {
         <button 
           className="btn btn-secondary"
           onClick={loadVolunteerAdhesions}
+          disabled={loading}
         >
-          Actualizar
+          {loading ? 'Actualizando...' : 'Actualizar'}
         </button>
       </div>
 
@@ -154,6 +162,13 @@ const VolunteerAdhesions = () => {
                   <div className="cancelled-message">
                     <i className="icon-x"></i>
                     Adhesión cancelada
+                  </div>
+                )}
+                
+                {adhesion.status === 'RECHAZADA' && (
+                  <div className="rejected-message">
+                    <i className="icon-x"></i>
+                    Adhesión rechazada por la organización
                   </div>
                 )}
               </div>

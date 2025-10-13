@@ -333,12 +333,45 @@ class OrganizationConsumer(BaseConsumer):
     
     def __init__(self):
         from ..config import Topics
-        topics = [
-            Topics.get_transfer_topic(settings.organization_id),
-            Topics.get_adhesion_topic(settings.organization_id)
-        ]
+        
+        # Get all organizations from database to subscribe to all transfer topics
+        all_organizations = self._get_all_organizations()
+        
+        topics = []
+        
+        # Subscribe to transfer topics for ALL organizations (to receive transfers sent to any org)
+        for org_id in all_organizations:
+            topics.append(Topics.get_transfer_topic(org_id))
+        
+        # Subscribe to our own adhesion topic
+        topics.append(Topics.get_adhesion_topic(settings.organization_id))
+        
         super().__init__(topics)
         self.setup_handlers()
+    
+    def _get_all_organizations(self):
+        """Get all organization IDs from database"""
+        try:
+            from ..database.connection import get_database_connection
+            
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT DISTINCT organizacion FROM usuarios WHERE activo = TRUE")
+                results = cursor.fetchall()
+                
+                organizations = [row[0] for row in results if row[0]]
+                logger.info("Found organizations for transfer topics", organizations=organizations)
+                return organizations
+                
+        except Exception as e:
+            logger.error("Error getting organizations, using default", error=str(e))
+            # Fallback to known organizations
+            return [
+                'empuje-comunitario',
+                'fundacion-esperanza', 
+                'ong-solidaria',
+                'centro-comunitario'
+            ]
     
     def setup_handlers(self):
         """Setup handlers for organization-specific messages"""
@@ -347,7 +380,45 @@ class OrganizationConsumer(BaseConsumer):
     
     def _handle_donation_transfer(self, message_data: Dict[str, Any]):
         """Handle incoming donation transfer"""
-        logger.info("Handling donation transfer", data=message_data)
+        logger.info("=== HANDLING DONATION TRANSFER ===", data=message_data)
+        
+        # Extract target organization from different possible fields
+        target_organization = (
+            message_data.get("target_organization") or 
+            message_data.get("target_org") or
+            message_data.get("recipient_organization")
+        )
+        
+        # Extract source organization
+        source_organization = (
+            message_data.get("source_organization") or
+            message_data.get("donor_organization") or
+            message_data.get("sender_organization")
+        )
+        
+        logger.info(
+            "=== TRANSFER MESSAGE DETAILS ===",
+            target_org=target_organization,
+            source_org=source_organization,
+            our_org=settings.organization_id,
+            message_keys=list(message_data.keys()),
+            full_message=message_data
+        )
+        
+        # Only process transfers directed to our organization
+        if target_organization != settings.organization_id:
+            logger.info(
+                "=== SKIPPING TRANSFER - NOT FOR US ===", 
+                target_org=target_organization, 
+                our_org=settings.organization_id
+            )
+            return
+        
+        logger.info(
+            "=== PROCESSING TRANSFER FOR OUR ORGANIZATION ===",
+            target_org=target_organization,
+            source_org=source_organization
+        )
         
         # Use the dedicated donation transfer consumer logic
         from .transfer_consumer import DonationTransferConsumer
@@ -357,7 +428,7 @@ class OrganizationConsumer(BaseConsumer):
         message_envelope = {
             "message_id": "org-consumer-msg",
             "message_type": "donation_transfer",
-            "organization_id": message_data.get("donor_organization"),
+            "organization_id": source_organization,
             "timestamp": message_data.get("timestamp"),
             "data": message_data
         }

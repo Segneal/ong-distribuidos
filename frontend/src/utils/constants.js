@@ -40,7 +40,7 @@ export const EVENT_STATUS = {
 
 // Configuración de la aplicación
 export const APP_CONFIG = {
-  NAME: 'ONG Empuje Comunitario',
+  NAME: 'Sistema de Gestión MultiONG',
   VERSION: '1.0.0',
   API_TIMEOUT: 10000,
   ITEMS_PER_PAGE: 10,

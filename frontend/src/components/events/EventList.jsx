@@ -13,6 +13,8 @@ const EventList = () => {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [userParticipations, setUserParticipations] = useState({});
+  const [showExposureConfirmation, setShowExposureConfirmation] = useState(false);
+  const [exposureAction, setExposureAction] = useState(null);
 
   useEffect(() => {
     loadEvents();
@@ -119,33 +121,58 @@ const EventList = () => {
     }
   };
 
-  const toggleEventExposure = async (eventId, currentExposure) => {
+  const toggleEventExposure = (eventId, currentExposure) => {
+    const event = events.find(e => e.id === eventId);
+    const newExposure = !currentExposure;
+    
+    setExposureAction({
+      eventId,
+      event,
+      currentExposure,
+      newExposure,
+      action: newExposure ? 'expose' : 'hide'
+    });
+    setShowExposureConfirmation(true);
+  };
+
+  const handleConfirmExposure = async () => {
+    if (!exposureAction) return;
+
     try {
-      const newExposure = !currentExposure;
       await messagingService.toggleEventExposure({
-        eventId: eventId,
-        expuesto_red: newExposure
+        eventId: exposureAction.eventId,
+        expuesto_red: exposureAction.newExposure
       });
 
       // Update local state
       setEvents(prevEvents =>
         prevEvents.map(event =>
-          event.id === eventId
-            ? { ...event, expuesto_red: newExposure }
+          event.id === exposureAction.eventId
+            ? { ...event, expuesto_red: exposureAction.newExposure }
             : event
         )
       );
 
       // Show success message
-      const message = newExposure ? 'Evento expuesto a la red exitosamente' : 'Evento removido de la red exitosamente';
+      const message = exposureAction.newExposure ? 'Evento expuesto a la red exitosamente' : 'Evento removido de la red exitosamente';
       setError(''); // Clear any previous errors
-      // You could add a success state here if needed
       console.log(message);
+
+      // Close modal
+      setShowExposureConfirmation(false);
+      setExposureAction(null);
 
     } catch (err) {
       setError('Error al cambiar exposición del evento');
       console.error('Error toggling event exposure:', err);
+      setShowExposureConfirmation(false);
+      setExposureAction(null);
     }
+  };
+
+  const handleCancelExposure = () => {
+    setShowExposureConfirmation(false);
+    setExposureAction(null);
   };
 
   const canCreateEvents = hasPermission('events', 'create');
@@ -298,6 +325,41 @@ const EventList = () => {
           ))
         )}
       </div>
+
+      {/* Modal de confirmación para exposición a la red */}
+      {showExposureConfirmation && exposureAction && (
+        <div className="modal-overlay">
+          <div className="modal-content simple-modal">
+            <div className="modal-body">
+              <p>
+                <strong>
+                  {exposureAction.action === 'expose' 
+                    ? `¿Exponer "${exposureAction.event.name}" a la red?` 
+                    : `¿Ocultar "${exposureAction.event.name}" de la red?`
+                  }
+                </strong>
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelExposure}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className={`btn ${exposureAction.action === 'expose' ? 'btn-primary' : 'btn-warning'}`}
+                onClick={handleConfirmExposure}
+              >
+                Sí
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal para mostrar participantes */}
       {showParticipants && (

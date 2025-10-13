@@ -191,12 +191,21 @@ class KafkaConnectionManager:
                 result = admin_client.create_topics(topics_to_create)
                 
                 # Wait for topic creation
-                for topic_name, future in result.items():
-                    try:
-                        future.result()
-                        logger.info("Topic created successfully", topic=topic_name)
-                    except Exception as e:
-                        logger.error("Failed to create topic", topic=topic_name, error=str(e))
+                try:
+                    # Handle different kafka-python versions
+                    if hasattr(result, 'items'):
+                        # Older version with dict-like result
+                        for topic_name, future in result.items():
+                            try:
+                                future.result()
+                                logger.info("Topic created successfully", topic=topic_name)
+                            except Exception as e:
+                                logger.error("Failed to create topic", topic=topic_name, error=str(e))
+                    else:
+                        # Newer version with different result structure
+                        logger.info("Topics creation request sent", topics=[t.name for t in topics_to_create])
+                except Exception as e:
+                    logger.error("Error processing topic creation result", error=str(e))
             else:
                 logger.info("All topics already exist")
                 

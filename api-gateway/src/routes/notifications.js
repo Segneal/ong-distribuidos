@@ -38,9 +38,9 @@ router.get('/', authenticateToken, async (req, res) => {
         mensaje,
         tipo,
         fecha_creacion,
-        fecha_leida,
+        fecha_lectura,
         leida
-      FROM notificaciones_usuarios 
+      FROM notificaciones 
       WHERE usuario_id = ?
       ORDER BY fecha_creacion DESC
       LIMIT 50
@@ -81,8 +81,8 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
     const connection = await createDbConnection();
 
     const query = `
-      UPDATE notificaciones_usuarios 
-      SET leida = true, fecha_leida = NOW()
+      UPDATE notificaciones 
+      SET leida = true, fecha_lectura = NOW()
       WHERE id = ? AND usuario_id = ?
     `;
 
@@ -127,8 +127,8 @@ router.put('/read-all', authenticateToken, async (req, res) => {
     const connection = await createDbConnection();
 
     const query = `
-      UPDATE notificaciones_usuarios 
-      SET leida = true, fecha_leida = NOW()
+      UPDATE notificaciones 
+      SET leida = true, fecha_lectura = NOW()
       WHERE usuario_id = ? AND leida = false
     `;
 

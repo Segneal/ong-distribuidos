@@ -112,6 +112,14 @@ const Layout = () => {
       });
     }
 
+    // Notificaciones - disponible para todos los usuarios autenticados
+    organizationItems.push({
+      text: 'Notificaciones',
+      icon: <Notifications />,
+      path: '/notifications',
+      show: true
+    });
+
     // Módulos de Red Interorganizacional
     networkItems.push({
       text: 'Red de ONGs',
@@ -125,6 +133,12 @@ const Layout = () => {
         text: 'Eventos Externos',
         icon: <Dashboard />,
         path: '/external-events',
+        show: true
+      });
+      networkItems.push({
+        text: 'Gestión Adhesiones',
+        icon: <People />,
+        path: '/adhesion-management',
         show: true
       });
     }
@@ -271,7 +285,7 @@ const Layout = () => {
           </IconButton>
 
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            ONG Empuje Comunitario
+            Sistema de Gestión MultiONG
           </Typography>
 
           {/* Menú de usuario en desktop */}

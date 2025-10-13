@@ -19,21 +19,25 @@ class RequestService:
     def __init__(self):
         self.producer = BaseProducer()
     
-    def create_donation_request(self, donations: List[Dict], user_id: int, notes: Optional[str] = None) -> Tuple[bool, str, Optional[str]]:
+    def create_donation_request(self, donations: List[Dict], user_id: int, user_organization: Optional[str] = None, notes: Optional[str] = None) -> Tuple[bool, str, Optional[str]]:
         """
         Create a new donation request and publish it to the network
         
         Args:
             donations: List of donation items needed
             user_id: ID of the user creating the request
+            user_organization: Organization of the user creating the request
             notes: Optional notes for the request
             
         Returns:
             Tuple of (success, message, request_id)
         """
         try:
+            # Use user's organization or fall back to configured organization
+            organization_id = user_organization or settings.organization_id
+            
             # Generate request ID
-            request_id = f"req-{settings.organization_id}-{uuid.uuid4().hex[:8]}"
+            request_id = f"req-{organization_id}-{uuid.uuid4().hex[:8]}"
             
             # Validate donations
             if not donations or not isinstance(donations, list):
@@ -60,7 +64,7 @@ class RequestService:
                         VALUES (%s, %s, %s, %s)
                     """, (
                         request_id,
-                        settings.organization_id,
+                        organization_id,
                         json.dumps(donations),  # Store as proper JSON string
                         True
                     ))
@@ -85,7 +89,7 @@ class RequestService:
                 logger.info(
                     "Donation request published successfully",
                     request_id=request_id,
-                    organization_id=settings.organization_id
+                    organization_id=organization_id
                 )
                 return True, "Donation request created and published successfully", request_id
             else:

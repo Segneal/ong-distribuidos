@@ -18,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 
 
 from ..producers.base_producer import BaseProducer
 from ..config import settings
+from .notification_service import NotificationService
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +29,7 @@ class EventService:
     def __init__(self):
         self.network_repo = NetworkRepository()
         self.producer = BaseProducer()
+        self.notification_service = NotificationService()
         self.organization_id = settings.organization_id
     
     def publish_event(self, event_id: str, name: str, description: str, 
@@ -243,6 +245,7 @@ class EventService:
     def cancel_event(self, event_id: str, user_id: int) -> Tuple[bool, str]:
         """
         Cancel a solidarity event and publish cancellation to the network
+        Also notifies all volunteers who had adhesions to the event
         
         Args:
             event_id: ID of the event to cancel
@@ -261,6 +264,84 @@ class EventService:
             # Validate event ID
             if not event_id:
                 return False, "Event ID is required"
+            
+            # Get event information and affected volunteers before canceling
+            try:
+                # Get event details from local database first
+                from messaging.database.connection import get_database_connection
+                
+                with get_database_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    
+                    # Get event information from network table (since local event may be deleted)
+                    # Don't filter by organization since we need to handle cancellations from any org
+                    event_query = """
+                        SELECT nombre, descripcion, fecha_evento, organizacion_origen as organizacion
+                        FROM eventos_red 
+                        WHERE evento_id = %s
+                    """
+                    cursor.execute(event_query, (event_id,))
+                    event_info = cursor.fetchone()
+                    
+                    if not event_info:
+                        logger.warning(f"Event {event_id} not found in network database")
+                        event_info = {
+                            'nombre': f'Evento {event_id}',
+                            'descripcion': '',
+                            'organizacion': self.organization_id
+                        }
+                    
+                    # Get all volunteers with adhesions to this event
+                    adhesions_query = """
+                        SELECT aee.voluntario_id, aee.datos_voluntario, u.nombre, u.apellido, u.email
+                        FROM adhesiones_eventos_externos aee
+                        JOIN usuarios u ON aee.voluntario_id = u.id
+                        WHERE aee.evento_externo_id = %s 
+                        AND aee.estado IN ('PENDIENTE', 'CONFIRMADA')
+                    """
+                    cursor.execute(adhesions_query, (event_id,))
+                    affected_volunteers = cursor.fetchall()
+                    
+                    logger.info(f"Found {len(affected_volunteers)} affected volunteers for event {event_id}")
+                    
+                    # Cancel all adhesions
+                    if affected_volunteers:
+                        cancel_adhesions_query = """
+                            UPDATE adhesiones_eventos_externos 
+                            SET estado = 'CANCELADA'
+                            WHERE evento_externo_id = %s 
+                            AND estado IN ('PENDIENTE', 'CONFIRMADA')
+                        """
+                        cursor.execute(cancel_adhesions_query, (event_id,))
+                        conn.commit()
+                        
+                        logger.info(f"Cancelled {len(affected_volunteers)} adhesions for event {event_id}")
+                    
+                    # Send notifications to affected volunteers
+                    if affected_volunteers:
+                        for volunteer in affected_volunteers:
+                            try:
+                                self.notification_service.create_notification(
+                                    user_id=volunteer['voluntario_id'],
+                                    notification_type='evento_cancelado',
+                                    title='❌ Evento cancelado',
+                                    message=f'Lamentamos informarte que el evento "{event_info["nombre"]}" de {event_info["organizacion"]} ha sido cancelado.\n\nTu adhesión ha sido automáticamente cancelada. Te notificaremos sobre futuros eventos similares.',
+                                    additional_data={
+                                        'evento_id': event_id,
+                                        'evento_nombre': event_info['nombre'],
+                                        'organizacion_origen': event_info['organizacion'],
+                                        'fecha_cancelacion': datetime.now().isoformat()
+                                    }
+                                )
+                                logger.info(f"Notification sent to volunteer {volunteer['voluntario_id']}")
+                            except Exception as notif_error:
+                                logger.error(f"Error sending notification to volunteer {volunteer['voluntario_id']}: {notif_error}")
+                        
+                        logger.info(f"Sent cancellation notifications to {len(affected_volunteers)} volunteers")
+                
+            except Exception as db_error:
+                logger.error(f"Error handling local event cancellation: {db_error}")
+                # Continue with Kafka publishing even if local handling fails
             
             # Publish event cancellation to Kafka
             success = self.producer.publish_event_cancellation(event_id)
@@ -288,6 +369,7 @@ class EventService:
     def process_event_cancellation(self, cancellation_data: Dict[str, Any]) -> bool:
         """
         Process an event cancellation received from Kafka
+        Notifies local volunteers who had adhesions to the cancelled event
         
         Args:
             cancellation_data: Cancellation data from Kafka message
@@ -314,24 +396,106 @@ class EventService:
                     logger.error(f"Missing required field: {field}")
                     return False
             
+            event_id = cancellation_data['event_id']
+            organization_id = cancellation_data['organization_id']
+            
+            # Get affected volunteers before deactivating the event
+            try:
+                from messaging.database.connection import get_database_connection
+                
+                with get_database_connection() as conn:
+                    cursor = conn.cursor(dictionary=True)
+                    
+                    # Get event information and affected volunteers
+                    event_volunteers_query = """
+                        SELECT 
+                            ee.nombre as event_name,
+                            ee.descripcion as event_description,
+                            aee.voluntario_id, 
+                            aee.datos_voluntario, 
+                            u.nombre, 
+                            u.apellido, 
+                            u.email
+                        FROM eventos_externos ee
+                        LEFT JOIN adhesiones_eventos_externos aee ON ee.id = aee.evento_externo_id
+                        LEFT JOIN usuarios u ON aee.voluntario_id = u.id
+                        WHERE ee.evento_id = %s 
+                        AND ee.organizacion_id = %s
+                        AND (aee.estado IN ('PENDIENTE', 'CONFIRMADA') OR aee.estado IS NULL)
+                    """
+                    cursor.execute(event_volunteers_query, (event_id, organization_id))
+                    results = cursor.fetchall()
+                    
+                    event_name = None
+                    affected_volunteers = []
+                    
+                    for row in results:
+                        if event_name is None:
+                            event_name = row['event_name'] or f'Evento {event_id}'
+                        
+                        if row['voluntario_id']:  # Only add if there's a volunteer
+                            affected_volunteers.append(row)
+                    
+                    # Cancel all adhesions for this event
+                    if affected_volunteers:
+                        cancel_adhesions_query = """
+                            UPDATE adhesiones_eventos_externos 
+                            SET estado = 'CANCELADA'
+                            WHERE evento_externo_id IN (
+                                SELECT id FROM eventos_externos 
+                                WHERE evento_id = %s AND organizacion_id = %s
+                            )
+                            AND estado IN ('PENDIENTE', 'CONFIRMADA')
+                        """
+                        cursor.execute(cancel_adhesions_query, (event_id, organization_id))
+                        conn.commit()
+                        
+                        logger.info(f"Cancelled {len(affected_volunteers)} adhesions for external event {event_id}")
+                    
+                    # Send notifications to affected volunteers
+                    if affected_volunteers:
+                        for volunteer in affected_volunteers:
+                            try:
+                                self.notification_service.create_notification(
+                                    user_id=volunteer['voluntario_id'],
+                                    notification_type='evento_cancelado',
+                                    title='❌ Evento externo cancelado',
+                                    message=f'Lamentamos informarte que el evento "{event_name}" de {organization_id} ha sido cancelado.\n\nTu adhesión ha sido automáticamente cancelada. Te notificaremos sobre futuros eventos similares.',
+                                    additional_data={
+                                        'evento_id': event_id,
+                                        'evento_nombre': event_name,
+                                        'organizacion_origen': organization_id,
+                                        'fecha_cancelacion': datetime.now().isoformat()
+                                    }
+                                )
+                                logger.info(f"Cancellation notification sent to volunteer {volunteer['voluntario_id']}")
+                            except Exception as notif_error:
+                                logger.error(f"Error sending cancellation notification to volunteer {volunteer['voluntario_id']}: {notif_error}")
+                        
+                        logger.info(f"Sent external event cancellation notifications to {len(affected_volunteers)} volunteers")
+                
+            except Exception as db_error:
+                logger.error(f"Error handling external event cancellation notifications: {db_error}")
+                # Continue with deactivation even if notifications fail
+            
             # Update event status in database
             result = self.network_repo.deactivate_external_event(
-                cancellation_data['organization_id'],
-                cancellation_data['event_id']
+                organization_id,
+                event_id
             )
             
             if result:
                 logger.info(
                     "External event deactivated successfully",
-                    event_id=cancellation_data['event_id'],
-                    organization=cancellation_data['organization_id']
+                    event_id=event_id,
+                    organization=organization_id
                 )
                 return True
             else:
                 logger.warning(
                     "Event not found for cancellation",
-                    event_id=cancellation_data['event_id'],
-                    organization=cancellation_data['organization_id']
+                    event_id=event_id,
+                    organization=organization_id
                 )
                 return True  # Not an error if event doesn't exist
                 

@@ -113,7 +113,7 @@ class EventsController {
         // Automatically publish event to the network if creation was successful
         try {
           const axios = require('axios');
-          const MESSAGING_SERVICE_URL = process.env.MESSAGING_SERVICE_URL || 'http://messaging-service:50054';
+          const MESSAGING_SERVICE_URL = process.env.MESSAGING_SERVICE_URL || 'http://localhost:50054';
           
           console.log('Auto-publishing event to network:', response.event.id);
           
@@ -215,7 +215,7 @@ class EventsController {
         // Automatically publish event cancellation to the network
         try {
           const axios = require('axios');
-          const MESSAGING_SERVICE_URL = process.env.MESSAGING_SERVICE_URL || 'http://messaging-service:50054';
+          const MESSAGING_SERVICE_URL = process.env.MESSAGING_SERVICE_URL || 'http://localhost:50054';
           
           console.log('Auto-publishing event cancellation to network:', id);
           

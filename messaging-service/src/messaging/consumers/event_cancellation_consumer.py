@@ -7,12 +7,14 @@ import logging
 from kafka import KafkaConsumer
 from messaging.database.connection import get_database_connection
 from messaging.kafka.connection import get_kafka_connection
+from messaging.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
 class EventCancellationConsumer:
     def __init__(self):
         self.consumer = None
+        self.notification_service = NotificationService()
         self.topic = "baja-evento-solidario"
         
     def start_consuming(self):
@@ -67,6 +69,9 @@ class EventCancellationConsumer:
             
             # Notificar a usuarios inscritos
             self._notify_registered_users(organization_id, event_id, cancellation_reason)
+            
+            # Notificar a administradores locales
+            self._notify_local_admins(organization_id, event_id, cancellation_reason)
             
             # Registrar en historial
             self._log_cancellation(organization_id, event_id, cancellation_reason)
@@ -196,6 +201,32 @@ class EventCancellationConsumer:
             if connection:
                 connection.close()
                 
+    def _notify_local_admins(self, organization_id, event_id, reason):
+        """Notifica a los administradores locales sobre la cancelación"""
+        try:
+            # Obtener nombre del evento
+            connection = get_database_connection()
+            cursor = connection.cursor()
+            
+            cursor.execute("""
+                SELECT nombre FROM eventos_red 
+                WHERE evento_id = %s AND organizacion_origen = %s
+            """, (event_id, organization_id))
+            
+            event_row = cursor.fetchone()
+            event_name = event_row[0] if event_row else f"Evento {event_id}"
+            
+            # Usar el servicio de notificaciones
+            self.notification_service.notify_event_cancelled(event_name, reason)
+            
+            logger.info(f"Notificación de cancelación enviada a administradores para evento {event_name}")
+            
+        except Exception as e:
+            logger.error(f"Error notificando administradores sobre cancelación: {e}")
+        finally:
+            if connection:
+                connection.close()
+    
     def stop_consuming(self):
         """Detiene el consumer"""
         if self.consumer:

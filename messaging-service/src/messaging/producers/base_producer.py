@@ -112,7 +112,8 @@ class BaseProducer:
     
     def publish_donation_transfer(self, target_org: str, transfer_data: Dict[str, Any]) -> bool:
         """Publish donation transfer message"""
-        message = {
+        # Create message data
+        message_data = {
             "type": "donation_transfer",
             "transfer_id": transfer_data.get("transfer_id"),
             "request_id": transfer_data.get("request_id"),
@@ -123,12 +124,12 @@ class BaseProducer:
             "user_id": transfer_data.get("user_id")
         }
         
-        if not self._validate_message(message, ["transfer_id", "request_id", "donations"]):
+        if not self._validate_message(message_data, ["transfer_id", "request_id", "donations"]):
             return False
         
         from ..config import Topics
         topic = Topics.get_transfer_topic(target_org)
-        return self._publish_message(topic, message)
+        return self._publish_message(topic, message_data)
     
     def publish_donation_offer(self, offer_id: str, donations: list) -> bool:
         """Publish donation offer message"""

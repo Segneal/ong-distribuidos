@@ -84,6 +84,7 @@ def create_donation_request():
         
         donations = data.get('donations', [])
         user_id = data.get('userId')
+        user_organization = data.get('userOrganization')
         notes = data.get('notes')
         
         logger.info(
@@ -100,7 +101,7 @@ def create_donation_request():
             }), 400
         
         # Create donation request
-        result = donation_producer.create_donation_request(donations, user_id)
+        result = donation_producer.create_donation_request(donations, user_id, user_organization)
         
         if result["success"]:
             return jsonify(result), 201

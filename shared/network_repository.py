@@ -79,15 +79,24 @@ class NetworkRepository:
             commit=True
         )
     
-    def get_active_external_offers(self) -> List[Dict]:
-        """Obtiene todas las ofertas externas activas"""
-        query = """
-            SELECT id, organizacion_donante, oferta_id, donaciones, fecha_creacion
-            FROM ofertas_externas 
-            WHERE activa = true 
-            ORDER BY fecha_creacion DESC
-        """
-        return self._execute_query(query, fetch_all=True) or []
+    def get_active_external_offers(self, exclude_organization: str = None) -> List[Dict]:
+        """Obtiene todas las ofertas externas activas, excluyendo la organización especificada"""
+        if exclude_organization:
+            query = """
+                SELECT id, organizacion_donante, oferta_id, donaciones, fecha_creacion
+                FROM ofertas_externas 
+                WHERE activa = true AND organizacion_donante != %s
+                ORDER BY fecha_creacion DESC
+            """
+            return self._execute_query(query, (exclude_organization,), fetch_all=True) or []
+        else:
+            query = """
+                SELECT id, organizacion_donante, oferta_id, donaciones, fecha_creacion
+                FROM ofertas_externas 
+                WHERE activa = true 
+                ORDER BY fecha_creacion DESC
+            """
+            return self._execute_query(query, fetch_all=True) or []
     
     def get_external_offer_by_id(self, organizacion_donante: str, oferta_id: str) -> Optional[Dict]:
         """Obtiene una oferta específica por organización y ID"""

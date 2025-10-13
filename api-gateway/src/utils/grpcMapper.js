@@ -152,6 +152,7 @@ const inventoryTransformers = {
     return {
       id: grpcDonation.id,
       category,
+      name: grpcDonation.description, // Map description to name for frontend compatibility
       description: grpcDonation.description,
       quantity: grpcDonation.quantity,
       organization: grpcDonation.organization || 'empuje-comunitario',

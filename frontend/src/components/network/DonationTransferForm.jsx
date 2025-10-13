@@ -11,6 +11,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [transferData, setTransferData] = useState(null);
   const { user } = useAuth();
 
   const categories = [
@@ -29,7 +31,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     try {
       setLoadingInventory(true);
       const response = await inventoryService.getDonations();
-      
+
       if (response.data.success) {
         // Filtrar solo donaciones activas (no eliminadas) con cantidad > 0
         const activeInventory = (response.data.donations || []).filter(
@@ -51,6 +53,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     if (!targetRequest || !targetRequest.donations) return;
 
     // Inicializar transferencias basadas en las donaciones solicitadas
+    // NOTA: Se ha deshabilitado la verificación de compatibilidad por categoría
     const initialTransfers = targetRequest.donations.map(requestedDonation => ({
       category: requestedDonation.category,
       description: requestedDonation.description,
@@ -66,7 +69,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     const errors = {};
 
     // Validar que hay al menos una transferencia con cantidad > 0
-    const validTransfers = formData.transfers.filter(t => 
+    const validTransfers = formData.transfers.filter(t =>
       t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
     );
 
@@ -120,7 +123,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
         newTransfers[index].description = selectedItem.description || selectedItem.category;
       }
     }
-    
+
     setFormData(prev => ({
       ...prev,
       transfers: newTransfers
@@ -141,46 +144,53 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
+    // Preparar datos de transferencia solo para items con cantidad > 0
+    const validTransfers = formData.transfers.filter(t =>
+      t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
+    );
+
+    const preparedTransferData = {
+      targetOrganization: targetRequest.requesting_organization,
+      requestId: targetRequest.request_id,
+      donations: validTransfers.map(transfer => {
+        const selectedItem = availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId);
+        return {
+          category: transfer.category,
+          description: transfer.description,
+          quantity: `${transfer.quantity}${selectedItem?.unit || ''}`,
+          inventoryId: parseInt(transfer.selectedInventoryId)
+        };
+      })
+    };
+
+    // Validar que tenemos los datos necesarios
+    if (!preparedTransferData.targetOrganization) {
+      setError('Error: Organización destino no especificada');
+      return;
+    }
+
+    if (!preparedTransferData.donations || preparedTransferData.donations.length === 0) {
+      setError('Error: Debe seleccionar al menos una donación para transferir');
+      return;
+    }
+
+    // Mostrar confirmación
+    setTransferData(preparedTransferData);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmTransfer = async () => {
     setLoading(true);
     setError('');
+    setShowConfirmation(false);
 
     try {
-      // Preparar datos de transferencia solo para items con cantidad > 0
-      const validTransfers = formData.transfers.filter(t => 
-        t.selectedInventoryId && t.quantity && parseInt(t.quantity) > 0
-      );
-
-      const transferData = {
-        targetOrganization: targetRequest.requesting_organization,
-        requestId: targetRequest.request_id,
-        donations: validTransfers.map(transfer => {
-          const selectedItem = availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId);
-          return {
-            category: transfer.category,
-            description: transfer.description,
-            quantity: `${transfer.quantity}${selectedItem?.unit || ''}`,
-            inventoryId: parseInt(transfer.selectedInventoryId)
-          };
-        })
-      };
-
       console.log('Transfer data being sent:', transferData);
-
-      // Validar que tenemos los datos necesarios
-      if (!transferData.targetOrganization) {
-        setError('Error: Organización destino no especificada');
-        return;
-      }
-
-      if (!transferData.donations || transferData.donations.length === 0) {
-        setError('Error: Debe seleccionar al menos una donación para transferir');
-        return;
-      }
 
       const response = await messagingService.transferDonations(transferData);
 
@@ -197,13 +207,20 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
     }
   };
 
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+    setTransferData(null);
+  };
+
   const getCategoryLabel = (categoryValue) => {
     const category = categories.find(c => c.value === categoryValue);
     return category ? category.label : categoryValue;
   };
 
   const getInventoryByCategory = (category) => {
-    return availableInventory.filter(item => item.category === category);
+    // DESHABILITADO: Filtrado por categoría para permitir cualquier donación
+    // return availableInventory.filter(item => item.category === category);
+    return availableInventory; // Devolver todas las donaciones disponibles
   };
 
   if (loadingInventory) {
@@ -235,13 +252,14 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
         <div className="form-section">
           <h4>Donaciones Solicitadas</h4>
           <p className="form-help">
-            Seleccione las donaciones de su inventario que desea transferir para cada solicitud.
+            Seleccione cualquier donación de su inventario que desea transferir.
+            No es necesario que coincida exactamente con lo solicitado.
             Solo se transferirán las donaciones con cantidad especificada.
           </p>
 
           {formData.transfers.map((transfer, index) => {
             const categoryInventory = getInventoryByCategory(transfer.category);
-            
+
             return (
               <div key={index} className="transfer-item">
                 <div className="transfer-header-item">
@@ -276,7 +294,7 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
                     )}
                     {categoryInventory.length === 0 && (
                       <div className="field-info">
-                        No hay donaciones disponibles en esta categoría
+                        No hay donaciones disponibles en el inventario
                       </div>
                     )}
                   </div>
@@ -292,8 +310,8 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
                       onChange={(e) => handleTransferChange(index, 'quantity', e.target.value)}
                       placeholder="Cantidad"
                       min="1"
-                      max={transfer.selectedInventoryId ? 
-                        availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId)?.quantity : 
+                      max={transfer.selectedInventoryId ?
+                        availableInventory.find(item => item.id.toString() === transfer.selectedInventoryId)?.quantity :
                         undefined
                       }
                       className={validationErrors.transfers?.[index]?.quantity ? 'error' : ''}
@@ -334,12 +352,55 @@ const DonationTransferForm = ({ targetRequest, onSuccess, onCancel }) => {
       <div className="form-info">
         <h4>Información importante:</h4>
         <ul>
-          <li>Solo puede transferir donaciones que tiene disponibles en su inventario</li>
+          <li>Puede transferir cualquier donación disponible en su inventario</li>
+          <li>No es necesario que coincida exactamente con lo solicitado</li>
           <li>La cantidad transferida se descontará automáticamente de su inventario</li>
           <li>La organización destino recibirá las donaciones en su inventario</li>
           <li>Esta acción no se puede deshacer</li>
         </ul>
       </div>
+
+      {/* Modal de confirmación */}
+      {showConfirmation && transferData && (
+        <div className="modal-overlay">
+          <div className="modal-content simple-modal">
+            <div className="modal-body">
+              <p>
+                <strong>
+                  ¿Transferir {transferData.donations.length} donación{transferData.donations.length > 1 ? 'es' : ''} a {transferData.targetOrganization}?
+                </strong>
+              </p>
+              <p className="transfer-summary">
+                {transferData.donations.map((donation, index) => (
+                  <span key={index}>
+                    {donation.quantity} {getCategoryLabel(donation.category)}
+                    {index < transferData.donations.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelConfirmation}
+                disabled={loading}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmTransfer}
+                disabled={loading}
+              >
+                {loading ? 'Transfiriendo...' : 'Sí'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

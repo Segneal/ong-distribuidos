@@ -24,4 +24,4 @@ RUN chmod +x wait-for-services.sh
 
 EXPOSE 50054 8000
 
-CMD ["./wait-for-services.sh", "mysql:3306", "kafka:9092", "--", "python", "src/main.py"]
+CMD ["./wait-for-services.sh", "mysql:3306", "kafka:9092", "--", "python", "src/server.py"]

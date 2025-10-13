@@ -1,7 +1,7 @@
 {
   "name": "ong-frontend",
   "version": "1.0.0",
-  "description": "Frontend React para Sistema de Gestión ONG Empuje Comunitario",
+  "description": "Frontend React para Sistema de Gestión MultiONG",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

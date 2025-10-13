@@ -109,11 +109,21 @@ export const messagingService = {
   
   // Donation transfers
   transferDonations: (transferData) => api.post('/messaging/transfer-donations', transferData),
-  getTransferHistory: (params = {}) => api.post('/messaging/transfer-history', params),
+  getTransferHistory: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.type) queryParams.append('type', params.type);
+    if (params.category) queryParams.append('category', params.category);
+    const queryString = queryParams.toString();
+    return api.get(`/messaging/transfer-history${queryString ? `?${queryString}` : ''}`);
+  },
   
   // Donation offers
   createDonationOffer: (offerData) => api.post('/messaging/create-donation-offer', offerData),
   getExternalOffers: (params = {}) => api.post('/messaging/external-offers', params),
+  getMyOffers: () => api.get('/messaging/my-offers'),
+  deactivateOffer: (offerId) => api.post('/messaging/deactivate-offer', { offerId }),
+  contactOffer: (contactData) => api.post('/messaging/contact-offer', contactData),
   
   // Events
   publishEvent: (eventData) => api.post('/messaging/publish-event', eventData),
@@ -125,6 +135,8 @@ export const messagingService = {
   createEventAdhesion: (adhesionData) => api.post('/messaging/create-event-adhesion', adhesionData),
   getVolunteerAdhesions: () => api.post('/messaging/volunteer-adhesions'),
   getEventAdhesions: (eventId) => api.post('/messaging/event-adhesions', { eventId }),
+  approveEventAdhesion: (adhesionId) => api.post('/messaging/approve-event-adhesion', { adhesionId }),
+  rejectEventAdhesion: (adhesionId, reason) => api.post('/messaging/reject-event-adhesion', { adhesionId, reason }),
 };
 
 // Servicio para health check

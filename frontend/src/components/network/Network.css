@@ -1729,3 +1729,499 @@ uest Styling */
   border: 1px solid #dee2e6;
   background: white;
 }
+/* Moda
+l de confirmación */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  padding: 20px 24px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 20px;
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+.modal-body p {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.confirmation-details {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.detail-row {
+  margin-bottom: 8px;
+  color: #495057;
+}
+
+.detail-row strong {
+  color: #2c3e50;
+}
+
+.donations-summary {
+  margin-top: 16px;
+}
+
+.donations-summary h4 {
+  margin-bottom: 12px;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.donation-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.donation-summary-item:last-child {
+  border-bottom: none;
+}
+
+.donation-category .category-badge {
+  background-color: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.donation-details {
+  flex: 1;
+}
+
+.donation-details div {
+  margin-bottom: 2px;
+}
+
+.confirmation-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.confirmation-warning p {
+  margin-bottom: 8px;
+  color: #856404;
+  font-weight: 600;
+}
+
+.confirmation-warning ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #856404;
+}
+
+.confirmation-warning li {
+  margin-bottom: 4px;
+}
+
+.modal-actions {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #e9ecef;
+}
+
+.modal-actions .btn {
+  min-width: 120px;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions .btn {
+    width: 100%;
+  }
+}/* 
+Modal simplificado */
+.simple-modal {
+  max-width: 400px;
+  text-align: center;
+}
+
+.simple-modal .modal-body {
+  padding: 24px;
+}
+
+.simple-modal .modal-body p {
+  margin-bottom: 16px;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.simple-modal .transfer-summary {
+  font-size: 14px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.simple-modal .modal-actions {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  border-top: 1px solid #e9ecef;
+}
+
+.simple-modal .modal-actions .btn {
+  min-width: 80px;
+  padding: 8px 20px;
+}
+
+/* Responsive simple modal */
+@media (max-width: 768px) {
+  .simple-modal {
+    width: 90%;
+    margin: 20px;
+  }
+  
+  .simple-modal .modal-actions {
+    gap: 12px;
+  }
+  
+  .simple-modal .modal-actions .btn {
+    flex: 1;
+  }
+}
+/
+* Modal de contacto de ofertas */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 0;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #7f8c8d;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background-color: #f8f9fa;
+  color: #2c3e50;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.offer-summary {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid #e9ecef;
+}
+
+.offer-summary h4 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.offer-summary p {
+  margin: 8px 0;
+  color: #495057;
+  font-size: 14px;
+}
+
+.offer-summary strong {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.donations-summary {
+  margin-top: 16px;
+}
+
+.donations-summary strong {
+  display: block;
+  margin-bottom: 12px;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.donations-summary ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.donations-summary li {
+  margin-bottom: 8px;
+  color: #495057;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.contact-form {
+  margin-bottom: 20px;
+}
+
+.contact-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.contact-form textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.contact-form textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.contact-form textarea:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.character-count {
+  text-align: right;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 24px 24px;
+  border-top: 1px solid #e9ecef;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.modal-footer .btn {
+  min-width: 100px;
+  padding: 10px 20px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.modal-footer .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-footer .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  border: 1px solid #6c757d;
+}
+
+.modal-footer .btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+.modal-footer .btn-primary {
+  background-color: #3498db;
+  color: white;
+  border: 1px solid #3498db;
+}
+
+.modal-footer .btn-primary:hover:not(:disabled) {
+  background-color: #2980b9;
+  border-color: #2471a3;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+    max-height: 90vh;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+  }
+}
+
+/* Error message en modal */
+.modal-body .error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  margin-top: 16px;
+  font-size: 14px;
+}/* S
+uccess message */
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 12px 16px;
+  border: 1px solid #c3e6cb;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  animation: slideInSuccess 0.3s ease;
+}
+
+@keyframes slideInSuccess {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Auto-hide animation for success message */
+.success-message.fade-out {
+  animation: fadeOutSuccess 0.5s ease forwards;
+}
+
+@keyframes fadeOutSuccess {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}

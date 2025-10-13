@@ -17,26 +17,31 @@ logger = structlog.get_logger(__name__)
 class DonationRequestProducer(BaseProducer):
     """Producer for donation request messages"""
     
-    def create_donation_request(self, donations: List[Dict[str, Any]], user_id: Optional[int] = None) -> Dict[str, Any]:
+    def create_donation_request(self, donations: List[Dict[str, Any]], user_id: Optional[int] = None, user_organization: Optional[str] = None) -> Dict[str, Any]:
         """
         Create and publish a donation request to the network
         
         Args:
             donations: List of donation items with category and description
             user_id: ID of user creating the request (for database record)
+            user_organization: Organization of the user creating the request
             
         Returns:
             Dict with success status, request_id, and message
         """
         try:
-            # Generate unique request ID
-            request_id = f"REQ-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            # Use user's organization or fall back to configured organization
+            organization_id = user_organization or self.organization_id
+            
+            # Generate unique request ID with organization prefix
+            request_id = f"req-{organization_id}-{str(uuid.uuid4())[:8]}"
             
             logger.info(
                 "Creating donation request",
                 request_id=request_id,
                 donations_count=len(donations),
-                user_id=user_id
+                user_id=user_id,
+                organization_id=organization_id
             )
             
             # Validate donation items
@@ -57,7 +62,7 @@ class DonationRequestProducer(BaseProducer):
             
             # Create donation request model
             donation_request = DonationRequest(
-                organization_id=self.organization_id,
+                organization_id=organization_id,
                 request_id=request_id,
                 donations=validated_donations,
                 timestamp=datetime.utcnow().isoformat()
@@ -67,7 +72,7 @@ class DonationRequestProducer(BaseProducer):
             message_data = donation_request.to_dict()
             
             # Store in local database first
-            db_result = self._store_request_in_database(request_id, donations, user_id)
+            db_result = self._store_request_in_database(request_id, donations, user_id, organization_id)
             if not db_result["success"]:
                 return {
                     "success": False,
@@ -82,7 +87,7 @@ class DonationRequestProducer(BaseProducer):
                 logger.info(
                     "Donation request published successfully",
                     request_id=request_id,
-                    organization_id=self.organization_id
+                    organization_id=organization_id
                 )
                 return {
                     "success": True,
@@ -230,7 +235,7 @@ class DonationRequestProducer(BaseProducer):
         
         return True
     
-    def _store_request_in_database(self, request_id: str, donations: List[Dict[str, Any]], user_id: Optional[int]) -> Dict[str, Any]:
+    def _store_request_in_database(self, request_id: str, donations: List[Dict[str, Any]], user_id: Optional[int], organization_id: str) -> Dict[str, Any]:
         """Store donation request in local database"""
         try:
             from ..database.connection import get_database_connection
@@ -238,11 +243,19 @@ class DonationRequestProducer(BaseProducer):
             
             with get_database_connection() as conn:
                 with conn.cursor() as cursor:
+                    # Store in solicitudes_donaciones (local table)
                     cursor.execute("""
                         INSERT INTO solicitudes_donaciones 
-                        (solicitud_id, donaciones, usuario_creacion)
-                        VALUES (%s, %s, %s)
-                    """, (request_id, json.dumps(donations), user_id))
+                        (solicitud_id, donaciones, usuario_creacion, organization_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, (request_id, json.dumps(donations), user_id, organization_id))
+                    
+                    # Also store in solicitudes_externas (network table)
+                    cursor.execute("""
+                        INSERT INTO solicitudes_externas 
+                        (solicitud_id, organizacion_solicitante, donaciones, activa)
+                        VALUES (%s, %s, %s, %s)
+                    """, (request_id, organization_id, json.dumps(donations), True))
                     
                     conn.commit()
                     

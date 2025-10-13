@@ -54,7 +54,7 @@ const Home = () => {
           Bienvenido al Sistema de Gestión
         </Typography>
         <Typography variant="h5" component="h2" gutterBottom align="center" color="text.secondary">
-          ONG Empuje Comunitario
+          Sistema de Gestión MultiONG
         </Typography>
         <Typography variant="body1" align="center" sx={{ mt: 2 }}>
           Sistema integral para la administración de usuarios, inventario de donaciones 

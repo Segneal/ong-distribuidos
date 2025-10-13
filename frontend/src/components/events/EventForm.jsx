@@ -42,7 +42,7 @@ const EventForm = () => {
       setLoading(true);
       const response = await api.get(`/events/${id}`);
       const event = response.data.event;
-      
+
       setFormData({
         name: event.name,
         description: event.description || '',
@@ -102,7 +102,7 @@ const EventForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -120,11 +120,11 @@ const EventForm = () => {
 
       if (isEditing) {
         await api.put(`/events/${id}`, eventData);
-        
+
         // Update participants separately for editing
         const currentParticipants = await api.get(`/events/${id}/participants`);
         const currentParticipantIds = currentParticipants.data.participants?.map(p => p.userId) || [];
-        
+
         // Add new participants
         for (const userId of selectedParticipants) {
           if (!currentParticipantIds.includes(userId)) {
@@ -135,7 +135,7 @@ const EventForm = () => {
             }
           }
         }
-        
+
         // Remove participants
         for (const userId of currentParticipantIds) {
           if (!selectedParticipants.includes(userId)) {
@@ -177,7 +177,7 @@ const EventForm = () => {
     <div className="event-form-container">
       <div className="form-header">
         <h2>{isEditing ? 'Editar Evento' : 'Crear Nuevo Evento'}</h2>
-        <button 
+        <button
           className="btn btn-secondary"
           onClick={() => navigate('/events')}
         >
@@ -225,22 +225,6 @@ const EventForm = () => {
             required
             min={new Date().toISOString().slice(0, 16)}
           />
-        </div>
-
-        <div className="form-group">
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              id="expuesto_red"
-              name="expuesto_red"
-              checked={formData.expuesto_red}
-              onChange={handleInputChange}
-            />
-            <label htmlFor="expuesto_red">
-              Exponer evento a la red de ONGs
-              <small>Permite que otras organizaciones vean y se adhieran a este evento</small>
-            </label>
-          </div>
         </div>
 
         <div className="form-actions">

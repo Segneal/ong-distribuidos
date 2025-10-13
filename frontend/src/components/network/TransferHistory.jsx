@@ -39,14 +39,23 @@ const TransferHistory = () => {
 
       const response = await messagingService.getTransferHistory(params);
       
-      if (response.data.success) {
-        setTransfers(response.data.transfers || []);
+      if (response.data && response.data.success) {
+        const transfersData = response.data.transfers || [];
+        // Asegurar que cada transfer tenga la estructura correcta
+        const validTransfers = transfersData.map(transfer => ({
+          ...transfer,
+          donations: transfer.donations || transfer.donaciones || [],
+          donaciones: transfer.donations || transfer.donaciones || []
+        }));
+        setTransfers(validTransfers);
       } else {
-        setError(response.data.error || 'Error al cargar historial de transferencias');
+        setError(response.data?.error || 'Error al cargar historial de transferencias');
+        setTransfers([]);
       }
     } catch (err) {
       console.error('Error al cargar historial:', err);
       setError(err.response?.data?.error || 'Error al cargar historial de transferencias');
+      setTransfers([]); // Asegurar que transfers sea un array vacío en caso de error
     } finally {
       setLoading(false);
     }
@@ -142,7 +151,7 @@ const TransferHistory = () => {
 
       {/* Lista de transferencias */}
       <div className="transfers-list">
-        {transfers.length === 0 ? (
+        {!Array.isArray(transfers) || transfers.length === 0 ? (
           <div className="no-transfers">
             No hay transferencias en el historial
             {filterType !== 'all' && ` del tipo ${transferTypes.find(t => t.value === filterType)?.label.toLowerCase()}`}
@@ -150,7 +159,7 @@ const TransferHistory = () => {
           </div>
         ) : (
           <div className="transfers-grid">
-            {transfers.map((transfer, index) => (
+            {Array.isArray(transfers) && transfers.map((transfer, index) => (
               <div key={index} className={`transfer-card ${getTransferTypeClass(transfer.tipo)}`}>
                 <div className="transfer-header">
                   <div className="transfer-type">
@@ -181,19 +190,19 @@ const TransferHistory = () => {
                   <div className="donations-transferred">
                     <h5>Donaciones:</h5>
                     <div className="donations-list">
-                      {transfer.donaciones.map((donation, donationIndex) => (
+                      {(transfer.donations || transfer.donaciones || []).map((donation, donationIndex) => (
                         <div key={donationIndex} className="donation-item">
                           <div className="donation-category">
                             <span className="category-badge">
-                              {getCategoryLabel(donation.category)}
+                              {getCategoryLabel(donation.category || donation.categoria)}
                             </span>
                           </div>
                           <div className="donation-details">
                             <div className="donation-description">
-                              {donation.description}
+                              {donation.description || donation.descripcion || 'Donación'}
                             </div>
                             <div className="donation-quantity">
-                              <strong>Cantidad:</strong> {donation.quantity}
+                              <strong>Cantidad:</strong> {donation.quantity || donation.cantidad || '1'}
                             </div>
                           </div>
                         </div>

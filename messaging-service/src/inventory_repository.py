@@ -79,4 +79,24 @@ class InventoryRepository:
                 
         except Exception as e:
             print(f"Error validating donation availability: {e}")
-            return False
+            return False  
+    
+    def get_all_donations(self, organization: str = None) -> List[Dict[str, Any]]:
+        """Obtiene todas las donaciones, opcionalmente filtradas por organización"""
+        try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                
+                if organization:
+                    query = "SELECT * FROM donaciones WHERE organizacion = %s"
+                    cursor.execute(query, (organization,))
+                else:
+                    query = "SELECT * FROM donaciones"
+                    cursor.execute(query)
+                
+                donations = cursor.fetchall()
+                return donations
+                
+        except Exception as e:
+            print(f"Error getting all donations: {e}")
+            return []

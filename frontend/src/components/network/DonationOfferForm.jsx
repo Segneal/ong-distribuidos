@@ -120,7 +120,7 @@ const DonationOfferForm = ({ onSuccess, onCancel }) => {
     if (field === 'selectedInventoryId' && value) {
       const selectedItem = availableInventory.find(item => item.id.toString() === value);
       if (selectedItem) {
-        newOffers[index].description = selectedItem.description || selectedItem.category;
+        newOffers[index].description = selectedItem.name || selectedItem.description || selectedItem.category;
         newOffers[index].category = selectedItem.category;
       }
     }
@@ -181,7 +181,7 @@ const DonationOfferForm = ({ onSuccess, onCancel }) => {
           const selectedItem = availableInventory.find(item => item.id.toString() === offer.selectedInventoryId);
           return {
             category: selectedItem.category,
-            description: offer.description || selectedItem.description || selectedItem.category,
+            description: offer.description || selectedItem.name || selectedItem.description || selectedItem.category,
             quantity: `${offer.quantity}${selectedItem?.unit || ''}`,
             inventoryId: parseInt(offer.selectedInventoryId)
           };
@@ -280,7 +280,7 @@ const DonationOfferForm = ({ onSuccess, onCancel }) => {
                       <option value="">Seleccionar donación</option>
                       {availableInventory.map(item => (
                         <option key={item.id} value={item.id}>
-                          {getCategoryLabel(item.category)} - {item.description || item.category} (Disponible: {item.quantity})
+                          {getCategoryLabel(item.category)} - {item.name || item.description || item.category} (Disponible: {item.quantity})
                         </option>
                       ))}
                     </select>

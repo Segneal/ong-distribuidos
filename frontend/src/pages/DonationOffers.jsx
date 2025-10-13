@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DonationOfferForm from '../components/network/DonationOfferForm';
 import ExternalOffersList from '../components/network/ExternalOffersList';
+import MyOffersList from '../components/network/MyOffersList';
 import '../components/network/Network.css';
 
 const DonationOffers = () => {
@@ -9,8 +10,8 @@ const DonationOffers = () => {
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false);
-    // Mantener en la pestaña de ofertas externas para ver el resultado
-    setActiveTab('external');
+    // Cambiar a "Mis Ofertas" para ver la nueva oferta creada
+    setActiveTab('my-offers');
   };
 
   const handleCreateCancel = () => {
@@ -35,6 +36,12 @@ const DonationOffers = () => {
               Ofertas Disponibles
             </button>
             <button
+              className={`tab-button ${activeTab === 'my-offers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('my-offers')}
+            >
+              Mis Ofertas
+            </button>
+            <button
               className="btn btn-primary create-offer-btn"
               onClick={() => setShowCreateForm(true)}
             >
@@ -47,6 +54,11 @@ const DonationOffers = () => {
             {activeTab === 'external' && (
               <div className="tab-panel">
                 <ExternalOffersList />
+              </div>
+            )}
+            {activeTab === 'my-offers' && (
+              <div className="tab-panel">
+                <MyOffersList />
               </div>
             )}
           </div>

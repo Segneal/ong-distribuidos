@@ -42,6 +42,73 @@ class NetworkRepository:
             print(f"Error getting external offers: {e}")
             return []
     
+    def get_my_offers(self, organization: str) -> List[Dict[str, Any]]:
+        """Get offers created by the specified organization"""
+        try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                
+                query = """
+                    SELECT * FROM ofertas_externas 
+                    WHERE organizacion_donante = %s 
+                    ORDER BY fecha_creacion DESC
+                """
+                
+                cursor.execute(query, (organization,))
+                offers = cursor.fetchall()
+                
+                # Convert JSON strings to objects
+                for offer in offers:
+                    if offer.get('donaciones'):
+                        offer['donaciones'] = json.loads(offer['donaciones'])
+                
+                return offers
+                
+        except Exception as e:
+            print(f"Error getting my offers: {e}")
+            return []
+    
+    def deactivate_offer(self, offer_id: str, organization: str) -> bool:
+        """Deactivate a donation offer"""
+        try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
+                query = """
+                    UPDATE ofertas_externas 
+                    SET activa = FALSE 
+                    WHERE oferta_id = %s AND organizacion_donante = %s
+                """
+                
+                cursor.execute(query, (offer_id, organization))
+                conn.commit()
+                
+                return cursor.rowcount > 0
+                
+        except Exception as e:
+            print(f"Error deactivating offer: {e}")
+            return False
+    
+    def create_donation_offer(self, organizacion_donante: str, oferta_id: str, donaciones: List[Dict]) -> bool:
+        """Create a new donation offer"""
+        try:
+            with get_database_connection() as conn:
+                cursor = conn.cursor()
+                
+                query = """
+                    INSERT INTO ofertas_externas (organizacion_donante, oferta_id, donaciones, activa)
+                    VALUES (%s, %s, %s, %s)
+                """
+                
+                donaciones_json = json.dumps(donaciones)
+                cursor.execute(query, (organizacion_donante, oferta_id, donaciones_json, True))
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            print(f"Error creating donation offer: {e}")
+            return False
+    
     def create_external_offer(self, organizacion_donante: str, oferta_id: str, donaciones: List[Dict]) -> bool:
         """Crea una nueva oferta externa"""
         try:

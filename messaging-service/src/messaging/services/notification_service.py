@@ -18,7 +18,7 @@ class NotificationService:
         self.organization_id = settings.organization_id
     
     def create_notification(self, user_id: int, title: str, message: str, 
-                          notification_type: str = 'INFO') -> bool:
+                          notification_type: str = 'INFO', additional_data: Dict = None) -> bool:
         """
         Create a notification for a specific user
         
@@ -27,19 +27,24 @@ class NotificationService:
             title: Notification title
             message: Notification message
             notification_type: Type of notification (INFO, WARNING, ERROR, SUCCESS)
+            additional_data: Additional data to store with the notification
             
         Returns:
             True if notification was created successfully
         """
         try:
+            import json
+            
             with get_database_connection() as conn:
                 cursor = conn.cursor()
                 
+                additional_data_json = json.dumps(additional_data) if additional_data else None
+                
                 cursor.execute("""
-                    INSERT INTO notificaciones_usuarios 
-                    (usuario_id, titulo, mensaje, tipo, fecha_creacion, leida)
-                    VALUES (%s, %s, %s, %s, NOW(), false)
-                """, (user_id, title, message, notification_type))
+                    INSERT INTO notificaciones 
+                    (usuario_id, titulo, mensaje, tipo, datos_adicionales, fecha_creacion, leida)
+                    VALUES (%s, %s, %s, %s, %s, NOW(), false)
+                """, (user_id, title, message, notification_type, additional_data_json))
                 
                 conn.commit()
                 

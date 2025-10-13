@@ -261,6 +261,60 @@ router.post('/active-requests', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/messaging/my-offers - Obtener mis ofertas
+router.get('/my-offers', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET MY OFFERS ===');
+    console.log('User organization:', req.user.organization);
+    
+    const response = await axios.get(`${MESSAGING_SERVICE_URL}/api/getMyOffers`, {
+      params: {
+        organization: req.user.organization
+      }
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error getting my offers:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
+  }
+});
+
+// POST /api/messaging/deactivate-offer - Desactivar oferta
+router.post('/deactivate-offer', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== DEACTIVATE OFFER ===');
+    console.log('User organization:', req.user.organization);
+    console.log('Offer ID:', req.body.offerId);
+    
+    const response = await axios.post(`${MESSAGING_SERVICE_URL}/api/deactivateOffer`, {
+      offerId: req.body.offerId,
+      organization: req.user.organization
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error deactivating offer:', error);
+    
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor'
+      });
+    }
+  }
+});
+
 router.post('/external-offers', authenticateToken, async (req, res) => {
   try {
     console.log('=== GET EXTERNAL OFFERS ===');
@@ -462,6 +516,7 @@ router.post('/create-donation-offer', authenticateToken, async (req, res) => {
     const messagingResponse = await axios.post(`${MESSAGING_SERVICE_URL}/api/createDonationOffer`, {
       donations: donations,
       userId: req.user.id,
+      userOrganization: req.user.organization,
       notes: notes || ''
     });
 
@@ -799,29 +854,107 @@ router.post('/cancel-event', authenticateToken, async (req, res) => {
     
     const connection = await createDbConnection();
 
-    // Deactivate from network
-    const query = `
-      UPDATE eventos_red 
-      SET activo = false
-      WHERE evento_id = ? AND organizacion_origen = ?
-    `;
+    try {
+      // 1. Obtener información del evento antes de cancelarlo
+      const eventInfoQuery = `
+        SELECT e.nombre, e.descripcion, er.organizacion_origen
+        FROM eventos e
+        JOIN eventos_red er ON e.id = er.evento_id
+        WHERE e.id = ? AND er.organizacion_origen = ?
+      `;
+      
+      const [eventRows] = await connection.execute(eventInfoQuery, [eventId, req.user.organization]);
+      
+      if (eventRows.length === 0) {
+        await connection.end();
+        return res.status(404).json({
+          success: false,
+          error: 'Evento no encontrado o no pertenece a su organización'
+        });
+      }
+      
+      const eventInfo = eventRows[0];
+      
+      // 2. Obtener todos los voluntarios que se habían anotado
+      const adhesionsQuery = `
+        SELECT aee.voluntario_id, aee.datos_voluntario, u.nombre, u.apellido, u.email
+        FROM adhesiones_eventos_externos aee
+        JOIN usuarios u ON aee.voluntario_id = u.id
+        WHERE aee.evento_externo_id = ? AND aee.estado IN ('PENDIENTE', 'CONFIRMADA')
+      `;
+      
+      const [adhesionRows] = await connection.execute(adhesionsQuery, [eventId]);
+      
+      // 3. Desactivar el evento de la red
+      const deactivateQuery = `
+        UPDATE eventos_red 
+        SET activo = false
+        WHERE evento_id = ? AND organizacion_origen = ?
+      `;
+      
+      await connection.execute(deactivateQuery, [eventId, req.user.organization]);
+      
+      // 4. Actualizar la tabla eventos
+      const updateEventQuery = `
+        UPDATE eventos 
+        SET expuesto_red = false
+        WHERE id = ?
+      `;
+      
+      await connection.execute(updateEventQuery, [eventId]);
+      
+      // 5. Cancelar todas las adhesiones pendientes y aprobadas
+      const cancelAdhesionsQuery = `
+        UPDATE adhesiones_eventos_externos 
+        SET estado = 'CANCELADA'
+        WHERE evento_externo_id = ? AND estado IN ('PENDIENTE', 'CONFIRMADA')
+      `;
+      
+      await connection.execute(cancelAdhesionsQuery, [eventId]);
+      
+      // 6. Crear notificaciones para todos los voluntarios afectados
+      if (adhesionRows.length > 0) {
+        const notificationQuery = `
+          INSERT INTO notificaciones 
+          (usuario_id, tipo, titulo, mensaje, datos_adicionales, leida, fecha_creacion)
+          VALUES (?, ?, ?, ?, ?, false, NOW())
+        `;
+        
+        for (const adhesion of adhesionRows) {
+          const volunteerName = `${adhesion.nombre} ${adhesion.apellido}`;
+          const title = "❌ Evento cancelado";
+          const message = `Lamentamos informarte que el evento "${eventInfo.nombre}" de ${eventInfo.organizacion_origen} ha sido cancelado y removido de la red.\n\nTu adhesión ha sido automáticamente cancelada. Te notificaremos sobre futuros eventos similares.`;
+          
+          await connection.execute(notificationQuery, [
+            adhesion.voluntario_id,
+            'evento_cancelado',
+            title,
+            message,
+            JSON.stringify({
+              evento_id: eventId,
+              evento_nombre: eventInfo.nombre,
+              organizacion_origen: eventInfo.organizacion_origen,
+              fecha_cancelacion: new Date().toISOString()
+            })
+          ]);
+        }
+        
+        console.log(`Notificaciones enviadas a ${adhesionRows.length} voluntarios`);
+      }
+      
+      await connection.end();
 
-    await connection.execute(query, [eventId, req.user.organization]);
-    
-    // Update eventos table
-    const updateEventQuery = `
-      UPDATE eventos 
-      SET expuesto_red = false
-      WHERE id = ?
-    `;
-    
-    await connection.execute(updateEventQuery, [eventId]);
-    await connection.end();
-
-    res.json({
-      success: true,
-      message: 'Evento removido de la red exitosamente'
-    });
+      res.json({
+        success: true,
+        message: 'Evento removido de la red exitosamente',
+        notifications_sent: adhesionRows.length,
+        adhesions_cancelled: adhesionRows.length
+      });
+      
+    } catch (dbError) {
+      await connection.end();
+      throw dbError;
+    }
   } catch (error) {
     console.error('Error canceling event:', error);
     res.status(500).json({

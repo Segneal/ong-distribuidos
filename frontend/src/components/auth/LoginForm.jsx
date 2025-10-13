@@ -142,7 +142,7 @@ const LoginForm = () => {
             Iniciar Sesión
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Sistema de Gestión ONG Empuje Comunitario
+            Sistema de Gestión MultiONG
           </Typography>
         </Box>
 
@@ -224,7 +224,7 @@ const LoginForm = () => {
         </Box>
 
         <Typography variant="body2" color="text.secondary" align="center">
-          © 2025 ONG Empuje Comunitario
+          © 2025 Sistema de Gestión MultiONG
         </Typography>
       </Paper>
     </Box>

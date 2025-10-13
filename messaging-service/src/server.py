@@ -180,6 +180,7 @@ async def create_donation_offer(data: dict):
     try:
         donations = data.get('donations', [])
         user_id = data.get('userId')
+        user_organization = data.get('userOrganization')
         notes = data.get('notes')
         
         logger.info(
@@ -197,7 +198,7 @@ async def create_donation_offer(data: dict):
             raise HTTPException(status_code=400, detail="User ID is required")
         
         # Create donation offer
-        success, message, offer_id = offer_service.create_donation_offer(donations, user_id, notes)
+        success, message, offer_id = offer_service.create_donation_offer(donations, user_id, notes, user_organization)
         
         if success:
             return {
@@ -214,6 +215,48 @@ async def create_donation_offer(data: dict):
         logger.error("Error in create_donation_offer API", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@app.get("/api/getMyOffers")
+async def get_my_offers(organization: str):
+    """Get offers created by the user's organization"""
+    try:
+        logger.info("Getting my offers via API", organization=organization)
+        
+        offers = offer_service.get_my_offers(organization)
+        
+        return {
+            "success": True,
+            "offers": offers
+        }
+        
+    except Exception as e:
+        logger.error("Error in get_my_offers API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/deactivateOffer")
+async def deactivate_offer(data: dict):
+    """Deactivate a donation offer"""
+    try:
+        offer_id = data.get('offerId')
+        organization = data.get('organization')
+        
+        logger.info("Deactivating offer via API", offer_id=offer_id, organization=organization)
+        
+        success = offer_service.deactivate_offer(offer_id, organization)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Offer deactivated successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to deactivate offer")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in deactivate_offer API", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/getExternalOffers")
 async def get_external_offers(data: dict = None):

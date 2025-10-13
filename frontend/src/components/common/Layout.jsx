@@ -285,7 +285,7 @@ const Layout = () => {
           </IconButton>
 
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            ONG Empuje Comunitario
+            Sistema de Gestión MultiONG
           </Typography>
 
           {/* Menú de usuario en desktop */}

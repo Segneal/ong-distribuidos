@@ -34,7 +34,10 @@ import {
   SwapHoriz,
   LocalOffer,
   Hub,
-  Notifications
+  Notifications,
+  Assessment,
+  BarChart,
+  CloudSync
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
@@ -120,6 +123,24 @@ const Layout = () => {
       show: true
     });
 
+    // Reportes - según permisos
+    if (user?.rol === 'Presidente' || user?.rol === 'Vocal') {
+      organizationItems.push({
+        text: 'Reportes Donaciones',
+        icon: <Assessment />,
+        path: '/reports/donations',
+        show: true
+      });
+    }
+
+    // Reportes de eventos - todos los usuarios
+    organizationItems.push({
+      text: 'Reportes Eventos',
+      icon: <BarChart />,
+      path: '/reports/events',
+      show: true
+    });
+
     // Módulos de Red Interorganizacional
     networkItems.push({
       text: 'Red de ONGs',
@@ -160,6 +181,16 @@ const Layout = () => {
         text: 'Ofertas Red',
         icon: <LocalOffer />,
         path: '/donation-offers',
+        show: true
+      });
+    }
+
+    // Consulta SOAP - solo Presidentes
+    if (user?.rol === 'Presidente') {
+      networkItems.push({
+        text: 'Consulta Red',
+        icon: <CloudSync />,
+        path: '/network/consultation',
         show: true
       });
     }

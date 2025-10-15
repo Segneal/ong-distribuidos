@@ -19,6 +19,9 @@ import DonationRequests from './pages/DonationRequests';
 import DonationTransfers from './pages/DonationTransfers';
 import DonationOffers from './pages/DonationOffers';
 import AdhesionManagement from './pages/AdhesionManagement';
+import DonationReports from './pages/DonationReports';
+import EventReports from './pages/EventReports';
+import NetworkConsultationPage from './pages/NetworkConsultation';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -104,6 +107,27 @@ function App() {
           <Route path="adhesion-management" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOCAL', 'VOLUNTARIO']}>
               <AdhesionManagement />
+            </RoleProtectedRoute>
+          } />
+
+          {/* Reportes de Donaciones - PRESIDENTE y VOCAL */}
+          <Route path="reports/donations" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'VOCAL']}>
+              <DonationReports />
+            </RoleProtectedRoute>
+          } />
+
+          {/* Reportes de Eventos - Todos los roles */}
+          <Route path="reports/events" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOCAL', 'VOLUNTARIO']}>
+              <EventReports />
+            </RoleProtectedRoute>
+          } />
+
+          {/* Consulta de Red - Solo PRESIDENTE */}
+          <Route path="network/consultation" element={
+            <RoleProtectedRoute roles={['PRESIDENTE']}>
+              <NetworkConsultationPage />
             </RoleProtectedRoute>
           } />
 

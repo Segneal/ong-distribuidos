@@ -90,6 +90,17 @@ export const formatNumber = (number) => {
   return number.toLocaleString('es-ES');
 };
 
+// Formatear moneda
+export const formatCurrency = (amount) => {
+  if (typeof amount !== 'number') return '$0';
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
 // Manejar errores de API
 export const handleApiError = (error) => {
   if (error.response) {

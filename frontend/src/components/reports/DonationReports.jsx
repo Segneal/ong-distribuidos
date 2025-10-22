@@ -103,7 +103,7 @@ const DonationReports = () => {
       setExportError(null);
 
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/reports/donations/excel`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/reports/donations/excel`,
         { filtros: filters },
         {
           headers: getAuthHeaders(),
@@ -115,7 +115,7 @@ const DonationReports = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Obtener nombre del archivo del header o usar uno por defecto
       const contentDisposition = response.headers['content-disposition'];
       let filename = 'reporte_donaciones.xlsx';
@@ -125,7 +125,7 @@ const DonationReports = () => {
           filename = filenameMatch[1];
         }
       }
-      
+
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
@@ -172,7 +172,7 @@ const DonationReports = () => {
   return (
     <Box>
       {/* Filtros guardados */}
-      <DonationFilters 
+      <DonationFilters
         currentFilters={filters}
         onApplyFilter={handleApplySavedFilter}
       />
@@ -183,7 +183,7 @@ const DonationReports = () => {
           <FilterList />
           Filtros de Búsqueda
         </Typography>
-        
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
@@ -202,7 +202,7 @@ const DonationReports = () => {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
@@ -213,7 +213,7 @@ const DonationReports = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          
+
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
@@ -224,7 +224,7 @@ const DonationReports = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          
+
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
               <InputLabel>Estado</InputLabel>
@@ -328,18 +328,18 @@ const DonationReports = () => {
                   <Typography variant="h6">
                     {group.categoria}
                   </Typography>
-                  <Chip 
+                  <Chip
                     label={group.eliminado ? 'Eliminados' : 'Activos'}
                     color={group.eliminado ? 'error' : 'success'}
                     size="small"
                   />
                   <Box sx={{ ml: 'auto', display: 'flex', gap: 2 }}>
-                    <Chip 
+                    <Chip
                       label={`${group.registros.length} registros`}
                       variant="outlined"
                       size="small"
                     />
-                    <Chip 
+                    <Chip
                       label={`Total: ${formatQuantity(group.totalCantidad)}`}
                       color="primary"
                       size="small"
@@ -351,7 +351,7 @@ const DonationReports = () => {
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
+                      <TableRow key="header">
                         <TableCell>Fecha Alta</TableCell>
                         <TableCell>Descripción</TableCell>
                         <TableCell align="right">Cantidad</TableCell>
@@ -383,7 +383,7 @@ const DonationReports = () => {
                             {donation.usuarioModificacion?.nombre || '-'}
                           </TableCell>
                           <TableCell>
-                            <Chip 
+                            <Chip
                               label={donation.eliminado ? 'Eliminado' : 'Activo'}
                               color={donation.eliminado ? 'error' : 'success'}
                               size="small"

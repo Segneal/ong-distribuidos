@@ -112,29 +112,106 @@ router.post('/graphql', authenticateToken, (req, res) => {
 
     // Handle event participation report query
     if (query && query.includes('GetEventParticipationReport')) {
+      // Create data structure grouped by months as expected by the frontend
       return res.json({
         data: {
           eventParticipationReport: [
             {
-              id: "1",
-              nombre: "Campaña de Donación de Alimentos",
-              fecha: "2024-01-15",
-              organizacion: req.user.organization,
-              participantes: [
+              mes: "2024-01",
+              mesNombre: "Enero 2024",
+              eventos: [
                 {
                   id: "1",
-                  nombre: "Ana López",
-                  email: "ana@example.com",
-                  rol: "VOLUNTARIO"
+                  nombre: "Campaña de Donación de Alimentos",
+                  fecha: "2024-01-15",
+                  organizacion: req.user.organization,
+                  participantes: [
+                    {
+                      id: "1",
+                      nombre: "Ana López",
+                      email: "ana@example.com",
+                      rol: "VOLUNTARIO"
+                    },
+                    {
+                      id: "2", 
+                      nombre: "Carlos Ruiz",
+                      email: "carlos@example.com",
+                      rol: "COORDINADOR"
+                    }
+                  ],
+                  totalParticipantes: 2,
+                  donaciones: [
+                    {
+                      id: "1",
+                      categoria: "ALIMENTOS",
+                      cantidad: 150,
+                      donante: "Juan Pérez",
+                      fecha: "2024-01-15"
+                    },
+                    {
+                      id: "2",
+                      categoria: "ROPA",
+                      cantidad: 75,
+                      donante: "María García",
+                      fecha: "2024-01-15"
+                    }
+                  ]
                 },
                 {
-                  id: "2", 
-                  nombre: "Carlos Ruiz",
-                  email: "carlos@example.com",
-                  rol: "COORDINADOR"
+                  id: "2",
+                  nombre: "Distribución de Ropa",
+                  fecha: "2024-01-20",
+                  organizacion: req.user.organization,
+                  participantes: [
+                    {
+                      id: "3",
+                      nombre: "Pedro Martínez",
+                      email: "pedro@example.com",
+                      rol: "VOLUNTARIO"
+                    }
+                  ],
+                  totalParticipantes: 1,
+                  donaciones: [
+                    {
+                      id: "3",
+                      categoria: "ROPA",
+                      cantidad: 100,
+                      donante: "Ana Rodríguez",
+                      fecha: "2024-01-20"
+                    }
+                  ]
                 }
-              ],
-              totalParticipantes: 2
+              ]
+            },
+            {
+              mes: "2024-02",
+              mesNombre: "Febrero 2024",
+              eventos: [
+                {
+                  id: "3",
+                  nombre: "Campaña de Medicamentos",
+                  fecha: "2024-02-10",
+                  organizacion: req.user.organization,
+                  participantes: [
+                    {
+                      id: "1",
+                      nombre: "Ana López",
+                      email: "ana@example.com",
+                      rol: "VOLUNTARIO"
+                    }
+                  ],
+                  totalParticipantes: 1,
+                  donaciones: [
+                    {
+                      id: "4",
+                      categoria: "MEDICAMENTOS",
+                      cantidad: 50,
+                      donante: "Farmacia Central",
+                      fecha: "2024-02-10"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
@@ -278,6 +355,25 @@ router.get('/graphql/health', (req, res) => {
     timestamp: new Date().toISOString(),
     authentication: "required"
   });
+});
+
+// Excel export endpoint for donations (mock implementation)
+router.post('/reports/donations/excel', authenticateToken, (req, res) => {
+  try {
+    // Mock Excel file content (in a real implementation, you'd generate actual Excel)
+    const mockExcelContent = Buffer.from('Mock Excel Content - Donation Reports\nThis would be actual Excel data in a real implementation');
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="reporte_donaciones.xlsx"');
+    res.send(mockExcelContent);
+  } catch (error) {
+    console.error('Excel Export Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error generating Excel file',
+      message: 'No se pudo generar el archivo Excel'
+    });
+  }
 });
 
 module.exports = router;

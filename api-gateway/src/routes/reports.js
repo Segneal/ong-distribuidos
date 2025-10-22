@@ -116,8 +116,8 @@ const networkProxy = createProxyMiddleware({
 
 // Aplicar los proxies a las rutas correspondientes con validación de roles
 
-// GraphQL - Todos los usuarios autenticados (el servicio maneja la lógica de permisos internamente)
-router.use('/graphql', graphqlProxy);
+// GraphQL - Handled by dedicated GraphQL route (commented out to avoid conflicts)
+// router.use('/graphql', graphqlProxy);
 
 // Reportes REST - Solo PRESIDENTE y VOCAL para exportación Excel de donaciones
 router.use('/reports', requireRole(['PRESIDENTE', 'VOCAL']), reportsProxy);

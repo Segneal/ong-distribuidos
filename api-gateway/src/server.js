@@ -45,6 +45,7 @@ const donationRequestsRoutes = require('./routes/donationRequests');
 const messagingRoutes = require('./routes/messaging');
 const notificationsRoutes = require('./routes/notifications');
 const reportsRoutes = require('./routes/reports');
+const graphqlRoutes = require('./routes/graphql');
 
 
 // Configurar rutas
@@ -56,6 +57,7 @@ app.use('/api/donation-requests', donationRequestsRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api', reportsRoutes);
+app.use('/api', graphqlRoutes);
 
 
 // Ruta por defecto

@@ -157,6 +157,11 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
 
   // Formatear filtros para mostrar
   const formatFilterDisplay = (filtros) => {
+    // Add null/undefined check
+    if (!filtros) {
+      return 'Sin filtros específicos';
+    }
+    
     const parts = [];
     
     if (filtros.categoria) {

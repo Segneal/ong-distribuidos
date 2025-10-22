@@ -14,7 +14,7 @@ const API_CONFIG = {
 
 // Función para obtener el token de autenticación
 export const getAuthToken = () => {
-  return localStorage.getItem('token');
+  return localStorage.getItem('authToken');
 };
 
 // Función para obtener headers con autenticación

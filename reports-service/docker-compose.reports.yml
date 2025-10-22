@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  reports-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ong_reports_service
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://user:password@mysql:3306/ong_management
+      - SOAP_SERVICE_URL=https://soap-applatest.onrender.com/?wsdl
+      - JWT_SECRET_KEY=your-secret-key-change-in-production
+      - EXCEL_STORAGE_PATH=/app/storage/excel
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+    volumes:
+      - ./storage/excel:/app/storage/excel
+      - ./logs:/app/logs
+    depends_on:
+      - mysql
+    networks:
+      - ong_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mysql:
+    image: mysql:8.0
+    container_name: ong_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ong_management
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - ong_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  ong_network:
+    driver: bridge

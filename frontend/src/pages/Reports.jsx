@@ -46,8 +46,8 @@ const Reports = () => {
   const [tabValue, setTabValue] = useState(0);
 
   // Verificar permisos
-  const canViewDonationReports = user?.rol === 'PRESIDENTE' || user?.rol === 'VOCAL';
-  const canViewNetworkConsultation = user?.rol === 'PRESIDENTE';
+  const canViewDonationReports = user?.role === 'PRESIDENTE' || user?.role === 'VOCAL';
+  const canViewNetworkConsultation = user?.role === 'PRESIDENTE';
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);

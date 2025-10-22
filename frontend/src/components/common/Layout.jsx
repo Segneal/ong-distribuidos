@@ -34,7 +34,8 @@ import {
   SwapHoriz,
   LocalOffer,
   Hub,
-  Notifications
+  Notifications,
+  Assessment
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
@@ -117,6 +118,14 @@ const Layout = () => {
       text: 'Notificaciones',
       icon: <Notifications />,
       path: '/notifications',
+      show: true
+    });
+
+    // Reportes - disponible para todos los usuarios autenticados
+    organizationItems.push({
+      text: 'Reportes',
+      icon: <Assessment />,
+      path: '/reports',
       show: true
     });
 

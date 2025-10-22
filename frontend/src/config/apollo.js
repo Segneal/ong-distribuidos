@@ -21,12 +21,33 @@ const authLink = setContext((_, { headers }) => {
 // Cliente Apollo
 const apolloClient = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          donationReport: {
+            merge: false, // Always replace the cache with new data
+          },
+          eventParticipationReport: {
+            merge: false, // Always replace the cache with new data
+          },
+          savedDonationFilters: {
+            merge: false, // Always replace the cache with new data
+          },
+        },
+      },
+    },
+  }),
   defaultOptions: {
     watchQuery: {
       errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network',
     },
     query: {
+      errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network',
+    },
+    mutate: {
       errorPolicy: 'all',
     },
   },

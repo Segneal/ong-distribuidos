@@ -101,7 +101,12 @@
 
 ## Integración y Frontend (Pendiente)
 
-- [ ] 7. Extender API Gateway con nuevas rutas
+- [x] 7. Extender API Gateway con nuevas rutas
+
+
+
+
+
   - Añadir proxy para `/api/graphql` hacia servicio de reportes
   - Añadir proxy para `/api/reports/*` hacia servicio de reportes  
   - Añadir proxy para `/api/filters/*` hacia servicio de reportes
@@ -109,23 +114,43 @@
   - Configurar middleware de autenticación JWT para nuevas rutas
   - _Requerimientos: 8.1, 8.2, 8.3_
 
-- [ ] 8. Implementar componentes frontend para reportes de donaciones
-  - [ ] 8.1 Crear componente `DonationReports` con filtros
+- [x] 8. Implementar componentes frontend para reportes de donaciones
+
+
+
+
+
+  - [x] 8.1 Crear componente `DonationReports` con filtros
+
+
     - Implementar formulario de filtros (categoría, fechas, eliminado)
     - Integrar con GraphQL query `donationReport`
     - Mostrar resultados agrupados por categoría y estado
     - Implementar botón de exportación Excel
     - _Requerimientos: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1_
 
-  - [ ] 8.2 Crear componente `DonationFilters` para gestión de filtros guardados
+  - [x] 8.2 Crear componente `DonationFilters` para gestión de filtros guardados
+
+
     - Implementar lista de filtros guardados del usuario
     - Añadir funcionalidad para guardar filtro actual
     - Implementar edición y eliminación de filtros
     - Integrar con mutations GraphQL para filtros
     - _Requerimientos: 2.1, 2.4, 2.5, 2.6, 2.7, 2.8_
 
-- [ ] 9. Implementar componentes frontend para reportes de eventos
-  - [ ] 9.1 Crear componente `EventParticipationReports`
+- [x] 9. Implementar componentes frontend para reportes de eventos
+
+
+
+
+
+
+
+
+
+  - [x] 9.1 Crear componente `EventParticipationReports`
+
+
     - Implementar formulario de filtros (fechas, usuario, reparto donaciones)
     - Validar que usuario_id sea obligatorio
     - Implementar restricciones de acceso por rol
@@ -133,12 +158,19 @@
     - Integrar con GraphQL query `eventParticipationReport`
     - _Requerimientos: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
-  - [ ] 9.2 Crear componente `EventFilters` para gestión de filtros de eventos
+  - [x] 9.2 Crear componente `EventFilters` para gestión de filtros de eventos
+
+
     - Implementar gestión de filtros guardados para eventos
     - Integrar con endpoints REST para CRUD de filtros
     - _Requerimientos: 5.1, 5.4, 5.5, 5.6, 5.7, 5.8_
 
-- [ ] 10. Implementar componente frontend para consulta SOAP
+- [x] 10. Implementar componente frontend para consulta SOAP
+
+
+
+
+
   - Crear componente `NetworkConsultation` solo para Presidentes
   - Implementar input para lista de IDs de organizaciones
   - Mostrar resultados de presidentes y organizaciones
@@ -146,20 +178,31 @@
   - Integrar con endpoint REST `/api/network/consultation`
   - _Requerimientos: 6.1, 6.2, 6.5, 6.6, 6.7, 6.8_
 
-- [ ] 11. Configurar Apollo Client para GraphQL
+- [x] 11. Configurar Apollo Client para GraphQL
+
+
+
+
+
   - Extender configuración existente de Apollo Client
   - Añadir queries para reportes de donaciones y eventos
   - Añadir mutations para gestión de filtros de donaciones
   - Configurar endpoint GraphQL `/api/graphql`
   - _Requerimientos: 1.1, 2.3, 4.1, 4.4_
 
-- [ ] 12. Integrar componentes en aplicación React existente
+- [x] 12. Integrar componentes en aplicación React existente
+
+
+
+
+
   - Verificar que componentes estén correctamente importados en Reports.jsx
   - Asegurar que la navegación por tabs funcione correctamente
   - Validar permisos de acceso por rol en la UI
   - _Requerimientos: 1.1, 4.1, 6.1_
 
-- [ ]* 13. Testing y validación
+- [ ] 13. Testing y validación
+
   - [ ]* 13.1 Crear pruebas unitarias para componentes React
     - Escribir pruebas para componentes de reportes
     - Probar integración con GraphQL y REST APIs

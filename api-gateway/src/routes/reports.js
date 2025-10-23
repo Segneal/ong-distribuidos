@@ -70,24 +70,43 @@ const graphqlProxy = createProxyMiddleware({
 const reportsProxy = createProxyMiddleware({
     target: REPORTS_SERVICE_URL,
     changeOrigin: true,
+    timeout: 30000,
+    proxyTimeout: 30000,
     pathRewrite: {
         '^/api/reports': '/api/reports'
     },
     onProxyReq: (proxyReq, req, res) => {
+        console.log(`[Reports Proxy] PROXY REQ: ${req.method} ${req.url} -> ${REPORTS_SERVICE_URL}${req.url}`);
+        
         // Agregar información del usuario autenticado a los headers
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id);
             proxyReq.setHeader('X-User-Organization', req.user.organization);
             proxyReq.setHeader('X-User-Role', req.user.role);
+            console.log(`[Reports Proxy] User headers added for user ${req.user.id}`);
+        }
+        
+        // Fix content-length for JSON body
+        if (req.body && req.method === 'POST') {
+            const bodyData = JSON.stringify(req.body);
+            proxyReq.setHeader('Content-Type', 'application/json');
+            proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+            proxyReq.write(bodyData);
+            console.log(`[Reports Proxy] Body sent:`, bodyData);
         }
     },
+    onProxyRes: (proxyRes, req, res) => {
+        console.log(`[Reports Proxy] PROXY RES: ${proxyRes.statusCode} for ${req.url}`);
+    },
     onError: (err, req, res) => {
-        console.error('Reports Proxy Error:', err);
-        res.status(503).json({
-            success: false,
-            error: 'Reports service unavailable',
-            message: 'El servicio de reportes no está disponible'
-        });
+        console.error('[Reports Proxy] ERROR:', err.message);
+        if (!res.headersSent) {
+            res.status(503).json({
+                success: false,
+                error: 'Reports service unavailable',
+                message: 'El servicio de reportes no está disponible'
+            });
+        }
     }
 });
 

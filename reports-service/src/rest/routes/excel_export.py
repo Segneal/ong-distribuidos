@@ -20,9 +20,29 @@ router = APIRouter(prefix="/api/reports", tags=["Excel Export"])
 class DonationFilterInput(BaseModel):
     """Input model for donation filtering"""
     categoria: Optional[DonationCategory] = Field(None, description="Filter by donation category")
-    fecha_desde: Optional[datetime] = Field(None, description="Filter donations from this date")
-    fecha_hasta: Optional[datetime] = Field(None, description="Filter donations until this date")
+    fecha_desde: Optional[str] = Field(None, description="Filter donations from this date (YYYY-MM-DD format)")
+    fecha_hasta: Optional[str] = Field(None, description="Filter donations until this date (YYYY-MM-DD format)")
     eliminado: Optional[bool] = Field(None, description="Filter by eliminated status - True, False, or None for both")
+    
+    def get_fecha_desde_datetime(self) -> Optional[datetime]:
+        """Convert fecha_desde string to datetime object"""
+        if self.fecha_desde:
+            try:
+                return datetime.strptime(self.fecha_desde, "%Y-%m-%d")
+            except ValueError:
+                return None
+        return None
+    
+    def get_fecha_hasta_datetime(self) -> Optional[datetime]:
+        """Convert fecha_hasta string to datetime object"""
+        if self.fecha_hasta:
+            try:
+                # Set to end of day (23:59:59)
+                date_obj = datetime.strptime(self.fecha_hasta, "%Y-%m-%d")
+                return date_obj.replace(hour=23, minute=59, second=59)
+            except ValueError:
+                return None
+        return None
 
 
 class ExcelExportResponse(BaseModel):
@@ -47,30 +67,40 @@ async def export_donations_to_excel(
     
     **Requirements:** User must be Presidente or Vocal to access donation reports.
     """
+    print(f"[EXCEL EXPORT] User: {current_user.nombre_usuario} ({current_user.rol.value})")
+    print(f"[EXCEL EXPORT] Filters: {filters}")
+    
     # Validate user access
     require_donation_report_access(current_user)
     
     try:
+        print("[EXCEL EXPORT] Creating ExcelExportService...")
         excel_service = ExcelExportService()
         
+        print("[EXCEL EXPORT] Generating Excel file...")
         # Generate Excel file
         excel_file = excel_service.generate_donation_excel(
             user_id=current_user.id,
             categoria=filters.categoria,
-            fecha_desde=filters.fecha_desde,
-            fecha_hasta=filters.fecha_hasta,
+            fecha_desde=filters.get_fecha_desde_datetime(),
+            fecha_hasta=filters.get_fecha_hasta_datetime(),
             eliminado=filters.eliminado
         )
+        
+        print(f"[EXCEL EXPORT] Excel file generated: {excel_file.id}")
         
         # Schedule cleanup of expired files in background
         background_tasks.add_task(excel_service.cleanup_expired_files)
         
-        return ExcelExportResponse(
+        response = ExcelExportResponse(
             file_id=excel_file.id,
             download_url=f"/api/reports/downloads/{excel_file.id}",
             filename=excel_file.nombre_archivo,
             expires_at=excel_file.fecha_expiracion
         )
+        
+        print(f"[EXCEL EXPORT] Returning response: {response}")
+        return response
         
     except Exception as e:
         raise HTTPException(

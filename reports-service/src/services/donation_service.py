@@ -126,7 +126,7 @@ class DonationService:
             List of filtered donations
         """
         with get_db_session() as session:
-            # Build base query
+            # Build base query without relationships to avoid session issues
             query = session.query(Donation)
             
             # Apply filters

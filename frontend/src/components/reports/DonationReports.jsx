@@ -103,44 +103,71 @@ const DonationReports = () => {
 
   // Exportar a Excel
   const handleExportExcel = async () => {
+    console.log('[EXCEL EXPORT] Iniciando exportación...');
+    console.log('[EXCEL EXPORT] Filtros:', filters);
+    console.log('[EXCEL EXPORT] URL:', `${process.env.REACT_APP_API_URL}/reports/donations/excel`);
+    console.log('[EXCEL EXPORT] Headers:', getAuthHeaders());
+    
     try {
       setIsExporting(true);
       setExportError(null);
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/reports/donations/excel`,
-        { filtros: filters },
+      // Paso 1: Generar el archivo Excel
+      console.log('[EXCEL EXPORT] Enviando request para generar archivo...');
+      const generateResponse = await axios.post(
+        `${process.env.REACT_APP_API_URL}/reports/donations/excel`,
+        {
+          categoria: filters.categoria || null,
+          fecha_desde: filters.fechaDesde || null,
+          fecha_hasta: filters.fechaHasta || null,
+          eliminado: filters.eliminado
+        },
         {
           headers: getAuthHeaders(),
-          responseType: 'blob'
+          timeout: 30000 // 30 segundos timeout
         }
       );
+      
+      console.log('[EXCEL EXPORT] Respuesta de generación:', generateResponse.data);
+
+      const { file_id, filename } = generateResponse.data;
+      console.log('[EXCEL EXPORT] File ID:', file_id, 'Filename:', filename);
+
+      // Paso 2: Descargar el archivo generado
+      console.log('[EXCEL EXPORT] Descargando archivo...');
+      const downloadResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/reports/downloads/${file_id}`,
+        {
+          headers: getAuthHeaders(),
+          responseType: 'blob',
+          timeout: 30000 // 30 segundos timeout
+        }
+      );
+      
+      console.log('[EXCEL EXPORT] Archivo descargado, tamaño:', downloadResponse.data.size);
 
       // Crear enlace de descarga
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      console.log('[EXCEL EXPORT] Creando enlace de descarga...');
+      const url = window.URL.createObjectURL(new Blob([downloadResponse.data]));
       const link = document.createElement('a');
       link.href = url;
-
-      // Obtener nombre del archivo del header o usar uno por defecto
-      const contentDisposition = response.headers['content-disposition'];
-      let filename = 'reporte_donaciones.xlsx';
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
-      }
-
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      console.log('[EXCEL EXPORT] ¡Descarga completada!');
     } catch (error) {
-      console.error('Error al exportar Excel:', error);
+      console.error('[EXCEL EXPORT] Error al exportar Excel:', error);
+      if (error.response) {
+        console.error('[EXCEL EXPORT] Response data:', error.response.data);
+        console.error('[EXCEL EXPORT] Response status:', error.response.status);
+        console.error('[EXCEL EXPORT] Response headers:', error.response.headers);
+      }
       setExportError('Error al generar el archivo Excel. Por favor, intente nuevamente.');
     } finally {
       setIsExporting(false);
+      console.log('[EXCEL EXPORT] Proceso finalizado');
     }
   };
 
@@ -197,6 +224,11 @@ const DonationReports = () => {
 
   const reportData = data?.donationReport || [];
   const totalGeneral = reportData.reduce((sum, group) => sum + group.totalCantidad, 0);
+  
+  console.log('[DONATION REPORTS] Report data:', reportData);
+  console.log('[DONATION REPORTS] Report data length:', reportData.length);
+  console.log('[DONATION REPORTS] Is exporting:', isExporting);
+  console.log('[DONATION REPORTS] Button disabled:', isExporting || reportData.length === 0);
 
   return (
     <Box>

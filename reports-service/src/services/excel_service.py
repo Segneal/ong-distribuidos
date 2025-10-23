@@ -49,7 +49,8 @@ class ExcelExportService:
         Returns:
             ExcelFile object with file information
         """
-        # Get filtered donations
+        print("[EXCEL] Getting donations from service...")
+        # Get filtered donations using the service
         donations = self.donation_service.get_donations_by_filters(
             categoria=categoria,
             fecha_desde=fecha_desde,
@@ -57,8 +58,12 @@ class ExcelExportService:
             eliminado=eliminado
         )
         
+        print(f"[EXCEL] Got {len(donations)} donations")
+        
         # Group donations by category
+        print("[EXCEL] Grouping donations by category...")
         donations_by_category = self._group_donations_by_category(donations)
+        print(f"[EXCEL] Grouped into {len(donations_by_category)} categories")
         
         # Generate Excel file
         file_id = str(uuid.uuid4())
@@ -85,10 +90,17 @@ class ExcelExportService:
     def _group_donations_by_category(self, donations: List[Donation]) -> Dict[DonationCategory, List[Donation]]:
         """Group donations by category"""
         grouped = {}
-        for donation in donations:
-            if donation.categoria not in grouped:
-                grouped[donation.categoria] = []
-            grouped[donation.categoria].append(donation)
+        for i, donation in enumerate(donations):
+            print(f"[EXCEL] Processing donation {i+1}: ID={donation.id}")
+            try:
+                categoria = donation.categoria
+                print(f"[EXCEL] Donation {i+1} category: {categoria}")
+                if categoria not in grouped:
+                    grouped[categoria] = []
+                grouped[categoria].append(donation)
+            except Exception as e:
+                print(f"[EXCEL] Error processing donation {i+1}: {e}")
+                raise
         return grouped
     
     def _generate_filename(
@@ -179,16 +191,12 @@ class ExcelExportService:
             worksheet.cell(row=row, column=4, value=donation.cantidad)
             worksheet.cell(row=row, column=5, value="Sí" if donation.eliminado else "No")
             
-            # Usuario creación
-            usuario_creacion = ""
-            if donation.usuario_creador:
-                usuario_creacion = f"{donation.usuario_creador.nombre} {donation.usuario_creador.apellido}"
+            # Usuario creación - usar ID por ahora
+            usuario_creacion = f"Usuario ID: {donation.usuario_alta}" if donation.usuario_alta else "N/A"
             worksheet.cell(row=row, column=6, value=usuario_creacion)
             
-            # Usuario modificación
-            usuario_modificacion = ""
-            if donation.usuario_modificador:
-                usuario_modificacion = f"{donation.usuario_modificador.nombre} {donation.usuario_modificador.apellido}"
+            # Usuario modificación - usar ID por ahora
+            usuario_modificacion = f"Usuario ID: {donation.usuario_modificacion}" if donation.usuario_modificacion else "N/A"
             worksheet.cell(row=row, column=7, value=usuario_modificacion)
             
             # Fecha modificación

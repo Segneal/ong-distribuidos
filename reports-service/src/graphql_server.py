@@ -48,6 +48,44 @@ MOCK_EVENTS = [
     }
 ]
 
+# SOAP Types
+class PresidentType(graphene.ObjectType):
+    organization_id = graphene.Int()
+    president_name = graphene.String()
+    president_email = graphene.String()
+    president_phone = graphene.String()
+    president_id = graphene.Int()
+    president_address = graphene.String()
+    start_date = graphene.String()
+    status = graphene.String()
+
+class OrganizationType(graphene.ObjectType):
+    organization_id = graphene.Int()
+    organization_name = graphene.String()
+    organization_type = graphene.String()
+    address = graphene.String()
+    city = graphene.String()
+    country = graphene.String()
+    phone = graphene.String()
+    email = graphene.String()
+    website = graphene.String()
+    registration_date = graphene.String()
+    status = graphene.String()
+    description = graphene.String()
+
+class NetworkConsultationType(graphene.ObjectType):
+    presidents = graphene.List(PresidentType)
+    organizations = graphene.List(OrganizationType)
+    query_ids = graphene.List(graphene.Int)
+    total_presidents = graphene.Int()
+    total_organizations = graphene.Int()
+    errors = graphene.List(graphene.String)
+
+class SOAPConnectionTestType(graphene.ObjectType):
+    connected = graphene.Boolean()
+    service_url = graphene.String()
+    message = graphene.String()
+
 # GraphQL Types
 class DonationType(graphene.ObjectType):
     id = graphene.String()
@@ -103,6 +141,21 @@ class Query(graphene.ObjectType):
     event_participation_report = graphene.List(MonthEventType)
     saved_donation_filters = graphene.List(SavedFilterType)
     
+    # SOAP Queries
+    network_consultation = graphene.Field(
+        NetworkConsultationType,
+        organization_ids=graphene.List(graphene.Int, required=True)
+    )
+    presidents_only = graphene.List(
+        PresidentType,
+        organization_ids=graphene.List(graphene.Int, required=True)
+    )
+    organizations_only = graphene.List(
+        OrganizationType,
+        organization_ids=graphene.List(graphene.Int, required=True)
+    )
+    soap_connection_test = graphene.Field(SOAPConnectionTestType)
+    
     def resolve_donation_report(self, info):
         # Group donations by category
         groups = {}
@@ -154,6 +207,125 @@ class Query(graphene.ObjectType):
                 "fecha_creacion": "2024-01-12"
             }
         ]
+    
+    # SOAP Resolvers
+    def resolve_network_consultation(self, info, organization_ids):
+        try:
+            from .services.soap_service import get_soap_service
+            
+            soap_service = get_soap_service()
+            response = soap_service.get_network_consultation(organization_ids)
+            
+            return {
+                "presidents": [
+                    {
+                        "organization_id": p.organization_id,
+                        "president_name": p.president_name,
+                        "president_email": p.president_email,
+                        "president_phone": p.president_phone,
+                        "president_id": p.president_id,
+                        "president_address": getattr(p, 'president_address', None),
+                        "start_date": p.start_date,
+                        "status": p.status
+                    } for p in response.presidents
+                ],
+                "organizations": [
+                    {
+                        "organization_id": o.organization_id,
+                        "organization_name": o.organization_name,
+                        "organization_type": o.organization_type,
+                        "address": o.address,
+                        "city": o.city,
+                        "country": o.country,
+                        "phone": o.phone,
+                        "email": o.email,
+                        "website": o.website,
+                        "registration_date": o.registration_date,
+                        "status": o.status,
+                        "description": o.description
+                    } for o in response.organizations
+                ],
+                "query_ids": response.query_ids,
+                "total_presidents": response.total_presidents,
+                "total_organizations": response.total_organizations,
+                "errors": response.errors
+            }
+        except Exception as e:
+            return {
+                "presidents": [],
+                "organizations": [],
+                "query_ids": organization_ids,
+                "total_presidents": 0,
+                "total_organizations": 0,
+                "errors": [str(e)]
+            }
+    
+    def resolve_presidents_only(self, info, organization_ids):
+        try:
+            from .services.soap_service import get_soap_service
+            
+            soap_service = get_soap_service()
+            presidents = soap_service.get_president_data_only(organization_ids)
+            
+            return [
+                {
+                    "organization_id": p.organization_id,
+                    "president_name": p.president_name,
+                    "president_email": p.president_email,
+                    "president_phone": p.president_phone,
+                    "president_id": p.president_id,
+                    "president_address": getattr(p, 'president_address', None),
+                    "start_date": p.start_date,
+                    "status": p.status
+                } for p in presidents
+            ]
+        except Exception as e:
+            return []
+    
+    def resolve_organizations_only(self, info, organization_ids):
+        try:
+            from .services.soap_service import get_soap_service
+            
+            soap_service = get_soap_service()
+            organizations = soap_service.get_organization_data_only(organization_ids)
+            
+            return [
+                {
+                    "organization_id": o.organization_id,
+                    "organization_name": o.organization_name,
+                    "organization_type": o.organization_type,
+                    "address": o.address,
+                    "city": o.city,
+                    "country": o.country,
+                    "phone": o.phone,
+                    "email": o.email,
+                    "website": o.website,
+                    "registration_date": o.registration_date,
+                    "status": o.status,
+                    "description": o.description
+                } for o in organizations
+            ]
+        except Exception as e:
+            return []
+    
+    def resolve_soap_connection_test(self, info):
+        try:
+            from .services.soap_service import get_soap_service
+            
+            soap_service = get_soap_service()
+            result = soap_service.test_soap_connection()
+            
+            return {
+                "connected": result['connected'],
+                "service_url": result['service_url'],
+                "message": result['message']
+            }
+        except Exception as e:
+            return {
+                "connected": False,
+                "service_url": "Unknown",
+                "message": f"Connection test failed: {str(e)}"
+            }
 
 # Mutations
 class DonationFilterInput(graphene.InputObjectType):
@@ -255,7 +427,7 @@ def create_app():
         }
     
     # Add GraphQL endpoint
-    @app.post("/graphql")
+    @app.post("/api/graphql")
     async def graphql_endpoint(request: Request):
         print(f"🔥 GraphQL POST request received - simplified version")
         
@@ -264,57 +436,25 @@ def create_app():
             query = body.get("query", "")
             print(f"🔥 Query received: {query[:100]}...")
             
-            # Check what type of query it is and return appropriate response
-            if "savedDonationFilters" in query:
-                print(f"🔥 Returning savedDonationFilters")
+            # Execute GraphQL query using the schema
+            variables = body.get("variables", {})
+            result = schema.execute(query, variables=variables)
+            
+            if result.errors:
+                print(f"🔥 GraphQL errors: {result.errors}")
                 return JSONResponse({
-                    "data": {
-                        "savedDonationFilters": [
-                            {
-                                "id": "1",
-                                "nombre": "Filtro Test",
-                                "filtros": {
-                                    "categoria": "ALIMENTOS",
-                                    "fechaDesde": "2024-01-01",
-                                    "fechaHasta": None,
-                                    "eliminado": False
-                                },
-                                "fechaCreacion": "2024-01-10"
-                            }
-                        ]
-                    }
+                    "data": result.data,
+                    "errors": [{"message": str(error)} for error in result.errors]
                 })
-            elif "donationReport" in query:
-                print(f"🔥 Returning donationReport")
-                return JSONResponse({
-                    "data": {
-                        "donationReport": [
-                            {
-                                "categoria": "ALIMENTOS",
-                                "eliminado": False,
-                                "registros": [
-                                    {
-                                        "id": "1",
-                                        "categoria": "ALIMENTOS",
-                                        "cantidad": 150,
-                                        "fechaDonacion": "2024-01-15",
-                                        "descripcion": "Test donation"
-                                    }
-                                ],
-                                "totalCantidad": 150
-                            }
-                        ]
-                    }
-                })
-            else:
-                print(f"🔥 Unknown query, returning empty")
-                return JSONResponse({"data": {}})
+            
+            print(f"🔥 GraphQL query executed successfully")
+            return JSONResponse({"data": result.data})
                 
         except Exception as e:
             print(f"🔥 Error: {e}")
             return JSONResponse({"data": {}})
     
-    @app.get("/graphql")
+    @app.get("/api/graphql")
     async def graphql_playground():
         print(f"🔥 GraphQL GET request received")
         return {

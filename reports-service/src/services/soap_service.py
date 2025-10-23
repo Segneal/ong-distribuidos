@@ -15,7 +15,7 @@ class SOAPService:
     def __init__(self):
         self.soap_client = get_soap_client()
     
-    async def get_network_consultation(self, organization_ids: List[int]) -> NetworkConsultationResponse:
+    def get_network_consultation(self, organization_ids: List[int]) -> NetworkConsultationResponse:
         """
         Get network consultation data for the given organization IDs.
         
@@ -85,7 +85,7 @@ class SOAPService:
                 errors=[f"Internal server error: {str(e)}"]
             )
     
-    async def get_president_data_only(self, organization_ids: List[int]) -> List[PresidentData]:
+    def get_president_data_only(self, organization_ids: List[int]) -> List[PresidentData]:
         """
         Get only president data for the given organization IDs.
         
@@ -121,7 +121,7 @@ class SOAPService:
             logger.error(f"Error querying president data: {e}")
             raise
     
-    async def get_organization_data_only(self, organization_ids: List[int]) -> List[OrganizationData]:
+    def get_organization_data_only(self, organization_ids: List[int]) -> List[OrganizationData]:
         """
         Get only organization data for the given organization IDs.
         
@@ -157,7 +157,7 @@ class SOAPService:
             logger.error(f"Error querying organization data: {e}")
             raise
     
-    async def test_soap_connection(self) -> Dict[str, Any]:
+    def test_soap_connection(self) -> Dict[str, Any]:
         """
         Test the SOAP service connection.
         

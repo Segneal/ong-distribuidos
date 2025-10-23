@@ -15,6 +15,7 @@ openpyxl==3.1.2
 
 # SOAP Client
 zeep==4.2.1
+requests==2.31.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0

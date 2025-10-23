@@ -5,7 +5,7 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 // Configuración del reports service
-const REPORTS_SERVICE_URL = process.env.REPORTS_SERVICE_URL || 'http://localhost:8002';
+const REPORTS_SERVICE_URL = process.env.REPORTS_SERVICE_URL || 'http://localhost:8001';
 
 // Middleware de autenticación para todas las rutas de reportes
 router.use((req, res, next) => {

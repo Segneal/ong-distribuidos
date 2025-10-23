@@ -2,9 +2,9 @@
 SOAP client for querying external ONG network data.
 """
 import logging
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
-from zeep import Client, Settings
-from zeep.exceptions import Fault, TransportError
+import requests
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -14,30 +14,104 @@ class SOAPClient:
     
     def __init__(self):
         self.settings = get_settings()
-        self.client = None
-        self._initialize_client()
+        self.base_url = "https://soap-app-latest.onrender.com/"
+        self.auth_group = "GrupoA-TM"
+        self.auth_key = "clave-tm-a"
     
-    def _initialize_client(self):
-        """Initialize the SOAP client with the WSDL URL."""
+    def _create_soap_envelope(self, action: str, org_ids: List[int]) -> str:
+        """Create SOAP envelope for the request."""
+        org_ids_xml = "\n        ".join([f"<tns:string>{org_id}</tns:string>" for org_id in org_ids])
+        
+        return f"""<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:auth="auth.headers" xmlns:tns="soap.backend">
+  <soapenv:Header>
+    <auth:Auth>
+      <auth:Grupo>{self.auth_group}</auth:Grupo>
+      <auth:Clave>{self.auth_key}</auth:Clave>
+    </auth:Auth>
+  </soapenv:Header>
+  <soapenv:Body>
+    <tns:{action}>
+      <tns:org_ids>
+        {org_ids_xml}
+      </tns:org_ids>
+    </tns:{action}>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+    
+    def _make_soap_request(self, action: str, org_ids: List[int]) -> str:
+        """Make SOAP request and return response."""
         try:
-            # Configure zeep settings
-            settings = Settings(
-                strict=False,  # Allow non-strict mode for better compatibility
-                xml_huge_tree=True,
-                operation_timeout=self.settings.SOAP_TIMEOUT
+            soap_envelope = self._create_soap_envelope(action, org_ids)
+            
+            headers = {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': action
+            }
+            
+            response = requests.post(
+                self.base_url,
+                data=soap_envelope,
+                headers=headers,
+                timeout=30
             )
             
-            # Create the SOAP client
-            self.client = Client(
-                wsdl=self.settings.SOAP_SERVICE_URL,
-                settings=settings
-            )
+            response.raise_for_status()
+            return response.text
             
-            logger.info(f"SOAP client initialized successfully with WSDL: {self.settings.SOAP_SERVICE_URL}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"SOAP request failed: {e}")
+            raise SOAPServiceError(f"SOAP request failed: {e}")
+    
+    def _parse_xml_response(self, xml_response: str, data_type: str) -> List[Dict[str, Any]]:
+        """Parse XML response and extract data."""
+        try:
+            root = ET.fromstring(xml_response)
             
-        except Exception as e:
-            logger.error(f"Failed to initialize SOAP client: {str(e)}")
-            raise
+            # Define namespaces
+            namespaces = {
+                'soap11env': 'http://schemas.xmlsoap.org/soap/envelope/',
+                'tns': 'soap.backend',
+                's0': 'models'
+            }
+            
+            results = []
+            
+            if data_type == 'organizations':
+                # Find organization elements
+                org_elements = root.findall('.//s0:OrganizationType', namespaces)
+                for org in org_elements:
+                    org_data = {
+                        'id': self._get_element_text(org, 's0:id', namespaces),
+                        'name': self._get_element_text(org, 's0:name', namespaces),
+                        'address': self._get_element_text(org, 's0:address', namespaces),
+                        'phone': self._get_element_text(org, 's0:phone', namespaces)
+                    }
+                    results.append(org_data)
+            
+            elif data_type == 'presidents':
+                # Find president elements
+                pres_elements = root.findall('.//s0:PresidentType', namespaces)
+                for pres in pres_elements:
+                    pres_data = {
+                        'id': self._get_element_text(pres, 's0:id', namespaces),
+                        'name': self._get_element_text(pres, 's0:name', namespaces),
+                        'address': self._get_element_text(pres, 's0:address', namespaces),
+                        'phone': self._get_element_text(pres, 's0:phone', namespaces),
+                        'organization_id': self._get_element_text(pres, 's0:organization_id', namespaces)
+                    }
+                    results.append(pres_data)
+            
+            return results
+            
+        except ET.ParseError as e:
+            logger.error(f"Failed to parse XML response: {e}")
+            raise SOAPServiceError(f"Failed to parse XML response: {e}")
+    
+    def _get_element_text(self, parent, tag, namespaces):
+        """Get text content of an XML element."""
+        element = parent.find(tag, namespaces)
+        return element.text if element is not None else None
     
     def get_president_data(self, organization_ids: List[int]) -> List[Dict[str, Any]]:
         """
@@ -58,42 +132,30 @@ class SOAPClient:
         try:
             logger.info(f"Querying president data for organizations: {organization_ids}")
             
-            # Call the SOAP service method for president data
-            # Note: The actual method name may need to be adjusted based on the WSDL
-            response = self.client.service.getPresidentData(organizationIds=organization_ids)
+            # Make SOAP request for presidents
+            xml_response = self._make_soap_request('list_presidents', organization_ids)
             
-            # Process the response
-            president_data = []
-            if response:
-                # Handle different response formats
-                if hasattr(response, 'presidents'):
-                    presidents = response.presidents
-                elif isinstance(response, list):
-                    presidents = response
-                else:
-                    presidents = [response] if response else []
-                
-                for president in presidents:
-                    president_info = {
-                        'organization_id': getattr(president, 'organizationId', None),
-                        'president_name': getattr(president, 'presidentName', None),
-                        'president_email': getattr(president, 'presidentEmail', None),
-                        'president_phone': getattr(president, 'presidentPhone', None),
-                        'president_id': getattr(president, 'presidentId', None),
-                        'start_date': getattr(president, 'startDate', None),
-                        'status': getattr(president, 'status', None)
-                    }
-                    president_data.append(president_info)
+            # Parse response
+            president_data = self._parse_xml_response(xml_response, 'presidents')
             
-            logger.info(f"Successfully retrieved {len(president_data)} president records")
-            return president_data
+            # Convert to expected format
+            formatted_data = []
+            for pres in president_data:
+                president_info = {
+                    'organization_id': int(pres['organization_id']) if pres['organization_id'] else None,
+                    'president_name': pres['name'],
+                    'president_email': None,  # Not provided in current SOAP response
+                    'president_phone': pres['phone'],
+                    'president_id': int(pres['id']) if pres['id'] else None,
+                    'president_address': pres['address'],
+                    'start_date': None,  # Not provided in current SOAP response
+                    'status': 'active'  # Default status
+                }
+                formatted_data.append(president_info)
             
-        except Fault as e:
-            logger.error(f"SOAP Fault when querying president data: {e}")
-            raise SOAPServiceError(f"SOAP service error: {e}")
-        except TransportError as e:
-            logger.error(f"SOAP Transport error when querying president data: {e}")
-            raise SOAPServiceError(f"SOAP transport error: {e}")
+            logger.info(f"Successfully retrieved {len(formatted_data)} president records")
+            return formatted_data
+            
         except Exception as e:
             logger.error(f"Unexpected error when querying president data: {e}")
             raise SOAPServiceError(f"Unexpected SOAP error: {e}")
@@ -117,47 +179,34 @@ class SOAPClient:
         try:
             logger.info(f"Querying organization data for organizations: {organization_ids}")
             
-            # Call the SOAP service method for organization data
-            # Note: The actual method name may need to be adjusted based on the WSDL
-            response = self.client.service.getOrganizationData(organizationIds=organization_ids)
+            # Make SOAP request for organizations
+            xml_response = self._make_soap_request('list_associations', organization_ids)
             
-            # Process the response
-            organization_data = []
-            if response:
-                # Handle different response formats
-                if hasattr(response, 'organizations'):
-                    organizations = response.organizations
-                elif isinstance(response, list):
-                    organizations = response
-                else:
-                    organizations = [response] if response else []
-                
-                for org in organizations:
-                    org_info = {
-                        'organization_id': getattr(org, 'organizationId', None),
-                        'organization_name': getattr(org, 'organizationName', None),
-                        'organization_type': getattr(org, 'organizationType', None),
-                        'address': getattr(org, 'address', None),
-                        'city': getattr(org, 'city', None),
-                        'country': getattr(org, 'country', None),
-                        'phone': getattr(org, 'phone', None),
-                        'email': getattr(org, 'email', None),
-                        'website': getattr(org, 'website', None),
-                        'registration_date': getattr(org, 'registrationDate', None),
-                        'status': getattr(org, 'status', None),
-                        'description': getattr(org, 'description', None)
-                    }
-                    organization_data.append(org_info)
+            # Parse response
+            organization_data = self._parse_xml_response(xml_response, 'organizations')
             
-            logger.info(f"Successfully retrieved {len(organization_data)} organization records")
-            return organization_data
+            # Convert to expected format
+            formatted_data = []
+            for org in organization_data:
+                org_info = {
+                    'organization_id': int(org['id']) if org['id'] else None,
+                    'organization_name': org['name'],
+                    'organization_type': 'ONG',  # Default type
+                    'address': org['address'],
+                    'city': None,  # Not provided in current SOAP response
+                    'country': None,  # Not provided in current SOAP response
+                    'phone': org['phone'],
+                    'email': None,  # Not provided in current SOAP response
+                    'website': None,  # Not provided in current SOAP response
+                    'registration_date': None,  # Not provided in current SOAP response
+                    'status': 'active',  # Default status
+                    'description': None  # Not provided in current SOAP response
+                }
+                formatted_data.append(org_info)
             
-        except Fault as e:
-            logger.error(f"SOAP Fault when querying organization data: {e}")
-            raise SOAPServiceError(f"SOAP service error: {e}")
-        except TransportError as e:
-            logger.error(f"SOAP Transport error when querying organization data: {e}")
-            raise SOAPServiceError(f"SOAP transport error: {e}")
+            logger.info(f"Successfully retrieved {len(formatted_data)} organization records")
+            return formatted_data
+            
         except Exception as e:
             logger.error(f"Unexpected error when querying organization data: {e}")
             raise SOAPServiceError(f"Unexpected SOAP error: {e}")
@@ -202,11 +251,9 @@ class SOAPClient:
             True if connection is successful, False otherwise
         """
         try:
-            # Try to get service info or make a simple call
-            if self.client and hasattr(self.client, 'service'):
-                logger.info("SOAP client connection test successful")
-                return True
-            return False
+            # Test with a simple request
+            test_response = self._make_soap_request('list_associations', [1])
+            return True if test_response else False
         except Exception as e:
             logger.error(f"SOAP connection test failed: {e}")
             return False

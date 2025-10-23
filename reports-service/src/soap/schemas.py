@@ -13,6 +13,7 @@ class PresidentData(BaseModel):
     president_email: Optional[str] = Field(None, description="Email of the president")
     president_phone: Optional[str] = Field(None, description="Phone number of the president")
     president_id: Optional[int] = Field(None, description="ID of the president")
+    president_address: Optional[str] = Field(None, description="Address of the president")
     start_date: Optional[str] = Field(None, description="Start date of presidency")
     status: Optional[str] = Field(None, description="Status of the president")
 

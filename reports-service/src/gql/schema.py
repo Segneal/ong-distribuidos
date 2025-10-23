@@ -7,9 +7,11 @@ from .types.user import UserType
 from .types.donation import DonationType, DonationReportType, DonationFilterInput
 from .types.event import EventType, EventParticipationReportType, EventFilterInput
 from .types.filter import SavedFilterType, SavedFilterInput
+from .types.transfer import TransferReportType, DonationTransferType
 from .resolvers.donation_resolvers import DonationResolver
 from .resolvers.event_resolvers import EventResolver
 from .resolvers.filter_resolvers import FilterResolver
+from .resolvers.transfer_resolvers import TransferResolver
 
 
 @strawberry.type
@@ -18,6 +20,9 @@ class Query:
     
     # Donation queries
     donation_report: List[DonationReportType] = strawberry.field(resolver=DonationResolver.get_donation_report)
+    
+    # Transfer queries
+    transfer_report: List[TransferReportType] = strawberry.field(resolver=TransferResolver.get_transfer_report)
     
     # Event queries
     event_participation_report: List[EventParticipationReportType] = strawberry.field(resolver=EventResolver.get_event_participation_report)

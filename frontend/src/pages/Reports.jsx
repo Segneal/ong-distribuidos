@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import DonationReports from '../components/reports/DonationReports';
+import TransferReports from '../components/reports/TransferReports';
 import EventReports from '../components/reports/EventReports';
 import NetworkConsultation from '../components/reports/NetworkConsultation';
 
@@ -65,6 +66,11 @@ const Reports = () => {
 
   if (canViewDonationReports) {
     tabs.unshift({
+      label: 'Transferencias de Red',
+      icon: <TrendingUp />,
+      show: true,
+      description: 'Historial de transferencias de donaciones entre organizaciones'
+    }, {
       label: 'Reportes de Donaciones',
       icon: <Assessment />,
       show: true,
@@ -124,9 +130,12 @@ const Reports = () => {
 
             {/* Contenido según el tab */}
             {index === 0 && canViewDonationReports && (
+              <TransferReports />
+            )}
+            {index === 1 && canViewDonationReports && (
               <DonationReports />
             )}
-            {((index === 0 && !canViewDonationReports) || (index === 1 && canViewDonationReports)) && (
+            {((index === 0 && !canViewDonationReports) || (index === 2 && canViewDonationReports)) && (
               <EventReports />
             )}
             {index === visibleTabs.length - 1 && canViewNetworkConsultation && (

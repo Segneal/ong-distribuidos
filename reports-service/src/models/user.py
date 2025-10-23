@@ -27,6 +27,12 @@ class User(Base):
     fecha_creacion = Column(DateTime)
     fecha_actualizacion = Column(DateTime)
     
+    # Organization field - will be populated from JWT token
+    @property
+    def organization(self):
+        """Get organization from context or default"""
+        return getattr(self, '_organization', 'empuje-comunitario')
+    
     # Relationships will be defined after all models are loaded
     
     def __repr__(self):

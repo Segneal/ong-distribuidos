@@ -79,12 +79,14 @@ async def export_donations_to_excel(
         
         print("[EXCEL EXPORT] Generating Excel file...")
         # Generate Excel file
+        user_organization = getattr(current_user, '_organization', 'empuje-comunitario')
         excel_file = excel_service.generate_donation_excel(
             user_id=current_user.id,
             categoria=filters.categoria,
             fecha_desde=filters.get_fecha_desde_datetime(),
             fecha_hasta=filters.get_fecha_hasta_datetime(),
-            eliminado=filters.eliminado
+            eliminado=filters.eliminado,
+            user_organization=user_organization
         )
         
         print(f"[EXCEL EXPORT] Excel file generated: {excel_file.id}")

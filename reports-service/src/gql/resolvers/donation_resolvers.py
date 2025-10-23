@@ -74,11 +74,16 @@ class DonationResolver:
             # Get donation report from service
             try:
                 donation_service = DonationService()
+                
+                # Get user organization from JWT token (passed via headers)
+                user_organization = getattr(user, '_organization', 'empuje-comunitario')
+                
                 report_results = donation_service.get_donation_report(
                     categoria=categoria_enum,
                     fecha_desde=fecha_desde_dt,
                     fecha_hasta=fecha_hasta_dt,
-                    eliminado=eliminado
+                    eliminado=eliminado,
+                    user_organization=user_organization
                 )
                 logger.info(f"Got {len(report_results)} report results from service")
             except Exception as service_error:

@@ -25,12 +25,30 @@ class DonationService:
     def __init__(self):
         pass
     
+    def _get_current_organization(self, session) -> str:
+        """Get current organization from configuration"""
+        try:
+            from ..models.database import Base
+            from sqlalchemy import text
+            
+            result = session.execute(
+                text("SELECT valor FROM configuracion_organizacion WHERE clave = 'ORGANIZATION_ID'")
+            ).fetchone()
+            
+            if result:
+                return result[0]
+            else:
+                return 'empuje-comunitario'  # Default organization
+        except Exception:
+            return 'empuje-comunitario'  # Fallback to default
+    
     def get_donation_report(
         self,
         categoria: Optional[DonationCategory] = None,
         fecha_desde: Optional[datetime] = None,
         fecha_hasta: Optional[datetime] = None,
-        eliminado: Optional[bool] = None
+        eliminado: Optional[bool] = None,
+        user_organization: Optional[str] = None
     ) -> List[DonationReportResult]:
         """
         Get donation report with filtering and grouping by category and eliminated status.
@@ -40,17 +58,36 @@ class DonationService:
             fecha_desde: Filter donations from this date (optional)
             fecha_hasta: Filter donations until this date (optional)
             eliminado: Filter by eliminated status - True, False, or None for both (optional)
+            user_organization: Filter by user's organization (optional)
         
         Returns:
             List of DonationReportResult grouped by category and eliminated status
         """
         with get_db_session() as session:
+            # Get current organization from configuration
+            current_org = self._get_current_organization(session)
+            
+            # Use user_organization if provided, otherwise use current_org
+            filter_org = user_organization or current_org
+            
+            # IMPORTANT: Filter donations by organization
+            # For now, we'll filter based on the organization in the user's JWT token
+            # This assumes that donations belong to the organization of the user who created them
+            
             # Build base query with eager loading of user relationships
             from sqlalchemy.orm import joinedload
             query = session.query(Donation).options(
                 joinedload(Donation.usuario_creador),
                 joinedload(Donation.usuario_modificador)
             )
+            
+            # Add organization filter
+            # Since we don't have a direct organization field in donations,
+            # we'll filter by checking if the user's organization matches the filter
+            if filter_org != current_org:
+                # If user is from a different organization, show no donations
+                # This is a simple approach - in reality you'd implement proper ownership logic
+                query = query.filter(Donation.id == -1)  # No donations match
             
             # Apply filters
             filters = []
@@ -111,7 +148,8 @@ class DonationService:
         categoria: Optional[DonationCategory] = None,
         fecha_desde: Optional[datetime] = None,
         fecha_hasta: Optional[datetime] = None,
-        eliminado: Optional[bool] = None
+        eliminado: Optional[bool] = None,
+        user_organization: Optional[str] = None
     ) -> List[Donation]:
         """
         Get filtered donations without grouping.
@@ -126,8 +164,19 @@ class DonationService:
             List of filtered donations
         """
         with get_db_session() as session:
+            # Get current organization from configuration
+            current_org = self._get_current_organization(session)
+            
+            # Use user_organization if provided, otherwise use current_org
+            filter_org = user_organization or current_org
+            
             # Build base query without relationships to avoid session issues
             query = session.query(Donation)
+            
+            # Add organization filter
+            if filter_org != current_org:
+                # If user is from a different organization, show no donations
+                query = query.filter(Donation.id == -1)  # No donations match
             
             # Apply filters
             filters = []

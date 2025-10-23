@@ -51,12 +51,17 @@ async def get_graphql_context(
             from src.utils.auth import decode_jwt_token
             payload = decode_jwt_token(token)
             
-            # Extract user ID from token
+            # Extract user ID and organization from token
             user_id = payload.get("sub") or payload.get("user_id")
+            organization = payload.get("organization", "empuje-comunitario")
+            
             if user_id:
                 user = db.query(User).filter(User.id == int(user_id)).first()
                 if user and not user.activo:
                     user = None  # Inactive users are treated as unauthenticated
+                elif user:
+                    # Set organization from JWT token
+                    user._organization = organization
                     
         except Exception as e:
             logger.warning(f"Failed to authenticate user from token: {e}")

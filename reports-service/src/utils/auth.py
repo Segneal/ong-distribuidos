@@ -73,8 +73,10 @@ def get_current_user_from_token(
         # Decode token
         payload = decode_jwt_token(credentials.credentials)
         
-        # Extract user ID from token
+        # Extract user ID and organization from token
         user_id = payload.get("sub") or payload.get("user_id")
+        organization = payload.get("organization", "empuje-comunitario")
+        
         if user_id is None:
             raise AuthenticationError("Token missing user ID")
         
@@ -85,6 +87,9 @@ def get_current_user_from_token(
         
         if not user.activo:
             raise AuthenticationError("User account is inactive")
+        
+        # Set organization from JWT token
+        user._organization = organization
         
         return user
         

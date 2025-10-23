@@ -34,7 +34,8 @@ class ExcelExportService:
         categoria: Optional[DonationCategory] = None,
         fecha_desde: Optional[datetime] = None,
         fecha_hasta: Optional[datetime] = None,
-        eliminado: Optional[bool] = None
+        eliminado: Optional[bool] = None,
+        user_organization: Optional[str] = None
     ) -> ExcelFile:
         """
         Generate Excel file with donation data filtered by the provided criteria.
@@ -55,7 +56,8 @@ class ExcelExportService:
             categoria=categoria,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
-            eliminado=eliminado
+            eliminado=eliminado,
+            user_organization=user_organization
         )
         
         print(f"[EXCEL] Got {len(donations)} donations")

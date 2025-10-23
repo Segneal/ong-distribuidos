@@ -20,7 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import DonationReports from '../components/reports/DonationReports';
-import EventParticipationReports from '../components/reports/EventParticipationReports';
+import EventReports from '../components/reports/EventReports';
 import NetworkConsultation from '../components/reports/NetworkConsultation';
 
 function TabPanel({ children, value, index, ...other }) {
@@ -127,7 +127,7 @@ const Reports = () => {
               <DonationReports />
             )}
             {((index === 0 && !canViewDonationReports) || (index === 1 && canViewDonationReports)) && (
-              <EventParticipationReports />
+              <EventReports />
             )}
             {index === visibleTabs.length - 1 && canViewNetworkConsultation && (
               <NetworkConsultation />

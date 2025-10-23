@@ -12,12 +12,9 @@ router.use(authenticateToken);
 
 // Proxy para GraphQL - /api/graphql
 // GraphQL maneja reportes de donaciones (PRESIDENTE, VOCAL) y eventos (todos los usuarios)
-const graphqlProxy = createProxyMiddleware({
+const graphqlProxy = createProxyMiddleware('/graphql', {
     target: REPORTS_SERVICE_URL,
     changeOrigin: true,
-    pathRewrite: {
-        '^/api/graphql': '/api/graphql'
-    },
     onProxyReq: (proxyReq, req, res) => {
         // Agregar información del usuario autenticado a los headers
         if (req.user) {
@@ -116,8 +113,8 @@ const networkProxy = createProxyMiddleware({
 
 // Aplicar los proxies a las rutas correspondientes con validación de roles
 
-// GraphQL - Handled by dedicated GraphQL route (commented out to avoid conflicts)
-// router.use('/graphql', graphqlProxy);
+// GraphQL - Todos los usuarios autenticados (el servicio maneja la lógica de permisos internamente)
+router.use(graphqlProxy);
 
 // Reportes REST - Solo PRESIDENTE y VOCAL para exportación Excel de donaciones
 router.use('/reports', requireRole(['PRESIDENTE', 'VOCAL']), reportsProxy);

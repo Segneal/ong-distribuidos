@@ -56,8 +56,8 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/donation-requests', donationRequestsRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api', graphqlRoutes);
 app.use('/api', reportsRoutes);
+app.use('/api', graphqlRoutes);
 
 
 // Ruta por defecto

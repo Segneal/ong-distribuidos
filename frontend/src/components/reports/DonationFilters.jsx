@@ -120,7 +120,7 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
   // Manejar editar filtro
   const handleEditFilter = (filter) => {
     setEditingFilter(filter);
-    setFilterName(filter.nombre);
+    setFilterName(filter.nombre || '');
     setEditDialogOpen(true);
     setError(null);
   };
@@ -221,8 +221,8 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
               </Alert>
             ) : (
               <List>
-                {savedFilters.map((filter) => (
-                  <ListItem key={filter.id} divider>
+                {savedFilters.map((filter, index) => (
+                  <ListItem key={filter.id || `filter-${index}`} divider>
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

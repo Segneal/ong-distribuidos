@@ -43,6 +43,8 @@ router.post('/graphql', authenticateToken, (req, res) => {
           categoria: "ALIMENTOS",
           cantidad: 150,
           fechaDonacion: "2024-01-15",
+          fechaAlta: "2024-01-15",
+          descripcion: "Donación de alimentos no perecederos",
           organizacion: req.user.organization,
           donante: {
             id: "1",
@@ -50,13 +52,19 @@ router.post('/graphql', authenticateToken, (req, res) => {
             email: "juan@example.com"
           },
           estado: "ENTREGADA",
-          eliminado: false
+          eliminado: false,
+          usuarioAlta: "admin",
+          fechaModificacion: "2024-01-15",
+          usuarioModificacion: "admin",
+          dia: 15
         },
         {
           id: "2", 
           categoria: "ALIMENTOS",
           cantidad: 200,
           fechaDonacion: "2024-01-18",
+          fechaAlta: "2024-01-18",
+          descripcion: "Donación de productos enlatados",
           organizacion: req.user.organization,
           donante: {
             id: "3",
@@ -64,13 +72,19 @@ router.post('/graphql', authenticateToken, (req, res) => {
             email: "ana@example.com"
           },
           estado: "ENTREGADA",
-          eliminado: false
+          eliminado: false,
+          usuarioAlta: "admin",
+          fechaModificacion: "2024-01-18",
+          usuarioModificacion: "admin",
+          dia: 18
         },
         {
           id: "3",
           categoria: "ROPA",
           cantidad: 75,
           fechaDonacion: "2024-01-20",
+          fechaAlta: "2024-01-20",
+          descripcion: "Donación de ropa de invierno",
           organizacion: req.user.organization,
           donante: {
             id: "2",
@@ -78,7 +92,11 @@ router.post('/graphql', authenticateToken, (req, res) => {
             email: "maria@example.com"
           },
           estado: "PENDIENTE",
-          eliminado: false
+          eliminado: false,
+          usuarioAlta: "admin",
+          fechaModificacion: "2024-01-20",
+          usuarioModificacion: "admin",
+          dia: 20
         }
       ];
 
@@ -146,14 +164,24 @@ router.post('/graphql', authenticateToken, (req, res) => {
                       categoria: "ALIMENTOS",
                       cantidad: 150,
                       donante: "Juan Pérez",
-                      fecha: "2024-01-15"
+                      fecha: "2024-01-15",
+                      descripcion: "Donación de alimentos para evento",
+                      eliminado: false,
+                      fechaAlta: "2024-01-15",
+                      usuarioAlta: "admin",
+                      dia: 15
                     },
                     {
                       id: "2",
                       categoria: "ROPA",
                       cantidad: 75,
                       donante: "María García",
-                      fecha: "2024-01-15"
+                      fecha: "2024-01-15",
+                      descripcion: "Donación de ropa para evento",
+                      eliminado: false,
+                      fechaAlta: "2024-01-15",
+                      usuarioAlta: "admin",
+                      dia: 15
                     }
                   ]
                 },
@@ -177,7 +205,12 @@ router.post('/graphql', authenticateToken, (req, res) => {
                       categoria: "ROPA",
                       cantidad: 100,
                       donante: "Ana Rodríguez",
-                      fecha: "2024-01-20"
+                      fecha: "2024-01-20",
+                      descripcion: "Donación de ropa para distribución",
+                      eliminado: false,
+                      fechaAlta: "2024-01-20",
+                      usuarioAlta: "admin",
+                      dia: 20
                     }
                   ]
                 }
@@ -207,7 +240,12 @@ router.post('/graphql', authenticateToken, (req, res) => {
                       categoria: "MEDICAMENTOS",
                       cantidad: 50,
                       donante: "Farmacia Central",
-                      fecha: "2024-02-10"
+                      fecha: "2024-02-10",
+                      descripcion: "Donación de medicamentos básicos",
+                      eliminado: false,
+                      fechaAlta: "2024-02-10",
+                      usuarioAlta: "admin",
+                      dia: 10
                     }
                   ]
                 }
@@ -274,27 +312,41 @@ router.post('/graphql', authenticateToken, (req, res) => {
 
     // Handle mutations
     if (query && query.includes('SaveDonationFilter')) {
+      const newFilter = {
+        id: `filter-${Date.now()}`,
+        nombre: variables?.nombre || "Nuevo Filtro",
+        filtros: variables?.filtros || {
+          categoria: null,
+          fechaDesde: null,
+          fechaHasta: null,
+          eliminado: false
+        },
+        fechaCreacion: new Date().toISOString().split('T')[0]
+      };
+      
       return res.json({
         data: {
-          saveDonationFilter: {
-            id: "new-filter-id",
-            nombre: variables?.nombre || "Nuevo Filtro",
-            filtros: variables?.filtros || {},
-            fechaCreacion: new Date().toISOString()
-          }
+          saveDonationFilter: newFilter
         }
       });
     }
 
     if (query && query.includes('UpdateDonationFilter')) {
+      const updatedFilter = {
+        id: variables?.id || "1",
+        nombre: variables?.nombre || "Filtro Actualizado",
+        filtros: variables?.filtros || {
+          categoria: null,
+          fechaDesde: null,
+          fechaHasta: null,
+          eliminado: false
+        },
+        fechaCreacion: "2024-01-10"
+      };
+      
       return res.json({
         data: {
-          updateDonationFilter: {
-            id: variables?.id || "1",
-            nombre: variables?.nombre || "Filtro Actualizado",
-            filtros: variables?.filtros || {},
-            fechaCreacion: "2024-01-10"
-          }
+          updateDonationFilter: updatedFilter
         }
       });
     }
@@ -372,6 +424,33 @@ router.post('/reports/donations/excel', authenticateToken, (req, res) => {
       success: false,
       error: 'Error generating Excel file',
       message: 'No se pudo generar el archivo Excel'
+    });
+  }
+});
+
+// Event filters endpoint (mock implementation)
+router.get('/filters/events', authenticateToken, (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: [
+        {
+          id: "1",
+          nombre: "Filtro Eventos Enero",
+          filtros: {
+            fechaDesde: "2024-01-01",
+            fechaHasta: "2024-01-31",
+            usuarioId: null
+          },
+          fechaCreacion: "2024-01-10"
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Event Filters Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error loading event filters'
     });
   }
 });

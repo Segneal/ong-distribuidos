@@ -362,8 +362,8 @@ const DonationReports = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {group.registros.map((donation) => (
-                        <TableRow key={donation.id}>
+                      {group.registros.map((donation, index) => (
+                        <TableRow key={donation.id || `donation-${index}`}>
                           <TableCell>
                             {formatDate(donation.fechaAlta)}
                           </TableCell>

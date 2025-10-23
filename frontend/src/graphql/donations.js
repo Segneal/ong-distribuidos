@@ -38,7 +38,7 @@ export const GET_SAVED_DONATION_FILTERS = gql`
 
 // Mutation para guardar filtro de donaciones
 export const SAVE_DONATION_FILTER = gql`
-  mutation SaveDonationFilter($nombre: String!, $filtros: DonationFilterInput!) {
+  mutation SaveDonationFilter($nombre: String!, $filtros: String!) {
     saveDonationFilter(nombre: $nombre, filtros: $filtros) {
       ...SavedFilterInfo
     }
@@ -48,7 +48,7 @@ export const SAVE_DONATION_FILTER = gql`
 
 // Mutation para actualizar filtro de donaciones
 export const UPDATE_DONATION_FILTER = gql`
-  mutation UpdateDonationFilter($id: ID!, $nombre: String, $filtros: DonationFilterInput) {
+  mutation UpdateDonationFilter($id: Int!, $nombre: String, $filtros: String) {
     updateDonationFilter(id: $id, nombre: $nombre, filtros: $filtros) {
       ...SavedFilterInfo
     }
@@ -58,7 +58,7 @@ export const UPDATE_DONATION_FILTER = gql`
 
 // Mutation para eliminar filtro de donaciones
 export const DELETE_DONATION_FILTER = gql`
-  mutation DeleteDonationFilter($id: ID!) {
+  mutation DeleteDonationFilter($id: Int!) {
     deleteDonationFilter(id: $id)
   }
 `;

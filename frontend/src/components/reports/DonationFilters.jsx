@@ -109,10 +109,13 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
       return;
     }
 
+    console.log('Saving filter with currentFilters:', currentFilters);
+    console.log('JSON string:', JSON.stringify(currentFilters));
+
     saveDonationFilter({
       variables: {
         nombre: filterName.trim(),
-        filtros: currentFilters
+        filtros: JSON.stringify(currentFilters)
       }
     });
   };
@@ -134,9 +137,9 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
 
     updateDonationFilter({
       variables: {
-        id: editingFilter.id,
+        id: parseInt(editingFilter.id),
         nombre: filterName.trim(),
-        filtros: editingFilter.filtros
+        filtros: JSON.stringify(editingFilter.filtros)
       }
     });
   };
@@ -145,7 +148,7 @@ const DonationFilters = ({ currentFilters, onApplyFilter }) => {
   const handleDeleteFilter = (filterId) => {
     if (window.confirm('¿Está seguro de que desea eliminar este filtro?')) {
       deleteDonationFilter({
-        variables: { id: filterId }
+        variables: { id: parseInt(filterId) }
       });
     }
   };

@@ -24,7 +24,7 @@ export const EVENT_FILTER_INPUT = gql`
 
 // Fragment for user information
 export const USER_FRAGMENT = gql`
-  fragment UserInfo on User {
+  fragment UserInfo on UserType {
     id
     nombre
     email
@@ -34,7 +34,7 @@ export const USER_FRAGMENT = gql`
 
 // Fragment for donation information
 export const DONATION_FRAGMENT = gql`
-  fragment DonationInfo on Donation {
+  fragment DonationInfo on DonationType {
     id
     categoria
     descripcion
@@ -54,7 +54,7 @@ export const DONATION_FRAGMENT = gql`
 
 // Fragment for saved filter information
 export const SAVED_FILTER_FRAGMENT = gql`
-  fragment SavedFilterInfo on SavedFilter {
+  fragment SavedFilterInfo on SavedFilterType {
     id
     nombre
     filtros

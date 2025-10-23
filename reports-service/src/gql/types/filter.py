@@ -8,6 +8,14 @@ from enum import Enum
 import json
 
 
+# JSON scalar type for GraphQL
+JSON = strawberry.scalar(
+    Dict[str, Any],
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
+
+
 @strawberry.enum
 class FilterTypeEnum(Enum):
     """Filter type enumeration for GraphQL"""
@@ -27,6 +35,11 @@ class SavedFilterType:
     fecha_actualizacion: Optional[datetime]
     
     @strawberry.field
+    def fechaCreacion(self) -> Optional[datetime]:
+        """Frontend-compatible field name for fecha_creacion"""
+        return self.fecha_creacion
+    
+    @strawberry.field
     def configuracion_parsed(self) -> str:
         """Parse configuration JSON for display"""
         try:
@@ -34,6 +47,14 @@ class SavedFilterType:
             return json.dumps(config, indent=2)
         except (json.JSONDecodeError, TypeError):
             return self.configuracion
+    
+    @strawberry.field
+    def filtros(self) -> JSON:
+        """Parse configuration JSON as object for frontend compatibility"""
+        try:
+            return json.loads(self.configuracion)
+        except (json.JSONDecodeError, TypeError):
+            return {}
 
 
 @strawberry.input
@@ -46,12 +67,17 @@ class SavedFilterInput:
 
 def saved_filter_to_graphql(saved_filter) -> SavedFilterType:
     """Convert SQLAlchemy SavedFilter model to GraphQL SavedFilterType"""
+    # Ensure configuracion is a JSON string
+    configuracion_str = saved_filter.configuracion
+    if isinstance(configuracion_str, dict):
+        configuracion_str = json.dumps(configuracion_str)
+    
     return SavedFilterType(
         id=saved_filter.id,
         usuario_id=saved_filter.usuario_id,
         nombre=saved_filter.nombre,
         tipo=FilterTypeEnum(saved_filter.tipo.value),
-        configuracion=saved_filter.configuracion,
+        configuracion=configuracion_str,
         fecha_creacion=saved_filter.fecha_creacion,
         fecha_actualizacion=saved_filter.fecha_actualizacion
     )

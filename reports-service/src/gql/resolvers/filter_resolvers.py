@@ -107,6 +107,8 @@ class FilterResolver:
             graphql_filter = saved_filter_to_graphql(saved_filter)
             
             logger.info(f"Created donation filter '{nombre}' with ID {saved_filter.id} for user {user.id}")
+            logger.info(f"GraphQL filter object: {graphql_filter}")
+            logger.info(f"GraphQL filter dict: {graphql_filter.__dict__}")
             return graphql_filter
             
         except AuthenticationError as e:

@@ -20,11 +20,10 @@ def main():
     print("🔍 Health check: http://localhost:8002/health")
     
     try:
-        # Try to import and run the Graphene GraphQL server
-        from src.graphql_server import create_app
-        print("✅ Loading Graphene GraphQL server...")
+        # Try to import and run the original GraphQL server with database
+        from src.main import app
+        print("✅ Loading original GraphQL server with database...")
         
-        app = create_app()
         uvicorn.run(
             app,
             host="0.0.0.0",

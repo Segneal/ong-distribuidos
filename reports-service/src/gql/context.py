@@ -52,7 +52,7 @@ async def get_graphql_context(
             payload = decode_jwt_token(token)
             
             # Extract user ID from token
-            user_id = payload.get("sub")
+            user_id = payload.get("sub") or payload.get("user_id")
             if user_id:
                 user = db.query(User).filter(User.id == int(user_id)).first()
                 if user and not user.activo:

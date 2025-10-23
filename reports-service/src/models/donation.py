@@ -7,9 +7,14 @@ from .database import Base
 import enum
 
 class DonationCategory(enum.Enum):
-    ROPA = "ROPA"
     ALIMENTOS = "ALIMENTOS"
+    ROPA = "ROPA"
+    MEDICAMENTOS = "MEDICAMENTOS"
     JUGUETES = "JUGUETES"
+    LIBROS = "LIBROS"
+    ELECTRODOMESTICOS = "ELECTRODOMESTICOS"
+    MUEBLES = "MUEBLES"
+    OTROS = "OTROS"
     UTILES_ESCOLARES = "UTILES_ESCOLARES"
 
 class Donation(Base):
@@ -36,9 +41,14 @@ class Donation(Base):
     def categoria_display(self):
         """Return a human-readable category name"""
         category_names = {
-            DonationCategory.ROPA: "Ropa",
             DonationCategory.ALIMENTOS: "Alimentos",
+            DonationCategory.ROPA: "Ropa",
+            DonationCategory.MEDICAMENTOS: "Medicamentos",
             DonationCategory.JUGUETES: "Juguetes",
+            DonationCategory.LIBROS: "Libros",
+            DonationCategory.ELECTRODOMESTICOS: "Electrodomésticos",
+            DonationCategory.MUEBLES: "Muebles",
+            DonationCategory.OTROS: "Otros",
             DonationCategory.UTILES_ESCOLARES: "Útiles Escolares"
         }
         return category_names.get(self.categoria, self.categoria.value)

@@ -74,7 +74,7 @@ def get_current_user_from_token(
         payload = decode_jwt_token(credentials.credentials)
         
         # Extract user ID from token
-        user_id = payload.get("sub")
+        user_id = payload.get("sub") or payload.get("user_id")
         if user_id is None:
             raise AuthenticationError("Token missing user ID")
         

@@ -4,7 +4,7 @@ Database utility functions for the reports service.
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from ..models import get_db, test_connection, init_database
+from src.models import get_db, test_connection, init_database
 from typing import Optional
 from contextlib import contextmanager
 
@@ -55,7 +55,7 @@ def check_database_health() -> dict:
             db = get_database_session()
             if db:
                 try:
-                    from ..models import User
+                    from src.models import User
                     db.query(User).first()
                     health_status["tables_exist"] = True
                 except SQLAlchemyError as e:

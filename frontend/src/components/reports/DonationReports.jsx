@@ -24,7 +24,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Divider
+  Divider,
+  TablePagination
 } from '@mui/material';
 import {
   Search,
@@ -61,6 +62,10 @@ const DonationReports = () => {
   });
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState(null);
+  
+  // Estado para paginación
+  const [paginationState, setPaginationState] = useState({});
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Query para obtener datos de donaciones
   const { data, loading, error, refetch } = useQuery(GET_DONATION_REPORT, {
@@ -148,6 +153,30 @@ const DonationReports = () => {
   // Formatear cantidad
   const formatQuantity = (quantity) => {
     return new Intl.NumberFormat('es-ES').format(quantity);
+  };
+
+  // Funciones de paginación
+  const handleChangePage = (groupKey, newPage) => {
+    setPaginationState(prev => ({
+      ...prev,
+      [groupKey]: {
+        ...prev[groupKey],
+        page: newPage
+      }
+    }));
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    // Reset all pages to 0 when changing rows per page
+    setPaginationState({});
+  };
+
+  const getPaginatedData = (registros, groupKey) => {
+    const currentPage = paginationState[groupKey]?.page || 0;
+    const startIndex = currentPage * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return registros.slice(startIndex, endIndex);
   };
 
   if (loading) {
@@ -244,7 +273,7 @@ const DonationReports = () => {
           </Grid>
         </Grid>
 
-        <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+        <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             startIcon={<Search />}
@@ -267,6 +296,20 @@ const DonationReports = () => {
           >
             {isExporting ? 'Exportando...' : 'Exportar Excel'}
           </Button>
+          
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Filas por página</InputLabel>
+            <Select
+              value={rowsPerPage}
+              label="Filas por página"
+              onChange={handleChangeRowsPerPage}
+            >
+              <MenuItem value={5}>5</MenuItem>
+              <MenuItem value={10}>10</MenuItem>
+              <MenuItem value={25}>25</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
 
         {exportError && (
@@ -362,7 +405,7 @@ const DonationReports = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {group.registros.map((donation, index) => (
+                      {getPaginatedData(group.registros, `${group.categoria}-${group.eliminado}`).map((donation, index) => (
                         <TableRow key={donation.id || `donation-${index}`}>
                           <TableCell>
                             {formatDate(donation.fechaAlta)}
@@ -394,6 +437,17 @@ const DonationReports = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                <TablePagination
+                  component="div"
+                  count={group.registros.length}
+                  page={paginationState[`${group.categoria}-${group.eliminado}`]?.page || 0}
+                  onPageChange={(event, newPage) => handleChangePage(`${group.categoria}-${group.eliminado}`, newPage)}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                  labelRowsPerPage="Filas por página:"
+                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                />
               </AccordionDetails>
             </Accordion>
           ))}

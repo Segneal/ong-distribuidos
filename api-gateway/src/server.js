@@ -56,8 +56,8 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/donation-requests', donationRequestsRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api', reportsRoutes);
-app.use('/api', graphqlRoutes);
+app.use('/api', reportsRoutes); // ENABLED - using real reports service proxy
+// app.use('/api', graphqlRoutes); // DISABLED - no longer using mock data
 
 
 // Ruta por defecto

@@ -5,9 +5,9 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
-from ..models.donation import Donation, DonationCategory
-from ..models.user import User
-from ..utils.database_utils import get_db_session
+from src.models.donation import Donation, DonationCategory
+from src.models.user import User
+from src.utils.database_utils import get_db_session
 
 
 class DonationReportResult:
@@ -45,8 +45,12 @@ class DonationService:
             List of DonationReportResult grouped by category and eliminated status
         """
         with get_db_session() as session:
-            # Build base query
-            query = session.query(Donation)
+            # Build base query with eager loading of user relationships
+            from sqlalchemy.orm import joinedload
+            query = session.query(Donation).options(
+                joinedload(Donation.usuario_creador),
+                joinedload(Donation.usuario_modificador)
+            )
             
             # Apply filters
             filters = []

@@ -170,8 +170,12 @@ class DonationService:
             # Use user_organization if provided, otherwise use current_org
             filter_org = user_organization or current_org
             
-            # Build base query without relationships to avoid session issues
-            query = session.query(Donation)
+            # Build base query with relationships for Excel export
+            from sqlalchemy.orm import joinedload
+            query = session.query(Donation).options(
+                joinedload(Donation.usuario_creador),
+                joinedload(Donation.usuario_modificador)
+            )
             
             # Add organization filter
             if filter_org != current_org:

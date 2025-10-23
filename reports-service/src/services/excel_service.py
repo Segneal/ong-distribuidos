@@ -60,6 +60,17 @@ class ExcelExportService:
             user_organization=user_organization
         )
         
+        # Pre-load user information to avoid lazy loading issues
+        for donation in donations:
+            try:
+                # Access the relationships to load them
+                if donation.usuario_creador:
+                    _ = donation.usuario_creador.nombre
+                if donation.usuario_modificador:
+                    _ = donation.usuario_modificador.nombre
+            except:
+                pass
+        
         print(f"[EXCEL] Got {len(donations)} donations")
         
         # Group donations by category
@@ -90,7 +101,7 @@ class ExcelExportService:
             return excel_file
     
     def _group_donations_by_category(self, donations: List[Donation]) -> Dict[DonationCategory, List[Donation]]:
-        """Group donations by category"""
+        """Group donations by category for separate Excel sheets"""
         grouped = {}
         for i, donation in enumerate(donations):
             print(f"[EXCEL] Processing donation {i+1}: ID={donation.id}")
@@ -152,25 +163,29 @@ class ExcelExportService:
     def _get_sheet_name(self, category: DonationCategory) -> str:
         """Get human-readable sheet name for category"""
         category_names = {
-            DonationCategory.ROPA: "Ropa",
-            DonationCategory.ALIMENTOS: "Alimentos",
-            DonationCategory.JUGUETES: "Juguetes",
-            DonationCategory.UTILES_ESCOLARES: "Útiles Escolares"
+            DonationCategory.ROPA: "ROPA",
+            DonationCategory.ALIMENTOS: "ALIMENTOS", 
+            DonationCategory.JUGUETES: "JUGUETES",
+            DonationCategory.UTILES_ESCOLARES: "UTILES_ESCOLARES",
+            DonationCategory.MEDICAMENTOS: "MEDICAMENTOS",
+            DonationCategory.LIBROS: "LIBROS",
+            DonationCategory.ELECTRODOMESTICOS: "ELECTRODOMESTICOS",
+            DonationCategory.MUEBLES: "MUEBLES",
+            DonationCategory.OTROS: "OTROS"
         }
         return category_names.get(category, category.value)
     
     def _populate_worksheet(self, worksheet, donations: List[Donation], category: DonationCategory):
-        """Populate worksheet with donation data"""
-        # Define headers
+        """Populate worksheet with donation data - NEW FORMAT per requirements"""
+        # Define headers according to requirements: 
+        # Fecha de Alta, Descripcion, Cantidad, Eliminado, Usuario Alta, Usuario Modificación
         headers = [
-            "ID",
-            "Fecha Alta",
-            "Descripción",
+            "Fecha de Alta",
+            "Descripción", 
             "Cantidad",
             "Eliminado",
-            "Usuario Creación",
-            "Usuario Modificación",
-            "Fecha Modificación"
+            "Usuario Alta",
+            "Usuario Modificación"
         ]
         
         # Style for headers
@@ -185,27 +200,45 @@ class ExcelExportService:
             cell.fill = header_fill
             cell.alignment = header_alignment
         
-        # Add data rows
+        # Add data rows - only the required columns, no summaries
         for row, donation in enumerate(donations, 2):
-            worksheet.cell(row=row, column=1, value=donation.id)
-            worksheet.cell(row=row, column=2, value=donation.fecha_alta.strftime("%Y-%m-%d %H:%M:%S") if donation.fecha_alta else "")
-            worksheet.cell(row=row, column=3, value=donation.descripcion or "")
-            worksheet.cell(row=row, column=4, value=donation.cantidad)
-            worksheet.cell(row=row, column=5, value="Sí" if donation.eliminado else "No")
+            # Fecha de Alta
+            worksheet.cell(row=row, column=1, value=donation.fecha_alta.strftime("%Y-%m-%d") if donation.fecha_alta else "")
             
-            # Usuario creación - usar ID por ahora
-            usuario_creacion = f"Usuario ID: {donation.usuario_alta}" if donation.usuario_alta else "N/A"
-            worksheet.cell(row=row, column=6, value=usuario_creacion)
+            # Descripción
+            worksheet.cell(row=row, column=2, value=donation.descripcion or "")
             
-            # Usuario modificación - usar ID por ahora
-            usuario_modificacion = f"Usuario ID: {donation.usuario_modificacion}" if donation.usuario_modificacion else "N/A"
-            worksheet.cell(row=row, column=7, value=usuario_modificacion)
+            # Cantidad
+            worksheet.cell(row=row, column=3, value=donation.cantidad)
             
-            # Fecha modificación
-            fecha_mod = ""
-            if donation.fecha_modificacion:
-                fecha_mod = donation.fecha_modificacion.strftime("%Y-%m-%d %H:%M:%S")
-            worksheet.cell(row=row, column=8, value=fecha_mod)
+            # Eliminado
+            worksheet.cell(row=row, column=4, value="Sí" if donation.eliminado else "No")
+            
+            # Usuario Alta - try to get name, fallback to ID
+            usuario_alta = "N/A"
+            if donation.usuario_alta:
+                try:
+                    # Try to get user name from relationship if available
+                    if hasattr(donation, 'usuario_creador') and donation.usuario_creador:
+                        usuario_alta = f"{donation.usuario_creador.nombre} {donation.usuario_creador.apellido}"
+                    else:
+                        usuario_alta = f"Usuario ID: {donation.usuario_alta}"
+                except:
+                    usuario_alta = f"Usuario ID: {donation.usuario_alta}"
+            worksheet.cell(row=row, column=5, value=usuario_alta)
+            
+            # Usuario Modificación - try to get name, fallback to ID
+            usuario_modificacion = "N/A"
+            if donation.usuario_modificacion:
+                try:
+                    # Try to get user name from relationship if available
+                    if hasattr(donation, 'usuario_modificador') and donation.usuario_modificador:
+                        usuario_modificacion = f"{donation.usuario_modificador.nombre} {donation.usuario_modificador.apellido}"
+                    else:
+                        usuario_modificacion = f"Usuario ID: {donation.usuario_modificacion}"
+                except:
+                    usuario_modificacion = f"Usuario ID: {donation.usuario_modificacion}"
+            worksheet.cell(row=row, column=6, value=usuario_modificacion)
         
         # Auto-adjust column widths
         for column in worksheet.columns:
@@ -222,15 +255,7 @@ class ExcelExportService:
             adjusted_width = min(max_length + 2, 50)  # Max width of 50
             worksheet.column_dimensions[column_letter].width = adjusted_width
         
-        # Add summary row at the bottom
-        if donations:
-            summary_row = len(donations) + 3
-            worksheet.cell(row=summary_row, column=3, value="TOTAL:")
-            worksheet.cell(row=summary_row, column=3).font = Font(bold=True)
-            
-            total_cantidad = sum(d.cantidad for d in donations)
-            worksheet.cell(row=summary_row, column=4, value=total_cantidad)
-            worksheet.cell(row=summary_row, column=4).font = Font(bold=True)
+        # NO SUMMARY ROW - per requirements, no summaries in Excel
     
     def get_file_by_id(self, file_id: str) -> Optional[ExcelFile]:
         """Get Excel file record by ID"""

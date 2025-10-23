@@ -25,6 +25,26 @@ class DonationFilterInput(BaseModel):
     fecha_desde: Optional[str] = Field(None, description="Filter donations from this date (YYYY-MM-DD format)")
     fecha_hasta: Optional[str] = Field(None, description="Filter donations until this date (YYYY-MM-DD format)")
     eliminado: Optional[bool] = Field(None, description="Filter by eliminated status - True, False, or None for both")
+    
+    def get_fecha_desde_datetime(self) -> Optional[datetime]:
+        """Convert fecha_desde string to datetime object"""
+        if self.fecha_desde:
+            try:
+                return datetime.strptime(self.fecha_desde, "%Y-%m-%d")
+            except ValueError:
+                return None
+        return None
+    
+    def get_fecha_hasta_datetime(self) -> Optional[datetime]:
+        """Convert fecha_hasta string to datetime object"""
+        if self.fecha_hasta:
+            try:
+                # Set to end of day (23:59:59)
+                date_obj = datetime.strptime(self.fecha_hasta, "%Y-%m-%d")
+                return date_obj.replace(hour=23, minute=59, second=59)
+            except ValueError:
+                return None
+        return None
 
 
 class TransferFilterInput(BaseModel):

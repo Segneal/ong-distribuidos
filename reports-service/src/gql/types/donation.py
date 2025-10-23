@@ -87,34 +87,35 @@ class DonationFilterInput:
 
 
 def donation_to_graphql(donation) -> DonationType:
-    """Convert SQLAlchemy Donation model to GraphQL DonationType"""
-    try:
-        # Handle user relationships safely
-        usuario_creador = None
-        if donation.usuario_creador:
-            try:
-                usuario_creador = user_to_graphql(donation.usuario_creador)
-            except Exception as e:
-                print(f"Warning: Could not convert usuario_creador: {e}")
-        
-        usuario_modificador = None
-        if donation.usuario_modificador:
-            try:
-                usuario_modificador = user_to_graphql(donation.usuario_modificador)
-            except Exception as e:
-                print(f"Warning: Could not convert usuario_modificador: {e}")
+    """Convert donation data (dict or SQLAlchemy model) to GraphQL DonationType"""
+    # Handle both dictionary and SQLAlchemy object formats
+    if isinstance(donation, dict):
+        # Dictionary format from event service
+        return DonationType(
+            id=donation['id'],
+            categoria=DonationCategoryType(donation['categoria']),
+            descripcion=donation['descripcion'] or "",
+            cantidad=donation['cantidad'],
+            eliminado=donation['eliminado'],
+            fechaAlta=donation['fecha_alta'],
+            fechaModificacion=donation['fecha_modificacion'],
+            usuarioAlta=None,
+            usuarioModificacion=None
+        )
+    else:
+        # SQLAlchemy object format (for other uses)
+        categoria_value = donation.categoria
+        if hasattr(categoria_value, 'value'):
+            categoria_value = categoria_value.value
         
         return DonationType(
             id=donation.id,
-            categoria=DonationCategoryType(donation.categoria.value),
-            descripcion=donation.descripcion,
+            categoria=DonationCategoryType(categoria_value),
+            descripcion=donation.descripcion or "",
             cantidad=donation.cantidad,
             eliminado=donation.eliminado,
             fechaAlta=donation.fecha_alta,
             fechaModificacion=donation.fecha_modificacion,
-            usuarioAlta=usuario_creador,
-            usuarioModificacion=usuario_modificador
+            usuarioAlta=None,
+            usuarioModificacion=None
         )
-    except Exception as e:
-        print(f"Error converting donation to GraphQL: {e}")
-        raise e

@@ -13,7 +13,7 @@ from ..utils.database_utils import get_db_session
 
 class EventDetail:
     """Data class for event details in monthly reports"""
-    def __init__(self, dia: int, nombre: str, descripcion: str, donaciones: List[Donation]):
+    def __init__(self, dia: int, nombre: str, descripcion: str, donaciones: List[Dict]):
         self.dia = dia
         self.nombre = nombre
         self.descripcion = descripcion
@@ -43,6 +43,7 @@ class EventService:
     ) -> List[EventParticipationReport]:
         """
         Get event participation report grouped by month with event details.
+        Only includes non-cancelled events.
         
         Args:
             usuario_id: ID of the user to get participation for (required)
@@ -65,6 +66,7 @@ class EventService:
                 raise ValueError(f"User with ID {usuario_id} not found")
             
             # Build base query for events where user participated
+            # Only include non-cancelled events (all events in DB are considered non-cancelled)
             query = session.query(Event).join(
                 Event.participantes
             ).filter(
@@ -136,16 +138,17 @@ class EventService:
             
             return results
     
-    def _get_event_donations(self, session: Session, event_id: int) -> List[Donation]:
+    def _get_event_donations(self, session: Session, event_id: int) -> List[Dict]:
         """
         Get donations associated with an event through DonacionRepartida.
+        Returns dictionary data to avoid SQLAlchemy session issues.
         
         Args:
             session: Database session
             event_id: ID of the event
         
         Returns:
-            List of donations associated with the event
+            List of donation dictionaries
         """
         donations = session.query(Donation).join(
             DonacionRepartida, Donation.id == DonacionRepartida.donacion_id
@@ -153,7 +156,21 @@ class EventService:
             DonacionRepartida.evento_id == event_id
         ).all()
         
-        return donations
+        # Convert to dictionaries to avoid session issues
+        donation_dicts = []
+        for donation in donations:
+            donation_dict = {
+                'id': donation.id,
+                'categoria': donation.categoria.value if donation.categoria else None,
+                'descripcion': donation.descripcion,
+                'cantidad': donation.cantidad,
+                'eliminado': donation.eliminado,
+                'fecha_alta': donation.fecha_alta,
+                'fecha_modificacion': donation.fecha_modificacion
+            }
+            donation_dicts.append(donation_dict)
+        
+        return donation_dicts
     
     def get_user_events(
         self,

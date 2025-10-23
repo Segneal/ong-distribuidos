@@ -40,14 +40,17 @@ import { useAuth } from '../../contexts/AuthContext';
 const EventReports = () => {
   const { user } = useAuth();
   const [filters, setFilters] = useState({
-    usuarioId: user?.id || '',
+    usuarioId: user?.id || '', // Required field, defaults to current user
     fechaDesde: '',
     fechaHasta: '',
-    repartodonaciones: null
+    repartodonaciones: '' // '' = both, 'true' = yes, 'false' = no
   });
   
   // Estado para paginación
   const [paginationState, setPaginationState] = useState({});
+  
+  // Check if user can see other users' reports
+  const canViewAllUsers = user?.role === 'PRESIDENTE' || user?.role === 'COORDINADOR';
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Query para obtener datos de eventos
@@ -56,7 +59,7 @@ const EventReports = () => {
       usuarioId: parseInt(filters.usuarioId) || user?.id,
       fechaDesde: filters.fechaDesde || undefined,
       fechaHasta: filters.fechaHasta || undefined,
-      repartodonaciones: filters.repartodonaciones
+      repartodonaciones: filters.repartodonaciones === '' ? undefined : filters.repartodonaciones === 'true'
     },
     fetchPolicy: 'cache-and-network',
     skip: !filters.usuarioId && !user?.id
@@ -73,10 +76,10 @@ const EventReports = () => {
   // Limpiar filtros
   const handleClearFilters = () => {
     setFilters({
-      usuarioId: user?.id || '',
+      usuarioId: user?.id || '', // Keep current user as default
       fechaDesde: '',
       fechaHasta: '',
-      repartodonaciones: null
+      repartodonaciones: '' // Reset to "both"
     });
   };
 
@@ -150,10 +153,12 @@ const EventReports = () => {
             <TextField
               fullWidth
               type="number"
-              label="ID de Usuario"
+              label="ID de Usuario *"
               value={filters.usuarioId}
               onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
-              helperText="Dejar vacío para usar tu ID"
+              helperText={canViewAllUsers ? "Ingrese ID del usuario a consultar" : "Solo puedes ver tus propios eventos"}
+              disabled={!canViewAllUsers && filters.usuarioId === user?.id?.toString()}
+              required
             />
           </Grid>
 
@@ -183,16 +188,13 @@ const EventReports = () => {
             <FormControl fullWidth>
               <InputLabel>Reparto de Donaciones</InputLabel>
               <Select
-                value={filters.repartodonaciones === null ? '' : filters.repartodonaciones.toString()}
+                value={filters.repartodonaciones}
                 label="Reparto de Donaciones"
-                onChange={(e) => {
-                  const value = e.target.value;
-                  handleFilterChange('repartodonaciones', value === '' ? null : value === 'true');
-                }}
+                onChange={(e) => handleFilterChange('repartodonaciones', e.target.value)}
               >
-                <MenuItem value="">Todos</MenuItem>
-                <MenuItem value="true">Con reparto</MenuItem>
-                <MenuItem value="false">Sin reparto</MenuItem>
+                <MenuItem value="">Ambos</MenuItem>
+                <MenuItem value="true">Sí</MenuItem>
+                <MenuItem value="false">No</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -268,9 +270,13 @@ const EventReports = () => {
       )}
 
       {/* Resultados agrupados por mes */}
-      {reportData.length === 0 ? (
+      {!filters.usuarioId ? (
+        <Alert severity="warning">
+          Por favor, ingrese un ID de usuario para consultar los eventos. Este campo es obligatorio.
+        </Alert>
+      ) : reportData.length === 0 ? (
         <Alert severity="info">
-          No se encontraron eventos con los filtros aplicados.
+          No se encontraron eventos con los filtros aplicados para el usuario {filters.usuarioId}.
         </Alert>
       ) : (
         <Box>

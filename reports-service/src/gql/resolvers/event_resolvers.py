@@ -39,82 +39,73 @@ class EventResolver:
         """
         context = info.context
         
-        try:
-            # Validate user access for the requested user_id
-            user = context.auth_context.validate_event_user_access(usuario_id)
-            
-            logger.info(f"User {user.id} ({user.rol.value}) requested event participation report for user {usuario_id}")
-            
-            # Validate that usuario_id is provided (required parameter)
-            if not usuario_id:
-                raise ValueError("usuario_id is required and cannot be empty")
-            
-            # Parse and validate date parameters
-            fecha_desde_dt = None
-            if fecha_desde:
-                try:
-                    fecha_desde_dt = datetime.fromisoformat(fecha_desde.replace('Z', '+00:00'))
-                except ValueError:
-                    raise ValueError(f"Invalid fecha_desde format: {fecha_desde}. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
-            
-            fecha_hasta_dt = None
-            if fecha_hasta:
-                try:
-                    fecha_hasta_dt = datetime.fromisoformat(fecha_hasta.replace('Z', '+00:00'))
-                except ValueError:
-                    raise ValueError(f"Invalid fecha_hasta format: {fecha_hasta}. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
-            
-            # Validate date range
-            if fecha_desde_dt and fecha_hasta_dt and fecha_desde_dt > fecha_hasta_dt:
-                raise ValueError("fecha_desde cannot be later than fecha_hasta")
-            
-            # Get event participation report from service
-            event_service = EventService()
-            report_results = event_service.get_event_participation_report(
-                usuario_id=usuario_id,
-                fecha_desde=fecha_desde_dt,
-                fecha_hasta=fecha_hasta_dt,
-                repartodonaciones=repartodonaciones,
-                requesting_user=user
-            )
-            
-            # Convert to GraphQL types
-            graphql_results = []
-            for result in report_results:
-                # Convert event details to GraphQL types
-                event_details = []
-                for event_detail in result.eventos:
-                    # Convert donations to GraphQL types
-                    donation_types = [donation_to_graphql(donation) for donation in event_detail.donaciones]
-                    
-                    # Create event detail type
-                    detail_type = EventDetailType(
-                        dia=event_detail.dia,
-                        nombre=event_detail.nombre,
-                        descripcion=event_detail.descripcion,
-                        donaciones=donation_types
-                    )
-                    event_details.append(detail_type)
+        # Get authenticated user - ALL users can access this endpoint
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} ({user.rol.value}) requested event participation report for user {usuario_id}")
+        
+        # Validate that usuario_id is provided (required parameter)
+        if not usuario_id:
+            raise ValueError("usuario_id is required and cannot be empty")
+        
+        # Validate user access for the requested user_id
+        # PRESIDENTE and COORDINADOR can see any user, others only themselves
+        if not (user.can_access_all_event_reports() or user.id == usuario_id):
+            raise AuthorizationError("You can only access your own event reports")
+        
+        # Parse and validate date parameters
+        fecha_desde_dt = None
+        if fecha_desde:
+            try:
+                fecha_desde_dt = datetime.fromisoformat(fecha_desde.replace('Z', '+00:00'))
+            except ValueError:
+                raise ValueError(f"Invalid fecha_desde format: {fecha_desde}. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+        
+        fecha_hasta_dt = None
+        if fecha_hasta:
+            try:
+                fecha_hasta_dt = datetime.fromisoformat(fecha_hasta.replace('Z', '+00:00'))
+            except ValueError:
+                raise ValueError(f"Invalid fecha_hasta format: {fecha_hasta}. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+        
+        # Validate date range
+        if fecha_desde_dt and fecha_hasta_dt and fecha_desde_dt > fecha_hasta_dt:
+            raise ValueError("fecha_desde cannot be later than fecha_hasta")
+        
+        # Get event participation report from service
+        event_service = EventService()
+        report_results = event_service.get_event_participation_report(
+            usuario_id=usuario_id,
+            fecha_desde=fecha_desde_dt,
+            fecha_hasta=fecha_hasta_dt,
+            repartodonaciones=repartodonaciones,
+            requesting_user=user
+        )
+        
+        # Convert to GraphQL types
+        graphql_results = []
+        for result in report_results:
+            # Convert event details to GraphQL types
+            event_details = []
+            for event_detail in result.eventos:
+                # Convert donations to GraphQL types
+                donation_types = [donation_to_graphql(donation) for donation in event_detail.donaciones]
                 
-                # Create participation report type
-                report_type = EventParticipationReportType(
-                    mes=result.mes,
-                    eventos=event_details
+                # Create event detail type
+                detail_type = EventDetailType(
+                    dia=event_detail.dia,
+                    nombre=event_detail.nombre,
+                    descripcion=event_detail.descripcion,
+                    donaciones=donation_types
                 )
-                graphql_results.append(report_type)
+                event_details.append(detail_type)
             
-            logger.info(f"Returning {len(graphql_results)} monthly event reports for user {usuario_id}")
-            return graphql_results
-            
-        except AuthorizationError as e:
-            logger.warning(f"Authorization error in event participation report: {e}")
-            raise Exception(f"Authorization error: {str(e)}")
-        except PermissionError as e:
-            logger.warning(f"Permission error in event participation report: {e}")
-            raise Exception(f"Permission error: {str(e)}")
-        except ValueError as e:
-            logger.warning(f"Validation error in event participation report: {e}")
-            raise Exception(f"Validation error: {str(e)}")
-        except Exception as e:
-            logger.error(f"Unexpected error in event participation report: {e}")
-            raise Exception("Internal server error")
+            # Create participation report type
+            report_type = EventParticipationReportType(
+                mes=result.mes,
+                eventos=event_details
+            )
+            graphql_results.append(report_type)
+        
+        logger.info(f"Returning {len(graphql_results)} monthly event reports for user {usuario_id}")
+        return graphql_results

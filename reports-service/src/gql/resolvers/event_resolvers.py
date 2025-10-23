@@ -3,11 +3,15 @@ GraphQL resolvers for event reports
 """
 from typing import List, Optional
 from datetime import datetime
-from src.gql.types.event import EventParticipationReportType, EventDetailType
+from src.gql.types.event import EventParticipationReportType, EventDetailType, SavedEventFilterType, EventFilterInput, EventFilterType
 from src.gql.types.donation import DonationType, donation_to_graphql
+from src.gql.types.user import UserType, UserRoleType, user_to_graphql
 from src.gql.context import Context
 from src.utils.auth import AuthorizationError
 from src.services.event_service import EventService
+from src.services.event_filter_service import EventFilterService
+from src.utils.database_utils import get_db_session
+from src.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -109,3 +113,221 @@ class EventResolver:
         
         logger.info(f"Returning {len(graphql_results)} monthly event reports for user {usuario_id}")
         return graphql_results
+    
+    @staticmethod
+    def get_saved_event_filters(info) -> List[SavedEventFilterType]:
+        """
+        Get saved event filters for the current user
+        
+        Returns:
+            List of SavedEventFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} requested saved event filters")
+        
+        # Get saved filters from service
+        filter_service = EventFilterService()
+        saved_filters = filter_service.get_saved_filters(user.id)
+        
+        # Convert to GraphQL types
+        graphql_results = []
+        for filter_data in saved_filters:
+            filter_type = SavedEventFilterType(
+                id=filter_data['id'],
+                nombre=filter_data['nombre'],
+                filtros=EventFilterType(
+                    usuarioId=filter_data['filtros']['usuarioId'],
+                    fechaDesde=filter_data['filtros']['fechaDesde'],
+                    fechaHasta=filter_data['filtros']['fechaHasta'],
+                    repartodonaciones=filter_data['filtros']['repartodonaciones']
+                ),
+                fechaCreacion=filter_data['fechaCreacion']
+            )
+            graphql_results.append(filter_type)
+        
+        logger.info(f"Returning {len(graphql_results)} saved event filters for user {user.id}")
+        return graphql_results
+    
+    @staticmethod
+    def save_event_filter(info, nombre: str, filtros: EventFilterInput) -> SavedEventFilterType:
+        """
+        Save a new event filter
+        
+        Args:
+            info: GraphQL info object
+            nombre: Name of the filter
+            filtros: Filter parameters
+        
+        Returns:
+            SavedEventFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} saving event filter: {nombre}")
+        
+        # Convert GraphQL input to dict
+        filtros_dict = {
+            'usuarioId': filtros.usuarioId,
+            'fechaDesde': filtros.fechaDesde,
+            'fechaHasta': filtros.fechaHasta,
+            'repartodonaciones': filtros.repartodonaciones
+        }
+        
+        # Save filter using service
+        filter_service = EventFilterService()
+        saved_filter = filter_service.save_filter(user.id, nombre, filtros_dict)
+        
+        # Convert to GraphQL type
+        result = SavedEventFilterType(
+            id=saved_filter['id'],
+            nombre=saved_filter['nombre'],
+            filtros=EventFilterType(
+                usuarioId=saved_filter['filtros']['usuarioId'],
+                fechaDesde=saved_filter['filtros']['fechaDesde'],
+                fechaHasta=saved_filter['filtros']['fechaHasta'],
+                repartodonaciones=saved_filter['filtros']['repartodonaciones']
+            ),
+            fechaCreacion=saved_filter['fechaCreacion']
+        )
+        
+        logger.info(f"Event filter saved successfully with ID: {result.id}")
+        return result
+    
+    @staticmethod
+    def update_event_filter(
+        info, 
+        id: str, 
+        nombre: Optional[str] = None, 
+        filtros: Optional[EventFilterInput] = None
+    ) -> SavedEventFilterType:
+        """
+        Update an existing event filter
+        
+        Args:
+            info: GraphQL info object
+            id: Filter ID
+            nombre: New name (optional)
+            filtros: New filter parameters (optional)
+        
+        Returns:
+            SavedEventFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} updating event filter: {id}")
+        
+        # Convert GraphQL input to dict if provided
+        filtros_dict = None
+        if filtros:
+            filtros_dict = {
+                'usuarioId': filtros.usuarioId,
+                'fechaDesde': filtros.fechaDesde,
+                'fechaHasta': filtros.fechaHasta,
+                'repartodonaciones': filtros.repartodonaciones
+            }
+        
+        # Update filter using service
+        filter_service = EventFilterService()
+        updated_filter = filter_service.update_filter(id, user.id, nombre, filtros_dict)
+        
+        # Convert to GraphQL type
+        result = SavedEventFilterType(
+            id=updated_filter['id'],
+            nombre=updated_filter['nombre'],
+            filtros=EventFilterType(
+                usuarioId=updated_filter['filtros']['usuarioId'],
+                fechaDesde=updated_filter['filtros']['fechaDesde'],
+                fechaHasta=updated_filter['filtros']['fechaHasta'],
+                repartodonaciones=updated_filter['filtros']['repartodonaciones']
+            ),
+            fechaCreacion=updated_filter['fechaCreacion']
+        )
+        
+        logger.info(f"Event filter updated successfully: {id}")
+        return result
+    
+    @staticmethod
+    def delete_event_filter(info, id: str) -> bool:
+        """
+        Delete an event filter
+        
+        Args:
+            info: GraphQL info object
+            id: Filter ID
+        
+        Returns:
+            True if deleted successfully
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} deleting event filter: {id}")
+        
+        # Delete filter using service
+        filter_service = EventFilterService()
+        success = filter_service.delete_filter(id, user.id)
+        
+        logger.info(f"Event filter deleted successfully: {id}")
+        return success
+    
+    @staticmethod
+    def get_organization_users(info) -> List[UserType]:
+        """
+        Get all users from the current user's organization
+        
+        Returns:
+            List of UserType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        # Only PRESIDENTE and COORDINADOR can see all users
+        if not user.can_access_all_event_reports():
+            raise AuthorizationError("You don't have permission to view all users")
+        
+        logger.info(f"User {user.id} requested organization users")
+        
+        try:
+            with get_db_session() as session:
+                # Get all active users from the same organization
+                users = session.query(User).filter(
+                    User.organizacion == user.organizacion,
+                    User.activo == True
+                ).order_by(User.nombre, User.apellido).all()
+                
+                # Convert to GraphQL types manually to avoid import issues
+                graphql_results = []
+                for u in users:
+                    user_type = UserType(
+                        id=u.id,
+                        nombre_usuario=u.nombre_usuario,
+                        nombre=u.nombre,
+                        apellido=u.apellido,
+                        telefono=u.telefono,
+                        email=u.email,
+                        rol=UserRoleType(u.rol.value),
+                        activo=u.activo,
+                        fecha_creacion=u.fecha_creacion,
+                        fecha_actualizacion=u.fecha_actualizacion
+                    )
+                    graphql_results.append(user_type)
+                
+                logger.info(f"Returning {len(graphql_results)} organization users")
+                return graphql_results
+        except Exception as e:
+            logger.error(f"Error getting organization users: {e}")
+            raise Exception("Error retrieving organization users")

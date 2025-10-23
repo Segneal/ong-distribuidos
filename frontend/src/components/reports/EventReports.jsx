@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -24,17 +24,38 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  TablePagination
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Snackbar
 } from '@mui/material';
 import {
   Search,
   ExpandMore,
   FilterList,
   Assessment,
-  Event
+  Event,
+  Save,
+  BookmarkBorder,
+  Delete,
+  Edit
 } from '@mui/icons-material';
-import { useQuery } from '@apollo/client';
-import { GET_EVENT_PARTICIPATION_REPORT } from '../../graphql/events';
+import { useQuery, useMutation } from '@apollo/client';
+import { 
+  GET_EVENT_PARTICIPATION_REPORT,
+  GET_SAVED_EVENT_FILTERS,
+  SAVE_EVENT_FILTER,
+  UPDATE_EVENT_FILTER,
+  DELETE_EVENT_FILTER
+  // GET_ORGANIZATION_USERS  // Temporarily disabled
+} from '../../graphql/events';
 import { useAuth } from '../../contexts/AuthContext';
 
 const EventReports = () => {
@@ -52,6 +73,13 @@ const EventReports = () => {
   // Check if user can see other users' reports
   const canViewAllUsers = user?.role === 'PRESIDENTE' || user?.role === 'COORDINADOR';
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Estados para filtros guardados
+  const [savedFiltersDialog, setSavedFiltersDialog] = useState(false);
+  const [saveFilterDialog, setSaveFilterDialog] = useState(false);
+  const [filterName, setFilterName] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [userNotFoundError, setUserNotFoundError] = useState(false);
 
   // Query para obtener datos de eventos
   const { data, loading, error, refetch } = useQuery(GET_EVENT_PARTICIPATION_REPORT, {
@@ -62,7 +90,47 @@ const EventReports = () => {
       repartodonaciones: filters.repartodonaciones === '' ? undefined : filters.repartodonaciones === 'true'
     },
     fetchPolicy: 'cache-and-network',
-    skip: !filters.usuarioId && !user?.id
+    skip: !filters.usuarioId && !user?.id,
+    onError: (error) => {
+      if (error.message.includes('User with ID') && error.message.includes('not found')) {
+        setUserNotFoundError(true);
+      }
+    }
+  });
+
+  // Query para obtener filtros guardados
+  const { data: savedFiltersData, refetch: refetchSavedFilters } = useQuery(GET_SAVED_EVENT_FILTERS, {
+    fetchPolicy: 'cache-and-network'
+  });
+
+  // Query para obtener usuarios de la organización (solo para PRESIDENTE/COORDINADOR)
+  // Temporarily disabled due to resolver issues
+  // const { data: usersData } = useQuery(GET_ORGANIZATION_USERS, {
+  //   skip: !canViewAllUsers,
+  //   fetchPolicy: 'cache-and-network'
+  // });
+
+  // Mutations para filtros guardados
+  const [saveEventFilter] = useMutation(SAVE_EVENT_FILTER, {
+    onCompleted: () => {
+      setSnackbar({ open: true, message: 'Filtro guardado exitosamente', severity: 'success' });
+      setSaveFilterDialog(false);
+      setFilterName('');
+      refetchSavedFilters();
+    },
+    onError: (error) => {
+      setSnackbar({ open: true, message: `Error al guardar filtro: ${error.message}`, severity: 'error' });
+    }
+  });
+
+  const [deleteEventFilter] = useMutation(DELETE_EVENT_FILTER, {
+    onCompleted: () => {
+      setSnackbar({ open: true, message: 'Filtro eliminado exitosamente', severity: 'success' });
+      refetchSavedFilters();
+    },
+    onError: (error) => {
+      setSnackbar({ open: true, message: `Error al eliminar filtro: ${error.message}`, severity: 'error' });
+    }
   });
 
   // Manejar cambios en filtros
@@ -71,6 +139,11 @@ const EventReports = () => {
       ...prev,
       [field]: value
     }));
+    
+    // Limpiar error de usuario no encontrado cuando se cambia el ID
+    if (field === 'usuarioId') {
+      setUserNotFoundError(false);
+    }
   }, []);
 
   // Limpiar filtros
@@ -80,6 +153,46 @@ const EventReports = () => {
       fechaDesde: '',
       fechaHasta: '',
       repartodonaciones: '' // Reset to "both"
+    });
+    setUserNotFoundError(false);
+  };
+
+  // Guardar filtro actual
+  const handleSaveFilter = () => {
+    if (!filterName.trim()) {
+      setSnackbar({ open: true, message: 'Por favor ingrese un nombre para el filtro', severity: 'warning' });
+      return;
+    }
+
+    saveEventFilter({
+      variables: {
+        nombre: filterName,
+        usuarioId: parseInt(filters.usuarioId) || null,
+        fechaDesde: filters.fechaDesde || null,
+        fechaHasta: filters.fechaHasta || null,
+        repartodonaciones: filters.repartodonaciones === '' ? null : filters.repartodonaciones === 'true'
+      }
+    });
+  };
+
+  // Cargar filtro guardado
+  const handleLoadFilter = (savedFilter) => {
+    const filtros = savedFilter.filtros;
+    setFilters({
+      usuarioId: filtros.usuarioId?.toString() || user?.id?.toString() || '',
+      fechaDesde: filtros.fechaDesde || '',
+      fechaHasta: filtros.fechaHasta || '',
+      repartodonaciones: filtros.repartodonaciones === null ? '' : filtros.repartodonaciones.toString()
+    });
+    setSavedFiltersDialog(false);
+    setUserNotFoundError(false);
+    setSnackbar({ open: true, message: `Filtro "${savedFilter.nombre}" cargado`, severity: 'success' });
+  };
+
+  // Eliminar filtro guardado
+  const handleDeleteFilter = (filterId) => {
+    deleteEventFilter({
+      variables: { id: filterId }
     });
   };
 
@@ -125,7 +238,7 @@ const EventReports = () => {
     );
   }
 
-  if (error) {
+  if (error && !userNotFoundError) {
     return (
       <Alert severity="error">
         Error al cargar los datos: {error.message}
@@ -149,18 +262,25 @@ const EventReports = () => {
         </Typography>
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
-            <TextField
-              fullWidth
-              type="number"
-              label="ID de Usuario *"
-              value={filters.usuarioId}
-              onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
-              helperText={canViewAllUsers ? "Ingrese ID del usuario a consultar" : "Solo puedes ver tus propios eventos"}
-              disabled={!canViewAllUsers && filters.usuarioId === user?.id?.toString()}
-              required
-            />
-          </Grid>
+          {canViewAllUsers && (
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                type="number"
+                label="ID de Usuario *"
+                value={filters.usuarioId}
+                onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
+                helperText="Ingrese ID del usuario a consultar"
+                required
+                error={userNotFoundError}
+              />
+              {userNotFoundError && (
+                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                  Usuario con ID {filters.usuarioId} no encontrado
+                </Typography>
+              )}
+            </Grid>
+          )}
 
           <Grid item xs={12} md={3}>
             <TextField
@@ -205,6 +325,7 @@ const EventReports = () => {
             variant="contained"
             startIcon={<Search />}
             onClick={() => refetch()}
+            disabled={userNotFoundError}
           >
             Buscar
           </Button>
@@ -213,6 +334,21 @@ const EventReports = () => {
             onClick={handleClearFilters}
           >
             Limpiar Filtros
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Save />}
+            onClick={() => setSaveFilterDialog(true)}
+            disabled={!filters.usuarioId || userNotFoundError}
+          >
+            Guardar Filtro
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<BookmarkBorder />}
+            onClick={() => setSavedFiltersDialog(true)}
+          >
+            Filtros Guardados
           </Button>
           
           <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -270,11 +406,18 @@ const EventReports = () => {
       )}
 
       {/* Resultados agrupados por mes */}
-      {!filters.usuarioId ? (
-        <Alert severity="warning">
-          Por favor, ingrese un ID de usuario para consultar los eventos. Este campo es obligatorio.
+      {userNotFoundError ? (
+        <Alert severity="error">
+          No se encontró un usuario con ID {filters.usuarioId}. Por favor, verifique el ID e intente nuevamente.
         </Alert>
-      ) : reportData.length === 0 ? (
+      ) : !filters.usuarioId ? (
+        <Alert severity="warning">
+          {canViewAllUsers 
+            ? "Por favor, ingrese un ID de usuario para consultar los eventos. Este campo es obligatorio."
+            : "Consultando eventos del usuario actual..."
+          }
+        </Alert>
+      ) : reportData.length === 0 && !loading ? (
         <Alert severity="info">
           No se encontraron eventos con los filtros aplicados para el usuario {filters.usuarioId}.
         </Alert>
@@ -392,6 +535,95 @@ const EventReports = () => {
           ))}
         </Box>
       )}
+
+      {/* Diálogo para guardar filtro */}
+      <Dialog open={saveFilterDialog} onClose={() => setSaveFilterDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Guardar Filtro</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nombre del filtro"
+            fullWidth
+            variant="outlined"
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+            helperText="Ingrese un nombre descriptivo para este filtro"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveFilterDialog(false)}>Cancelar</Button>
+          <Button onClick={handleSaveFilter} variant="contained">Guardar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para filtros guardados */}
+      <Dialog open={savedFiltersDialog} onClose={() => setSavedFiltersDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Filtros Guardados</DialogTitle>
+        <DialogContent>
+          {savedFiltersData?.savedEventFilters?.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>
+              No tienes filtros guardados aún.
+            </Typography>
+          ) : (
+            <List>
+              {savedFiltersData?.savedEventFilters?.map((filter) => (
+                <ListItem key={filter.id} divider>
+                  <ListItemText
+                    primary={filter.nombre}
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Usuario: {filter.filtros.usuarioId || 'Actual'} | 
+                          Fechas: {filter.filtros.fechaDesde || 'Sin límite'} - {filter.filtros.fechaHasta || 'Sin límite'} | 
+                          Donaciones: {filter.filtros.repartodonaciones === null ? 'Ambos' : filter.filtros.repartodonaciones ? 'Sí' : 'No'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Creado: {new Date(filter.fechaCreacion).toLocaleDateString('es-ES')}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Button
+                      size="small"
+                      onClick={() => handleLoadFilter(filter)}
+                      sx={{ mr: 1 }}
+                    >
+                      Cargar
+                    </Button>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeleteFilter(filter.id)}
+                      color="error"
+                    >
+                      <Delete />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSavedFiltersDialog(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

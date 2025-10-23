@@ -24,7 +24,17 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  TablePagination
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Snackbar
 } from '@mui/material';
 import {
   Search,
@@ -34,10 +44,19 @@ import {
   Assessment,
   SwapHoriz,
   Send,
-  CallReceived
+  CallReceived,
+  Save,
+  BookmarkBorder,
+  Delete
 } from '@mui/icons-material';
-import { useQuery } from '@apollo/client';
-import { GET_TRANSFER_REPORT } from '../../graphql/transfers';
+import { useQuery, useMutation } from '@apollo/client';
+import { 
+  GET_TRANSFER_REPORT,
+  GET_SAVED_TRANSFER_FILTERS,
+  SAVE_TRANSFER_FILTER,
+  UPDATE_TRANSFER_FILTER,
+  DELETE_TRANSFER_FILTER
+} from '../../graphql/transfers';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { getAuthHeaders } from '../../config/api';
@@ -68,6 +87,12 @@ const TransferReports = () => {
   const [paginationState, setPaginationState] = useState({});
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Estados para filtros guardados
+  const [savedFiltersDialog, setSavedFiltersDialog] = useState(false);
+  const [saveFilterDialog, setSaveFilterDialog] = useState(false);
+  const [filterName, setFilterName] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
   // Query para obtener datos de transferencias
   const { data, loading, error, refetch } = useQuery(GET_TRANSFER_REPORT, {
     variables: {
@@ -77,6 +102,34 @@ const TransferReports = () => {
       estado: filters.estado || undefined
     },
     fetchPolicy: 'cache-and-network'
+  });
+
+  // Query para obtener filtros guardados
+  const { data: savedFiltersData, refetch: refetchSavedFilters } = useQuery(GET_SAVED_TRANSFER_FILTERS, {
+    fetchPolicy: 'cache-and-network'
+  });
+
+  // Mutations para filtros guardados
+  const [saveTransferFilter] = useMutation(SAVE_TRANSFER_FILTER, {
+    onCompleted: () => {
+      setSnackbar({ open: true, message: 'Filtro guardado exitosamente', severity: 'success' });
+      setSaveFilterDialog(false);
+      setFilterName('');
+      refetchSavedFilters();
+    },
+    onError: (error) => {
+      setSnackbar({ open: true, message: `Error al guardar filtro: ${error.message}`, severity: 'error' });
+    }
+  });
+
+  const [deleteTransferFilter] = useMutation(DELETE_TRANSFER_FILTER, {
+    onCompleted: () => {
+      setSnackbar({ open: true, message: 'Filtro eliminado exitosamente', severity: 'success' });
+      refetchSavedFilters();
+    },
+    onError: (error) => {
+      setSnackbar({ open: true, message: `Error al eliminar filtro: ${error.message}`, severity: 'error' });
+    }
   });
 
   // Manejar cambios en filtros
@@ -94,6 +147,44 @@ const TransferReports = () => {
       fechaDesde: '',
       fechaHasta: '',
       estado: ''
+    });
+  };
+
+  // Guardar filtro actual
+  const handleSaveFilter = () => {
+    if (!filterName.trim()) {
+      setSnackbar({ open: true, message: 'Por favor ingrese un nombre para el filtro', severity: 'warning' });
+      return;
+    }
+
+    saveTransferFilter({
+      variables: {
+        nombre: filterName,
+        tipo: filters.tipo || null,
+        fechaDesde: filters.fechaDesde || null,
+        fechaHasta: filters.fechaHasta || null,
+        estado: filters.estado || null
+      }
+    });
+  };
+
+  // Cargar filtro guardado
+  const handleLoadFilter = (savedFilter) => {
+    const filtros = savedFilter.filtros;
+    setFilters({
+      tipo: filtros.tipo || '',
+      fechaDesde: filtros.fechaDesde || '',
+      fechaHasta: filtros.fechaHasta || '',
+      estado: filtros.estado || ''
+    });
+    setSavedFiltersDialog(false);
+    setSnackbar({ open: true, message: `Filtro "${savedFilter.nombre}" cargado`, severity: 'success' });
+  };
+
+  // Eliminar filtro guardado
+  const handleDeleteFilter = (filterId) => {
+    deleteTransferFilter({
+      variables: { id: filterId }
     });
   };
 
@@ -322,6 +413,20 @@ const TransferReports = () => {
             Limpiar Filtros
           </Button>
           <Button
+            variant="outlined"
+            startIcon={<Save />}
+            onClick={() => setSaveFilterDialog(true)}
+          >
+            Guardar Filtro
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<BookmarkBorder />}
+            onClick={() => setSavedFiltersDialog(true)}
+          >
+            Filtros Guardados
+          </Button>
+          <Button
             variant="contained"
             color="success"
             startIcon={isExporting ? <CircularProgress size={20} /> : <GetApp />}
@@ -521,6 +626,95 @@ const TransferReports = () => {
           })}
         </Box>
       )}
+
+      {/* Diálogo para guardar filtro */}
+      <Dialog open={saveFilterDialog} onClose={() => setSaveFilterDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Guardar Filtro</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nombre del filtro"
+            fullWidth
+            variant="outlined"
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+            helperText="Ingrese un nombre descriptivo para este filtro"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveFilterDialog(false)}>Cancelar</Button>
+          <Button onClick={handleSaveFilter} variant="contained">Guardar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para filtros guardados */}
+      <Dialog open={savedFiltersDialog} onClose={() => setSavedFiltersDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Filtros Guardados</DialogTitle>
+        <DialogContent>
+          {savedFiltersData?.savedTransferFilters?.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>
+              No tienes filtros guardados aún.
+            </Typography>
+          ) : (
+            <List>
+              {savedFiltersData?.savedTransferFilters?.map((filter) => (
+                <ListItem key={filter.id} divider>
+                  <ListItemText
+                    primary={filter.nombre}
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Tipo: {filter.filtros.tipo || 'Todos'} | 
+                          Estado: {filter.filtros.estado || 'Todos'} | 
+                          Fechas: {filter.filtros.fechaDesde || 'Sin límite'} - {filter.filtros.fechaHasta || 'Sin límite'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Creado: {new Date(filter.fechaCreacion).toLocaleDateString('es-ES')}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Button
+                      size="small"
+                      onClick={() => handleLoadFilter(filter)}
+                      sx={{ mr: 1 }}
+                    >
+                      Cargar
+                    </Button>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeleteFilter(filter.id)}
+                      color="error"
+                    >
+                      <Delete />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSavedFiltersDialog(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

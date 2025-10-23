@@ -3,10 +3,14 @@ GraphQL resolvers for transfer reports
 """
 from typing import List, Optional
 from datetime import datetime
-from src.gql.types.transfer import TransferReportType, DonationTransferType, TransferTypeEnum, TransferStatusEnum, transfer_to_graphql
+from src.gql.types.transfer import (
+    TransferReportType, DonationTransferType, TransferTypeEnum, TransferStatusEnum, 
+    transfer_to_graphql, SavedTransferFilterType, TransferFilterInput, TransferFilterType
+)
 from src.gql.context import Context
 from src.utils.auth import AuthorizationError
 from src.services.transfer_service import TransferService
+from src.services.transfer_filter_service import TransferFilterService
 from src.models.transfer import TransferType as TransferTypeModel, TransferStatus as TransferStatusModel
 import logging
 
@@ -146,3 +150,171 @@ class TransferResolver:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             raise Exception("Internal server error")
+    
+    @staticmethod
+    def get_saved_transfer_filters(info) -> List[SavedTransferFilterType]:
+        """
+        Get saved transfer filters for the current user
+        
+        Returns:
+            List of SavedTransferFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} requested saved transfer filters")
+        
+        # Get saved filters from service
+        filter_service = TransferFilterService()
+        saved_filters = filter_service.get_saved_filters(user.id)
+        
+        # Convert to GraphQL types
+        graphql_results = []
+        for filter_data in saved_filters:
+            filter_type = SavedTransferFilterType(
+                id=filter_data['id'],
+                nombre=filter_data['nombre'],
+                filtros=TransferFilterType(
+                    tipo=filter_data['filtros']['tipo'],
+                    fechaDesde=filter_data['filtros']['fechaDesde'],
+                    fechaHasta=filter_data['filtros']['fechaHasta'],
+                    estado=filter_data['filtros']['estado']
+                ),
+                fechaCreacion=filter_data['fechaCreacion']
+            )
+            graphql_results.append(filter_type)
+        
+        logger.info(f"Returning {len(graphql_results)} saved transfer filters for user {user.id}")
+        return graphql_results
+    
+    @staticmethod
+    def save_transfer_filter(info, nombre: str, filtros: TransferFilterInput) -> SavedTransferFilterType:
+        """
+        Save a new transfer filter
+        
+        Args:
+            info: GraphQL info object
+            nombre: Name of the filter
+            filtros: Filter parameters
+        
+        Returns:
+            SavedTransferFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} saving transfer filter: {nombre}")
+        
+        # Convert GraphQL input to dict
+        filtros_dict = {
+            'tipo': filtros.tipo,
+            'fechaDesde': filtros.fechaDesde,
+            'fechaHasta': filtros.fechaHasta,
+            'estado': filtros.estado
+        }
+        
+        # Save filter using service
+        filter_service = TransferFilterService()
+        saved_filter = filter_service.save_filter(user.id, nombre, filtros_dict)
+        
+        # Convert to GraphQL type
+        result = SavedTransferFilterType(
+            id=saved_filter['id'],
+            nombre=saved_filter['nombre'],
+            filtros=TransferFilterType(
+                tipo=saved_filter['filtros']['tipo'],
+                fechaDesde=saved_filter['filtros']['fechaDesde'],
+                fechaHasta=saved_filter['filtros']['fechaHasta'],
+                estado=saved_filter['filtros']['estado']
+            ),
+            fechaCreacion=saved_filter['fechaCreacion']
+        )
+        
+        logger.info(f"Transfer filter saved successfully with ID: {result.id}")
+        return result
+    
+    @staticmethod
+    def update_transfer_filter(
+        info, 
+        id: str, 
+        nombre: Optional[str] = None, 
+        filtros: Optional[TransferFilterInput] = None
+    ) -> SavedTransferFilterType:
+        """
+        Update an existing transfer filter
+        
+        Args:
+            info: GraphQL info object
+            id: Filter ID
+            nombre: New name (optional)
+            filtros: New filter parameters (optional)
+        
+        Returns:
+            SavedTransferFilterType
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} updating transfer filter: {id}")
+        
+        # Convert GraphQL input to dict if provided
+        filtros_dict = None
+        if filtros:
+            filtros_dict = {
+                'tipo': filtros.tipo,
+                'fechaDesde': filtros.fechaDesde,
+                'fechaHasta': filtros.fechaHasta,
+                'estado': filtros.estado
+            }
+        
+        # Update filter using service
+        filter_service = TransferFilterService()
+        updated_filter = filter_service.update_filter(id, user.id, nombre, filtros_dict)
+        
+        # Convert to GraphQL type
+        result = SavedTransferFilterType(
+            id=updated_filter['id'],
+            nombre=updated_filter['nombre'],
+            filtros=TransferFilterType(
+                tipo=updated_filter['filtros']['tipo'],
+                fechaDesde=updated_filter['filtros']['fechaDesde'],
+                fechaHasta=updated_filter['filtros']['fechaHasta'],
+                estado=updated_filter['filtros']['estado']
+            ),
+            fechaCreacion=updated_filter['fechaCreacion']
+        )
+        
+        logger.info(f"Transfer filter updated successfully: {id}")
+        return result
+    
+    @staticmethod
+    def delete_transfer_filter(info, id: str) -> bool:
+        """
+        Delete a transfer filter
+        
+        Args:
+            info: GraphQL info object
+            id: Filter ID
+        
+        Returns:
+            True if deleted successfully
+        """
+        context = info.context
+        
+        # Get authenticated user
+        user = context.auth_context.require_authentication()
+        
+        logger.info(f"User {user.id} deleting transfer filter: {id}")
+        
+        # Delete filter using service
+        filter_service = TransferFilterService()
+        success = filter_service.delete_filter(id, user.id)
+        
+        logger.info(f"Transfer filter deleted successfully: {id}")
+        return success

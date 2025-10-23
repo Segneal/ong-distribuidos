@@ -45,10 +45,35 @@ class EventParticipationReportType:
 @strawberry.input
 class EventFilterInput:
     """Input type for event filtering"""
-    fecha_desde: Optional[datetime] = None
-    fecha_hasta: Optional[datetime] = None
-    usuario_id: Optional[int] = None
+    fechaDesde: Optional[str] = None
+    fechaHasta: Optional[str] = None
+    usuarioId: Optional[int] = None
     repartodonaciones: Optional[bool] = None
+
+
+@strawberry.type
+class EventFilterType:
+    """Output type for event filtering"""
+    fechaDesde: Optional[str] = None
+    fechaHasta: Optional[str] = None
+    usuarioId: Optional[int] = None
+    repartodonaciones: Optional[bool] = None
+
+
+@strawberry.type
+class SavedEventFilterType:
+    """GraphQL Saved Event Filter type"""
+    id: str
+    nombre: str
+    filtros: EventFilterType
+    fechaCreacion: datetime
+
+
+@strawberry.input
+class SavedEventFilterInput:
+    """Input type for saving event filters"""
+    nombre: str
+    filtros: EventFilterInput
 
 
 def event_to_graphql(event) -> EventType:

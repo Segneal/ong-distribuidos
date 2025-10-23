@@ -57,6 +57,33 @@ class TransferReportType:
     total_items: int
     transferencias: List[DonationTransferType]
 
+@strawberry.input
+class TransferFilterInput:
+    """Input type for transfer filtering"""
+    tipo: Optional[str] = None
+    fechaDesde: Optional[str] = None
+    fechaHasta: Optional[str] = None
+    estado: Optional[str] = None
+
+
+@strawberry.type
+class TransferFilterType:
+    """Output type for transfer filtering"""
+    tipo: Optional[str] = None
+    fechaDesde: Optional[str] = None
+    fechaHasta: Optional[str] = None
+    estado: Optional[str] = None
+
+
+@strawberry.type
+class SavedTransferFilterType:
+    """GraphQL Saved Transfer Filter type"""
+    id: str
+    nombre: str
+    filtros: TransferFilterType
+    fechaCreacion: datetime
+
+
 def transfer_to_graphql(transfer: DonationTransfer) -> DonationTransferType:
     """Convert SQLAlchemy Transfer model to GraphQL type"""
     

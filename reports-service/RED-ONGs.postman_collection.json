@@ -1,0 +1,186 @@
+{
+	"info": {
+		"_postman_id": "e75009b6-8411-48f2-94ac-215c50e9fef0",
+		"name": "RED-ONGs",
+		"description": "\n",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30691979"
+	},
+	"item": [
+		{
+			"name": "list_associations",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "text/xml; charset=utf-8"
+					},
+					{
+						"key": "SOAPAction",
+						"value": "list_associations"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:auth=\"auth.headers\" xmlns:tns=\"soap.backend\">\n  <soapenv:Header>\n    <auth:Auth>\n      <auth:Grupo>GrupoA-TM</auth:Grupo>\n      <auth:Clave>clave-tm-a</auth:Clave>\n    </auth:Auth>\n  </soapenv:Header>\n  <soapenv:Body>\n    <tns:list_associations>\n      <tns:org_ids>\n        <tns:string>6</tns:string>\n        <tns:string>5</tns:string>\n        <tns:string>8</tns:string>\n        <tns:string>10</tns:string>\n      </tns:org_ids>\n    </tns:list_associations>\n  </soapenv:Body>\n</soapenv:Envelope>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{ApplicationBaseUrl}}/",
+					"host": [
+						"{{ApplicationBaseUrl}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "list_associations response",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/xml; charset=utf-8"
+							},
+							{
+								"key": "SOAPAction",
+								"value": "list_associations"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <soap:Body>\n    <tns:list_associations xmlns:tns=\"soap.backend\"/>\n  </soap:Body>\n</soap:Envelope>\n",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://soap-app-latest.onrender.com/",
+							"protocol": "https",
+							"host": [
+								"soap-app-latest",
+								"onrender",
+								"com"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "xml",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "text/xml; charset=utf-8"
+						}
+					],
+					"cookie": [],
+					"body": "<?xml version='1.0' encoding='UTF-8'?>\n<soap11env:Envelope xmlns:soap11env=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:tns=\"soap.backend\" xmlns:s0=\"models\">\n    <soap11env:Body>\n        <tns:list_associationsResponse>\n            <tns:list_associationsResult>\n                <s0:OrganizationType>\n                    <s0:id>6</s0:id>\n                    <s0:name>2cu2z-6</s0:name>\n                    <s0:address>Calle 28 # 128</s0:address>\n                    <s0:phone>+34 600 00 028</s0:phone>\n                </s0:OrganizationType>\n                <s0:OrganizationType>\n                    <s0:id>5</s0:id>\n                    <s0:name>3Jqmm-5</s0:name>\n                    <s0:address>Calle 15 # 115</s0:address>\n                    <s0:phone>+34 600 00 015</s0:phone>\n                </s0:OrganizationType>\n                <s0:OrganizationType>\n                    <s0:id>8</s0:id>\n                    <s0:name>3R5Mo-8</s0:name>\n                    <s0:address>Calle 29 # 129</s0:address>\n                    <s0:phone>+34 600 00 029</s0:phone>\n                </s0:OrganizationType>\n                <s0:OrganizationType>\n                    <s0:id>10</s0:id>\n                    <s0:name>3TWLw-10</s0:name>\n                    <s0:address>Calle 49 # 149</s0:address>\n                    <s0:phone>+34 600 00 049</s0:phone>\n                </s0:OrganizationType>\n            </tns:list_associationsResult>\n        </tns:list_associationsResponse>\n    </soap11env:Body>\n</soap11env:Envelope>"
+				}
+			]
+		},
+		{
+			"name": "list_presidents",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "text/xml; charset=utf-8"
+					},
+					{
+						"key": "SOAPAction",
+						"value": "list_presidents"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:auth=\"auth.headers\" xmlns:tns=\"soap.backend\">\n  <soapenv:Header>\n    <auth:Auth>\n      <auth:Grupo>GrupoA-TM</auth:Grupo>\n      <auth:Clave>clave-tm-a</auth:Clave>\n    </auth:Auth>\n  </soapenv:Header>\n  <soapenv:Body>\n    <tns:list_presidents>\n      <tns:org_ids>\n        <tns:string>6</tns:string>\n        <tns:string>5</tns:string>\n        <tns:string>8</tns:string>\n        <tns:string>10</tns:string>\n      </tns:org_ids>\n    </tns:list_presidents>\n  </soapenv:Body>\n</soapenv:Envelope>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{ApplicationBaseUrl}}/",
+					"host": [
+						"{{ApplicationBaseUrl}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "list_presidents response",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/xml; charset=utf-8"
+							},
+							{
+								"key": "SOAPAction",
+								"value": "list_presidents"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <soap:Body>\n    <tns:list_presidents xmlns:tns=\"soap.backend\"/>\n  </soap:Body>\n</soap:Envelope>\n",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://soap-app-latest.onrender.com/",
+							"protocol": "https",
+							"host": [
+								"soap-app-latest",
+								"onrender",
+								"com"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "xml",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "text/xml; charset=utf-8"
+						}
+					],
+					"cookie": [],
+					"body": "<?xml version='1.0' encoding='UTF-8'?>\n<soap11env:Envelope xmlns:soap11env=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:tns=\"soap.backend\" xmlns:s0=\"models\">\n    <soap11env:Body>\n        <tns:list_presidentsResponse>\n            <tns:list_presidentsResult>\n                <s0:PresidentType>\n                    <s0:id>52</s0:id>\n                    <s0:name>03Q5a</s0:name>\n                    <s0:address>Av. 52 # 252</s0:address>\n                    <s0:phone>+34 700 00 052</s0:phone>\n                    <s0:organization_id>6</s0:organization_id>\n                </s0:PresidentType>\n                <s0:PresidentType>\n                    <s0:id>59</s0:id>\n                    <s0:name>0IbVg</s0:name>\n                    <s0:address>Av. 59 # 259</s0:address>\n                    <s0:phone>+34 700 00 059</s0:phone>\n                    <s0:organization_id>5</s0:organization_id>\n                </s0:PresidentType>\n                <s0:PresidentType>\n                    <s0:id>41</s0:id>\n                    <s0:name>0txbl</s0:name>\n                    <s0:address>Av. 41 # 241</s0:address>\n                    <s0:phone>+34 700 00 041</s0:phone>\n                    <s0:organization_id>8</s0:organization_id>\n                </s0:PresidentType>\n                <s0:PresidentType>\n                    <s0:id>29</s0:id>\n                    <s0:name>1tRQU</s0:name>\n                    <s0:address>Av. 29 # 229</s0:address>\n                    <s0:phone>+34 700 00 029</s0:phone>\n                    <s0:organization_id>10</s0:organization_id>\n                </s0:PresidentType>\n            </tns:list_presidentsResult>\n        </tns:list_presidentsResponse>\n    </soap11env:Body>\n</soap11env:Envelope>"
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "ApplicationBaseUrl",
+			"value": "https://soap-app-latest.onrender.com",
+			"type": "any"
+		}
+	]
+}

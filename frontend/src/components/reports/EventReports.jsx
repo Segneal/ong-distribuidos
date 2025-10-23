@@ -60,8 +60,12 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const EventReports = () => {
   const { user } = useAuth();
+  
+  // Check if user can see other users' reports
+  const canViewAllUsers = user?.role === 'PRESIDENTE' || user?.role === 'COORDINADOR';
+  
   const [filters, setFilters] = useState({
-    usuarioId: user?.id || '', // Required field, defaults to current user
+    usuarioId: canViewAllUsers ? '0' : (user?.id?.toString() || ''), // Default to "All users" for PRESIDENTE/COORDINADOR
     fechaDesde: '',
     fechaHasta: '',
     repartodonaciones: '' // '' = both, 'true' = yes, 'false' = no
@@ -69,9 +73,6 @@ const EventReports = () => {
   
   // Estado para paginación
   const [paginationState, setPaginationState] = useState({});
-  
-  // Check if user can see other users' reports
-  const canViewAllUsers = user?.role === 'PRESIDENTE' || user?.role === 'COORDINADOR';
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Estados para filtros guardados
@@ -84,13 +85,13 @@ const EventReports = () => {
   // Query para obtener datos de eventos
   const { data, loading, error, refetch } = useQuery(GET_EVENT_PARTICIPATION_REPORT, {
     variables: {
-      usuarioId: parseInt(filters.usuarioId) || user?.id,
+      usuarioId: filters.usuarioId ? parseInt(filters.usuarioId) : user?.id,
       fechaDesde: filters.fechaDesde || undefined,
       fechaHasta: filters.fechaHasta || undefined,
       repartodonaciones: filters.repartodonaciones === '' ? undefined : filters.repartodonaciones === 'true'
     },
     fetchPolicy: 'cache-and-network',
-    skip: !filters.usuarioId && !user?.id,
+    skip: (!filters.usuarioId || filters.usuarioId === '') && !user?.id,
     onError: (error) => {
       if (error.message.includes('User with ID') && error.message.includes('not found')) {
         setUserNotFoundError(true);
@@ -149,7 +150,7 @@ const EventReports = () => {
   // Limpiar filtros
   const handleClearFilters = () => {
     setFilters({
-      usuarioId: user?.id || '', // Keep current user as default
+      usuarioId: canViewAllUsers ? '0' : (user?.id?.toString() || ''), // Default to "All users" for PRESIDENTE/COORDINADOR
       fechaDesde: '',
       fechaHasta: '',
       repartodonaciones: '' // Reset to "both"
@@ -167,7 +168,7 @@ const EventReports = () => {
     saveEventFilter({
       variables: {
         nombre: filterName,
-        usuarioId: parseInt(filters.usuarioId) || null,
+        usuarioId: filters.usuarioId ? parseInt(filters.usuarioId) : null,
         fechaDesde: filters.fechaDesde || null,
         fechaHasta: filters.fechaHasta || null,
         repartodonaciones: filters.repartodonaciones === '' ? null : filters.repartodonaciones === 'true'
@@ -264,21 +265,31 @@ const EventReports = () => {
         <Grid container spacing={3}>
           {canViewAllUsers && (
             <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                type="number"
-                label="ID de Usuario *"
-                value={filters.usuarioId}
-                onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
-                helperText="Ingrese ID del usuario a consultar"
-                required
-                error={userNotFoundError}
-              />
-              {userNotFoundError && (
-                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                  Usuario con ID {filters.usuarioId} no encontrado
-                </Typography>
-              )}
+              <FormControl fullWidth error={userNotFoundError}>
+                <InputLabel>Usuario *</InputLabel>
+                <Select
+                  value={filters.usuarioId}
+                  label="Usuario *"
+                  onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
+                  required
+                >
+                  <MenuItem value="0">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Assessment />
+                      <strong>Todos los usuarios de la organización</strong>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="11">Admin (PRESIDENTE) - ID: 11</MenuItem>
+                  <MenuItem value="13">Carlos López (COORDINADOR) - ID: 13</MenuItem>
+                  <MenuItem value="14">AnaSAT Martínez (VOLUNTARIO) - ID: 14</MenuItem>
+                  <MenuItem value="15">Pedro Rodríguez (VOLUNTARIO) - ID: 15</MenuItem>
+                </Select>
+                {userNotFoundError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                    Usuario con ID {filters.usuarioId} no encontrado
+                  </Typography>
+                )}
+              </FormControl>
             </Grid>
           )}
 
@@ -373,7 +384,7 @@ const EventReports = () => {
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Assessment />
-              Resumen General
+              Resumen General - {filters.usuarioId === '0' ? 'Todos los usuarios' : `Usuario ${filters.usuarioId}`}
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
@@ -413,13 +424,13 @@ const EventReports = () => {
       ) : !filters.usuarioId ? (
         <Alert severity="warning">
           {canViewAllUsers 
-            ? "Por favor, ingrese un ID de usuario para consultar los eventos. Este campo es obligatorio."
+            ? "Por favor, seleccione un usuario para consultar los eventos. Este campo es obligatorio."
             : "Consultando eventos del usuario actual..."
           }
         </Alert>
       ) : reportData.length === 0 && !loading ? (
         <Alert severity="info">
-          No se encontraron eventos con los filtros aplicados para el usuario {filters.usuarioId}.
+          No se encontraron eventos con los filtros aplicados para {filters.usuarioId === '0' ? 'todos los usuarios de la organización' : `el usuario ${filters.usuarioId}`}.
         </Alert>
       ) : (
         <Box>

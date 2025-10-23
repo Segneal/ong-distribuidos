@@ -48,14 +48,18 @@ class EventResolver:
         
         logger.info(f"User {user.id} ({user.rol.value}) requested event participation report for user {usuario_id}")
         
-        # Validate that usuario_id is provided (required parameter)
-        if not usuario_id:
+        # Special handling for PRESIDENTE: can use usuario_id = 0 to see all users
+        if usuario_id == 0 and user.can_access_all_event_reports():
+            # PRESIDENTE requesting all users' events
+            logger.info(f"PRESIDENTE {user.id} requesting events for ALL users in organization")
+        elif not usuario_id:
+            # Regular validation: usuario_id is required for non-PRESIDENTE or when not requesting all
             raise ValueError("usuario_id is required and cannot be empty")
-        
-        # Validate user access for the requested user_id
-        # PRESIDENTE and COORDINADOR can see any user, others only themselves
-        if not (user.can_access_all_event_reports() or user.id == usuario_id):
-            raise AuthorizationError("You can only access your own event reports")
+        else:
+            # Validate user access for the requested user_id
+            # PRESIDENTE and COORDINADOR can see any user, others only themselves
+            if not (user.can_access_all_event_reports() or user.id == usuario_id):
+                raise AuthorizationError("You can only access your own event reports")
         
         # Parse and validate date parameters
         fecha_desde_dt = None

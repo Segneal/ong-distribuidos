@@ -55,23 +55,37 @@ class EventService:
         Returns:
             List of EventParticipationReport grouped by month
         """
-        # Validate user access permissions
-        if not self.validate_user_access(requesting_user, usuario_id):
-            raise PermissionError("User does not have permission to access this user's event reports")
-        
         with get_db_session() as session:
-            # Get the target user
-            target_user = session.query(User).filter(User.id == usuario_id).first()
-            if not target_user:
-                raise ValueError(f"User with ID {usuario_id} not found")
-            
-            # Build base query for events where user participated
-            # Only include non-cancelled events (all events in DB are considered non-cancelled)
-            query = session.query(Event).join(
-                Event.participantes
-            ).filter(
-                User.id == usuario_id
-            )
+            # Special case: usuario_id = 0 means all users (only for PRESIDENTE)
+            if usuario_id == 0:
+                if not requesting_user or not requesting_user.can_access_all_event_reports():
+                    raise PermissionError("Only PRESIDENTE and COORDINADOR can access all users' event reports")
+                
+                # Build query for all events in the organization
+                # Since organization is not in the database, we'll get all active users' events
+                # and filter by organization in the application layer
+                query = session.query(Event).join(
+                    Event.participantes
+                ).filter(
+                    User.activo == True
+                )
+                
+            else:
+                # Validate user access permissions for specific user
+                if not self.validate_user_access(requesting_user, usuario_id):
+                    raise PermissionError("User does not have permission to access this user's event reports")
+                
+                # Get the target user
+                target_user = session.query(User).filter(User.id == usuario_id).first()
+                if not target_user:
+                    raise ValueError(f"User with ID {usuario_id} not found")
+                
+                # Build base query for events where specific user participated
+                query = session.query(Event).join(
+                    Event.participantes
+                ).filter(
+                    User.id == usuario_id
+                )
             
             # Apply date filters
             filters = []
@@ -238,13 +252,17 @@ class EventService:
         
         Args:
             requesting_user: User making the request
-            target_user_id: ID of the user whose reports are being accessed
+            target_user_id: ID of the user whose reports are being accessed (0 = all users)
         
         Returns:
             True if access is allowed, False otherwise
         """
         if not requesting_user:
             return False
+        
+        # Special case: target_user_id = 0 means all users (only for PRESIDENTE/COORDINADOR)
+        if target_user_id == 0:
+            return requesting_user.can_access_all_event_reports()
         
         # Presidentes and Coordinadores can access any user's reports
         if requesting_user.can_access_all_event_reports():

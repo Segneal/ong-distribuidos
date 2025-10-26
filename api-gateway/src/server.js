@@ -44,6 +44,8 @@ const eventsRoutes = require('./routes/events');
 const donationRequestsRoutes = require('./routes/donationRequests');
 const messagingRoutes = require('./routes/messaging');
 const notificationsRoutes = require('./routes/notifications');
+const reportsRoutes = require('./routes/reports');
+const graphqlRoutes = require('./routes/graphql');
 
 
 // Configurar rutas
@@ -54,6 +56,8 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/donation-requests', donationRequestsRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api', reportsRoutes); // ENABLED - using real reports service proxy
+// app.use('/api', graphqlRoutes); // DISABLED - no longer using mock data
 
 
 // Ruta por defecto
@@ -67,7 +71,11 @@ app.get('/', (req, res) => {
       users: '/api/users',
       inventory: '/api/inventory',
       events: '/api/events',
-      messaging: '/api/messaging'
+      messaging: '/api/messaging',
+      graphql: '/api/graphql',
+      reports: '/api/reports',
+      filters: '/api/filters',
+      network: '/api/network'
     }
   });
 });

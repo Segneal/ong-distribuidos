@@ -1,6 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ApolloProvider } from '@apollo/client';
 import { AuthProvider } from './contexts/AuthContext';
+import apolloClient from './config/apollo';
 import Layout from './components/common/Layout';
 import ProtectedRoute, { RoleProtectedRoute, PermissionProtectedRoute } from './components/auth/ProtectedRoute';
 import Home from './pages/Home';
@@ -19,11 +21,13 @@ import DonationRequests from './pages/DonationRequests';
 import DonationTransfers from './pages/DonationTransfers';
 import DonationOffers from './pages/DonationOffers';
 import AdhesionManagement from './pages/AdhesionManagement';
+import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
 
 function App() {
   return (
-    <AuthProvider>
+    <ApolloProvider client={apolloClient}>
+      <AuthProvider>
       <Routes>
         {/* Ruta pública de login */}
         <Route path="/login" element={<Login />} />
@@ -107,6 +111,13 @@ function App() {
             </RoleProtectedRoute>
           } />
 
+          {/* Reportes - Todos los roles */}
+          <Route path="reports" element={
+            <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR', 'VOCAL', 'VOLUNTARIO']}>
+              <Reports />
+            </RoleProtectedRoute>
+          } />
+
           {/* Crear evento - PRESIDENTE y COORDINADOR */}
           <Route path="events/new" element={
             <RoleProtectedRoute roles={['PRESIDENTE', 'COORDINADOR']}>
@@ -147,6 +158,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>
+    </ApolloProvider>
   );
 }
 

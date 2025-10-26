@@ -290,7 +290,7 @@ const DonationReports = () => {
             <FormControl fullWidth>
               <InputLabel>Estado</InputLabel>
               <Select
-                value={filters.eliminado === null ? '' : filters.eliminado.toString()}
+                value={filters.eliminado === null ? '' : (filters.eliminado ? 'true' : 'false')}
                 label="Estado"
                 onChange={(e) => {
                   const value = e.target.value;

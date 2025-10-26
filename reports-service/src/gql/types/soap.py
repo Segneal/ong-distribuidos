@@ -1,5 +1,5 @@
 """
-GraphQL types for SOAP network consultation operations.
+SOAP-related GraphQL types for Strawberry
 """
 import strawberry
 from typing import List, Optional
@@ -7,7 +7,7 @@ from typing import List, Optional
 
 @strawberry.type
 class PresidentType:
-    """GraphQL type for president data."""
+    """GraphQL type for president data from SOAP service"""
     organization_id: Optional[int] = None
     president_name: Optional[str] = None
     president_email: Optional[str] = None
@@ -20,7 +20,7 @@ class PresidentType:
 
 @strawberry.type
 class OrganizationType:
-    """GraphQL type for organization data."""
+    """GraphQL type for organization data from SOAP service"""
     organization_id: Optional[int] = None
     organization_name: Optional[str] = None
     organization_type: Optional[str] = None
@@ -37,7 +37,7 @@ class OrganizationType:
 
 @strawberry.type
 class NetworkConsultationType:
-    """GraphQL type for network consultation response."""
+    """GraphQL type for network consultation response"""
     presidents: List[PresidentType]
     organizations: List[OrganizationType]
     query_ids: List[int]
@@ -46,15 +46,9 @@ class NetworkConsultationType:
     errors: List[str]
 
 
-@strawberry.input
-class NetworkConsultationInput:
-    """GraphQL input type for network consultation request."""
-    organization_ids: List[int]
-
-
 @strawberry.type
-class SOAPConnectionTest:
-    """GraphQL type for SOAP connection test result."""
+class SOAPConnectionTestType:
+    """GraphQL type for SOAP connection test response"""
     connected: bool
     service_url: str
     message: str

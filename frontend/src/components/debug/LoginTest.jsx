@@ -8,12 +8,12 @@ const LoginTest = () => {
   const testDirectLogin = async () => {
     setLoading(true);
     setResult('Testing...');
-    
+
     try {
       console.log('=== DIRECT LOGIN TEST ===');
       console.log('URL:', 'http://localhost:3001/api/auth/login');
       console.log('Data:', { usernameOrEmail: 'admin', password: 'admin123' });
-      
+
       const response = await axios.post('http://localhost:3001/api/auth/login', {
         usernameOrEmail: 'admin',
         password: 'admin123'
@@ -22,10 +22,10 @@ const LoginTest = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Response:', response);
       setResult(`SUCCESS: ${JSON.stringify(response.data, null, 2)}`);
-      
+
     } catch (error) {
       console.error('Error:', error);
       setResult(`ERROR: ${error.message}\nResponse: ${JSON.stringify(error.response?.data, null, 2)}\nStatus: ${error.response?.status}`);
@@ -37,19 +37,19 @@ const LoginTest = () => {
   const testWithAuthService = async () => {
     setLoading(true);
     setResult('Testing with auth service...');
-    
+
     try {
       const { authService } = await import('../../services/api');
       console.log('=== AUTH SERVICE TEST ===');
-      
+
       const response = await authService.login({
         usernameOrEmail: 'admin',
         password: 'admin123'
       });
-      
+
       console.log('Auth service response:', response);
       setResult(`AUTH SERVICE SUCCESS: ${JSON.stringify(response.data, null, 2)}`);
-      
+
     } catch (error) {
       console.error('Auth service error:', error);
       setResult(`AUTH SERVICE ERROR: ${error.message}\nResponse: ${JSON.stringify(error.response?.data, null, 2)}\nStatus: ${error.response?.status}`);
@@ -69,10 +69,10 @@ const LoginTest = () => {
           Test Auth Service
         </button>
       </div>
-      
-      <div style={{ 
-        background: '#f5f5f5', 
-        padding: '10px', 
+
+      <div style={{
+        background: '#f5f5f5',
+        padding: '10px',
         border: '1px solid #ccc',
         whiteSpace: 'pre-wrap',
         maxHeight: '400px',

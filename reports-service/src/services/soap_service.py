@@ -15,7 +15,7 @@ class SOAPService:
     def __init__(self):
         self.soap_client = get_soap_client()
     
-    def get_network_consultation(self, organization_ids: List[int]) -> NetworkConsultationResponse:
+    async def get_network_consultation(self, organization_ids: List[int]) -> NetworkConsultationResponse:
         """
         Get network consultation data for the given organization IDs.
         
@@ -85,7 +85,7 @@ class SOAPService:
                 errors=[f"Internal server error: {str(e)}"]
             )
     
-    def get_president_data_only(self, organization_ids: List[int]) -> List[PresidentData]:
+    async def get_president_data_only(self, organization_ids: List[int]) -> List[PresidentData]:
         """
         Get only president data for the given organization IDs.
         
@@ -121,7 +121,7 @@ class SOAPService:
             logger.error(f"Error querying president data: {e}")
             raise
     
-    def get_organization_data_only(self, organization_ids: List[int]) -> List[OrganizationData]:
+    async def get_organization_data_only(self, organization_ids: List[int]) -> List[OrganizationData]:
         """
         Get only organization data for the given organization IDs.
         
@@ -157,7 +157,7 @@ class SOAPService:
             logger.error(f"Error querying organization data: {e}")
             raise
     
-    def test_soap_connection(self) -> Dict[str, Any]:
+    async def test_soap_connection(self) -> Dict[str, Any]:
         """
         Test the SOAP service connection.
         
@@ -169,7 +169,7 @@ class SOAPService:
             
             return {
                 'connected': is_connected,
-                'service_url': self.soap_client.settings.SOAP_SERVICE_URL,
+                'service_url': self.soap_client.base_url,
                 'message': 'SOAP service is available' if is_connected else 'SOAP service is not available'
             }
             
@@ -177,7 +177,7 @@ class SOAPService:
             logger.error(f"Error testing SOAP connection: {e}")
             return {
                 'connected': False,
-                'service_url': self.soap_client.settings.SOAP_SERVICE_URL,
+                'service_url': self.soap_client.base_url,
                 'message': f'Connection test failed: {str(e)}'
             }
 

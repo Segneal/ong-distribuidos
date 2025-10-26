@@ -56,12 +56,78 @@ class SOAPClient:
                 timeout=30
             )
             
-            response.raise_for_status()
+            # Handle different HTTP status codes
+            if response.status_code == 500:
+                # Check if it's a SOAP fault or server error
+                try:
+                    # Try to parse as XML to see if it's a SOAP fault
+                    root = ET.fromstring(response.text)
+                    
+                    # Look for SOAP fault
+                    fault_elements = root.findall('.//{http://schemas.xmlsoap.org/soap/envelope/}Fault')
+                    if fault_elements:
+                        fault_string = fault_elements[0].find('.//{http://schemas.xmlsoap.org/soap/envelope/}faultstring')
+                        fault_message = fault_string.text if fault_string is not None else "Unknown SOAP fault"
+                        logger.warning(f"SOAP fault received: {fault_message}")
+                        
+                        # If it's about non-existent IDs, return empty response instead of error
+                        if any(keyword in fault_message.lower() for keyword in ['not found', 'no data', 'empty', 'invalid id']):
+                            logger.info(f"No data found for organization IDs: {org_ids}")
+                            return self._create_empty_soap_response(action)
+                        
+                        raise SOAPServiceError(f"SOAP fault: {fault_message}")
+                    else:
+                        # Not a SOAP fault, might be server error
+                        logger.warning(f"Server returned 500 but no SOAP fault found. Response: {response.text[:200]}")
+                        # Try to return empty response for graceful degradation
+                        return self._create_empty_soap_response(action)
+                        
+                except ET.ParseError:
+                    # Not valid XML, treat as server error
+                    logger.error(f"Server error (500) with non-XML response: {response.text[:200]}")
+                    raise SOAPServiceError(f"Server error: HTTP 500 - {response.text[:100]}")
+            
+            elif response.status_code != 200:
+                logger.error(f"HTTP error {response.status_code}: {response.text[:200]}")
+                response.raise_for_status()
+            
             return response.text
             
         except requests.exceptions.RequestException as e:
             logger.error(f"SOAP request failed: {e}")
             raise SOAPServiceError(f"SOAP request failed: {e}")
+        except ET.ParseError as e:
+            logger.error(f"Failed to parse SOAP response: {e}")
+            raise SOAPServiceError(f"Invalid SOAP response: {e}")
+    
+    def _create_empty_soap_response(self, action: str) -> str:
+        """Create an empty SOAP response for graceful error handling."""
+        if action == 'list_presidents':
+            return """<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <tns:list_presidentsResponse xmlns:tns="soap.backend">
+      <tns:presidents></tns:presidents>
+    </tns:list_presidentsResponse>
+  </soap:Body>
+</soap:Envelope>"""
+        elif action == 'list_associations':
+            return """<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <tns:list_associationsResponse xmlns:tns="soap.backend">
+      <tns:associations></tns:associations>
+    </tns:list_associationsResponse>
+  </soap:Body>
+</soap:Envelope>"""
+        else:
+            return """<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <tns:emptyResponse xmlns:tns="soap.backend">
+    </tns:emptyResponse>
+  </soap:Body>
+</soap:Envelope>"""
     
     def _parse_xml_response(self, xml_response: str, data_type: str) -> List[Dict[str, Any]]:
         """Parse XML response and extract data."""
@@ -156,6 +222,9 @@ class SOAPClient:
             logger.info(f"Successfully retrieved {len(formatted_data)} president records")
             return formatted_data
             
+        except SOAPServiceError:
+            # Re-raise SOAP service errors as-is
+            raise
         except Exception as e:
             logger.error(f"Unexpected error when querying president data: {e}")
             raise SOAPServiceError(f"Unexpected SOAP error: {e}")
@@ -207,6 +276,9 @@ class SOAPClient:
             logger.info(f"Successfully retrieved {len(formatted_data)} organization records")
             return formatted_data
             
+        except SOAPServiceError:
+            # Re-raise SOAP service errors as-is
+            raise
         except Exception as e:
             logger.error(f"Unexpected error when querying organization data: {e}")
             raise SOAPServiceError(f"Unexpected SOAP error: {e}")
@@ -224,24 +296,48 @@ class SOAPClient:
         Raises:
             SOAPServiceError: If the SOAP service call fails
         """
+        errors = []
+        president_data = []
+        organization_data = []
+        
         try:
             logger.info(f"Querying combined data for organizations: {organization_ids}")
             
-            # Query both president and organization data
-            president_data = self.get_president_data(organization_ids)
-            organization_data = self.get_organization_data(organization_ids)
+            # Query president data with error handling
+            try:
+                president_data = self.get_president_data(organization_ids)
+            except SOAPServiceError as e:
+                error_msg = f"Error querying president data: {str(e)}"
+                logger.warning(error_msg)
+                errors.append(error_msg)
+            
+            # Query organization data with error handling
+            try:
+                organization_data = self.get_organization_data(organization_ids)
+            except SOAPServiceError as e:
+                error_msg = f"Error querying organization data: {str(e)}"
+                logger.warning(error_msg)
+                errors.append(error_msg)
+            
+            # If both queries failed, raise an error
+            if len(errors) == 2:
+                raise SOAPServiceError(f"Both queries failed: {'; '.join(errors)}")
             
             return {
                 'presidents': president_data,
                 'organizations': organization_data,
                 'query_ids': organization_ids,
                 'total_presidents': len(president_data),
-                'total_organizations': len(organization_data)
+                'total_organizations': len(organization_data),
+                'errors': errors
             }
             
-        except Exception as e:
-            logger.error(f"Error querying combined data: {e}")
+        except SOAPServiceError:
+            # Re-raise SOAP service errors as-is
             raise
+        except Exception as e:
+            logger.error(f"Unexpected error querying combined data: {e}")
+            raise SOAPServiceError(f"Unexpected error: {e}")
     
     def test_connection(self) -> bool:
         """

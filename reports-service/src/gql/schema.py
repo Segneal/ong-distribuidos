@@ -12,6 +12,8 @@ from .resolvers.donation_resolvers import DonationResolver
 from .resolvers.event_resolvers import EventResolver
 from .resolvers.filter_resolvers import FilterResolver
 from .resolvers.transfer_resolvers import TransferResolver
+from .resolvers.soap_resolvers import SOAPResolver
+from .types.soap import NetworkConsultationType, PresidentType, OrganizationType, SOAPConnectionTestType
 
 
 @strawberry.type
@@ -32,6 +34,12 @@ class Query:
     
     # Filter queries
     saved_donation_filters: List[SavedFilterType] = strawberry.field(resolver=FilterResolver.get_saved_donation_filters)
+    
+    # SOAP queries
+    network_consultation: NetworkConsultationType = strawberry.field(resolver=SOAPResolver.network_consultation)
+    presidents_only: List[PresidentType] = strawberry.field(resolver=SOAPResolver.presidents_only)
+    organizations_only: List[OrganizationType] = strawberry.field(resolver=SOAPResolver.organizations_only)
+    soap_connection_test: SOAPConnectionTestType = strawberry.field(resolver=SOAPResolver.soap_connection_test)
 
 
 @strawberry.type

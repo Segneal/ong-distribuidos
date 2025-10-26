@@ -45,7 +45,14 @@ import {
   Save,
   BookmarkBorder,
   Delete,
-  Edit
+  Edit,
+  People,
+  PersonAdd,
+  CalendarToday,
+  Inventory,
+  TrendingUp,
+  Groups,
+  EventAvailable
 } from '@mui/icons-material';
 import { useQuery, useMutation } from '@apollo/client';
 import { 
@@ -252,6 +259,19 @@ const EventReports = () => {
   const totalDonaciones = reportData.reduce((sum, month) => 
     sum + month.eventos.reduce((eventSum, event) => eventSum + event.donaciones.length, 0), 0
   );
+  
+  // Calcular participantes únicos
+  const participantesUnicos = new Set();
+  reportData.forEach(month => {
+    month.eventos.forEach(event => {
+      if (event.participantes) {
+        event.participantes.forEach(participant => {
+          participantesUnicos.add(participant.id);
+        });
+      }
+    });
+  });
+  const totalParticipantesUnicos = participantesUnicos.size;
 
   return (
     <Box>
@@ -387,7 +407,7 @@ const EventReports = () => {
               Resumen General - {filters.usuarioId === '0' ? 'Todos los usuarios' : `Usuario ${filters.usuarioId}`}
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Total de Meses
                 </Typography>
@@ -395,7 +415,7 @@ const EventReports = () => {
                   {reportData.length}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Total de Eventos
                 </Typography>
@@ -403,7 +423,15 @@ const EventReports = () => {
                   {totalEventos}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
+                <Typography variant="body2" color="text.secondary">
+                  Participantes Únicos
+                </Typography>
+                <Typography variant="h4">
+                  {totalParticipantesUnicos}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Total de Donaciones
                 </Typography>
@@ -464,7 +492,12 @@ const EventReports = () => {
                         <Typography variant="subtitle1">
                           Día {event.dia}: {event.nombre}
                         </Typography>
-                        <Box sx={{ ml: 'auto' }}>
+                        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+                          <Chip
+                            label={`${event.participantes?.length || 0} participantes`}
+                            size="small"
+                            color="primary"
+                          />
                           <Chip
                             label={`${event.donaciones.length} donaciones`}
                             size="small"
@@ -478,66 +511,183 @@ const EventReports = () => {
                         </Typography>
                       )}
                     </AccordionSummary>
-                    <AccordionDetails>
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Categoría</TableCell>
-                              <TableCell>Descripción</TableCell>
-                              <TableCell align="right">Cantidad</TableCell>
-                              <TableCell>Fecha Alta</TableCell>
-                              <TableCell>Usuario Alta</TableCell>
-                              <TableCell>Estado</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {getPaginatedData(event.donaciones, `${monthData.mes}-${event.dia}`).map((donation, donationIndex) => (
-                              <TableRow key={donation.id || `donation-${donationIndex}`}>
-                                <TableCell>
-                                  <Chip
-                                    label={donation.categoria}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  {donation.descripcion || '-'}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatQuantity(donation.cantidad)}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(donation.fechaAlta)}
-                                </TableCell>
-                                <TableCell>
-                                  {donation.usuarioAlta?.nombre || '-'}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={donation.eliminado ? 'Eliminado' : 'Activo'}
-                                    color={donation.eliminado ? 'error' : 'success'}
-                                    size="small"
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                      {event.donaciones.length > rowsPerPage && (
-                        <TablePagination
-                          component="div"
-                          count={event.donaciones.length}
-                          page={paginationState[`${monthData.mes}-${event.dia}`]?.page || 0}
-                          onPageChange={(event, newPage) => handleChangePage(`${monthData.mes}-${event.dia}`, newPage)}
-                          rowsPerPage={rowsPerPage}
-                          onRowsPerPageChange={handleChangeRowsPerPage}
-                          rowsPerPageOptions={[5, 10, 25, 50]}
-                          labelRowsPerPage="Filas por página:"
-                          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-                        />
+                    <AccordionDetails sx={{ p: 3 }}>
+                      {/* Información de participantes */}
+                      {event.participantes && event.participantes.length > 0 && (
+                        <Card sx={{ mb: 3, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                          <CardContent sx={{ pb: '16px !important' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                              <Groups color="primary" />
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
+                                Participantes
+                              </Typography>
+                              <Chip 
+                                label={event.participantes.length} 
+                                size="small" 
+                                color="primary"
+                                sx={{ ml: 1 }}
+                              />
+                            </Box>
+                            <Grid container spacing={1}>
+                              {event.participantes.map((participant, idx) => (
+                                <Grid item xs={12} sm={6} md={4} key={idx}>
+                                  <Card sx={{ 
+                                    backgroundColor: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    '&:hover': {
+                                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                      transform: 'translateY(-1px)',
+                                      transition: 'all 0.2s ease-in-out'
+                                    }
+                                  }}>
+                                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <PersonAdd sx={{ fontSize: 20, color: '#64748b' }} />
+                                        <Box>
+                                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
+                                            {participant.nombre} {participant.apellido}
+                                          </Typography>
+                                          <Chip 
+                                            label={participant.rol} 
+                                            size="small" 
+                                            variant="outlined"
+                                            color={
+                                              participant.rol === 'PRESIDENTE' ? 'error' :
+                                              participant.rol === 'COORDINADOR' ? 'warning' :
+                                              'default'
+                                            }
+                                            sx={{ mt: 0.5, fontSize: '0.7rem' }}
+                                          />
+                                        </Box>
+                                      </Box>
+                                    </CardContent>
+                                  </Card>
+                                </Grid>
+                              ))}
+                            </Grid>
+                          </CardContent>
+                        </Card>
                       )}
+
+                      {/* Sección de donaciones */}
+                      <Card sx={{ backgroundColor: 'white', border: '1px solid #e2e8f0' }}>
+                        <CardContent sx={{ pb: '16px !important' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                            <Inventory color="secondary" />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
+                              Donaciones Distribuidas
+                            </Typography>
+                            <Chip 
+                              label={event.donaciones.length} 
+                              size="small" 
+                              color="secondary"
+                              sx={{ ml: 1 }}
+                            />
+                          </Box>
+
+                          {event.donaciones.length > 0 ? (
+                            <TableContainer sx={{ borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                              <Table size="small">
+                                <TableHead>
+                                  <TableRow sx={{ backgroundColor: '#f1f5f9' }}>
+                                    <TableCell sx={{ fontWeight: 'bold', color: '#374151' }}>Categoría</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: '#374151' }}>Descripción</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: '#374151' }}>Cantidad</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: '#374151' }}>Fecha Alta</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: '#374151' }}>Usuario Alta</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: '#374151' }}>Estado</TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {getPaginatedData(event.donaciones, `${monthData.mes}-${event.dia}`).map((donation, donationIndex) => (
+                                    <TableRow 
+                                      key={donation.id || `donation-${donationIndex}`}
+                                      sx={{ 
+                                        '&:hover': { backgroundColor: '#f8fafc' },
+                                        '&:nth-of-type(even)': { backgroundColor: '#fafbfc' }
+                                      }}
+                                    >
+                                      <TableCell>
+                                        <Chip
+                                          label={donation.categoria}
+                                          size="small"
+                                          variant="outlined"
+                                          color="primary"
+                                          sx={{ fontWeight: 'medium' }}
+                                        />
+                                      </TableCell>
+                                      <TableCell sx={{ maxWidth: 200 }}>
+                                        <Typography variant="body2" sx={{ 
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap'
+                                        }}>
+                                          {donation.descripcion || '-'}
+                                        </Typography>
+                                      </TableCell>
+                                      <TableCell align="right">
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#059669' }}>
+                                          {formatQuantity(donation.cantidad)}
+                                        </Typography>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Typography variant="body2" color="text.secondary">
+                                          {formatDate(donation.fechaAlta)}
+                                        </Typography>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Typography variant="body2">
+                                          {donation.usuarioAlta?.nombre || '-'}
+                                        </Typography>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Chip
+                                          label={donation.eliminado ? 'Eliminado' : 'Activo'}
+                                          color={donation.eliminado ? 'error' : 'success'}
+                                          size="small"
+                                          variant="outlined"
+                                        />
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </TableContainer>
+                          ) : (
+                            <Box sx={{ 
+                              textAlign: 'center', 
+                              py: 4, 
+                              backgroundColor: '#f8fafc',
+                              borderRadius: 2,
+                              border: '1px dashed #cbd5e1'
+                            }}>
+                              <Inventory sx={{ fontSize: 48, color: '#94a3b8', mb: 1 }} />
+                              <Typography variant="body1" color="text.secondary">
+                                No se distribuyeron donaciones en este evento
+                              </Typography>
+                            </Box>
+                          )}
+                          {event.donaciones.length > rowsPerPage && (
+                            <Box sx={{ mt: 2 }}>
+                              <TablePagination
+                                component="div"
+                                count={event.donaciones.length}
+                                page={paginationState[`${monthData.mes}-${event.dia}`]?.page || 0}
+                                onPageChange={(event, newPage) => handleChangePage(`${monthData.mes}-${event.dia}`, newPage)}
+                                rowsPerPage={rowsPerPage}
+                                onRowsPerPageChange={handleChangeRowsPerPage}
+                                rowsPerPageOptions={[5, 10, 25, 50]}
+                                labelRowsPerPage="Filas por página:"
+                                labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                                sx={{
+                                  borderTop: '1px solid #e2e8f0',
+                                  backgroundColor: '#f8fafc'
+                                }}
+                              />
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
                     </AccordionDetails>
                   </Accordion>
                 ))}

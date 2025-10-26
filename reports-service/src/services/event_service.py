@@ -13,11 +13,12 @@ from ..utils.database_utils import get_db_session
 
 class EventDetail:
     """Data class for event details in monthly reports"""
-    def __init__(self, dia: int, nombre: str, descripcion: str, donaciones: List[Dict]):
+    def __init__(self, dia: int, nombre: str, descripcion: str, donaciones: List[Dict], participantes: List[Dict] = None):
         self.dia = dia
         self.nombre = nombre
         self.descripcion = descripcion
         self.donaciones = donaciones
+        self.participantes = participantes or []
 
 
 class EventParticipationReport:
@@ -131,11 +132,15 @@ class EventService:
                 # Get donations for this event
                 donaciones = self._get_event_donations(session, event.id)
                 
+                # Get participants for this event
+                participantes = self._get_event_participants(session, event.id)
+                
                 event_detail = EventDetail(
                     dia=event.fecha_evento.day,
                     nombre=event.nombre,
                     descripcion=event.descripcion or "",
-                    donaciones=donaciones
+                    donaciones=donaciones,
+                    participantes=participantes
                 )
                 
                 monthly_events[month_key]['eventos'].append(event_detail)
@@ -185,6 +190,45 @@ class EventService:
             donation_dicts.append(donation_dict)
         
         return donation_dicts
+    
+    def _get_event_participants(self, session: Session, event_id: int) -> List[Dict]:
+        """
+        Get participants of an event.
+        Returns dictionary data to avoid SQLAlchemy session issues.
+        
+        Args:
+            session: Database session
+            event_id: ID of the event
+        
+        Returns:
+            List of participant dictionaries
+        """
+        from sqlalchemy import text
+        
+        # Query participants with their adhesion date
+        participants_query = text("""
+            SELECT u.id, u.nombre, u.apellido, u.rol, pe.fecha_adhesion
+            FROM usuarios u
+            JOIN participantes_evento pe ON u.id = pe.usuario_id
+            WHERE pe.evento_id = :event_id
+            ORDER BY u.nombre, u.apellido
+        """)
+        
+        participants = session.execute(participants_query, {'event_id': event_id}).fetchall()
+        
+        # Convert to dictionaries
+        participant_dicts = []
+        for participant in participants:
+            participant_dict = {
+                'id': participant.id,
+                'nombre': participant.nombre,
+                'apellido': participant.apellido,
+                'rol': participant.rol,
+                'fecha_adhesion': participant.fecha_adhesion
+            }
+            participant_dicts.append(participant_dict)
+        
+        return participant_dicts
     
     def get_user_events(
         self,

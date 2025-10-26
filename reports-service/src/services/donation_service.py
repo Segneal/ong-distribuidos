@@ -99,10 +99,7 @@ class DonationService:
                 filters.append(Donation.fecha_alta >= fecha_desde)
             
             if fecha_hasta is not None:
-                # Make fecha_hasta inclusive by adding 23:59:59.999999 to include the entire day
-                from datetime import timedelta
-                fecha_hasta_inclusive = fecha_hasta.replace(hour=23, minute=59, second=59, microsecond=999999)
-                filters.append(Donation.fecha_alta <= fecha_hasta_inclusive)
+                filters.append(Donation.fecha_alta <= fecha_hasta)
             
             if eliminado is not None:
                 filters.append(Donation.eliminado == eliminado)
@@ -195,10 +192,7 @@ class DonationService:
                 filters.append(Donation.fecha_alta >= fecha_desde)
             
             if fecha_hasta is not None:
-                # Make fecha_hasta inclusive by adding 23:59:59.999999 to include the entire day
-                from datetime import timedelta
-                fecha_hasta_inclusive = fecha_hasta.replace(hour=23, minute=59, second=59, microsecond=999999)
-                filters.append(Donation.fecha_alta <= fecha_hasta_inclusive)
+                filters.append(Donation.fecha_alta <= fecha_hasta)
             
             if eliminado is not None:
                 filters.append(Donation.eliminado == eliminado)
@@ -248,10 +242,7 @@ class DonationService:
                 filters.append(Donation.fecha_alta >= fecha_desde)
             
             if fecha_hasta is not None:
-                # Make fecha_hasta inclusive by adding 23:59:59.999999 to include the entire day
-                from datetime import timedelta
-                fecha_hasta_inclusive = fecha_hasta.replace(hour=23, minute=59, second=59, microsecond=999999)
-                filters.append(Donation.fecha_alta <= fecha_hasta_inclusive)
+                filters.append(Donation.fecha_alta <= fecha_hasta)
             
             if eliminado is not None:
                 filters.append(Donation.eliminado == eliminado)

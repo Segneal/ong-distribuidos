@@ -3,7 +3,7 @@ GraphQL resolvers for event reports
 """
 from typing import List, Optional
 from datetime import datetime
-from src.gql.types.event import EventParticipationReportType, EventDetailType, SavedEventFilterType, EventFilterInput, EventFilterType
+from src.gql.types.event import EventParticipationReportType, EventDetailType, EventParticipantType, SavedEventFilterType, EventFilterInput, EventFilterType
 from src.gql.types.donation import DonationType, donation_to_graphql
 from src.gql.types.user import UserType, UserRoleType, user_to_graphql
 from src.gql.context import Context
@@ -99,12 +99,25 @@ class EventResolver:
                 # Convert donations to GraphQL types
                 donation_types = [donation_to_graphql(donation) for donation in event_detail.donaciones]
                 
+                # Convert participants to GraphQL types
+                participant_types = []
+                for participant in event_detail.participantes:
+                    participant_type = EventParticipantType(
+                        id=participant['id'],
+                        nombre=participant['nombre'],
+                        apellido=participant['apellido'],
+                        rol=participant['rol'],
+                        fecha_adhesion=participant['fecha_adhesion']
+                    )
+                    participant_types.append(participant_type)
+                
                 # Create event detail type
                 detail_type = EventDetailType(
                     dia=event_detail.dia,
                     nombre=event_detail.nombre,
                     descripcion=event_detail.descripcion,
-                    donaciones=donation_types
+                    donaciones=donation_types,
+                    participantes=participant_types
                 )
                 event_details.append(detail_type)
             

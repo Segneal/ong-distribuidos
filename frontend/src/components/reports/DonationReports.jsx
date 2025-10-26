@@ -68,13 +68,17 @@ const DonationReports = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Query para obtener datos de donaciones
+  const queryVariables = {
+    categoria: filters.categoria || undefined,
+    fechaDesde: filters.fechaDesde || undefined,
+    fechaHasta: filters.fechaHasta || undefined,
+    eliminado: filters.eliminado
+  };
+  
+  console.log('[DONATION REPORTS] Query variables:', queryVariables);
+  
   const { data, loading, error, refetch } = useQuery(GET_DONATION_REPORT, {
-    variables: {
-      categoria: filters.categoria || undefined,
-      fechaDesde: filters.fechaDesde || undefined,
-      fechaHasta: filters.fechaHasta || undefined,
-      eliminado: filters.eliminado
-    },
+    variables: queryVariables,
     fetchPolicy: 'cache-and-network'
   });
 

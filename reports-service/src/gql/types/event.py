@@ -27,12 +27,23 @@ class EventType:
 
 
 @strawberry.type
+class EventParticipantType:
+    """GraphQL Event Participant type"""
+    id: int
+    nombre: str
+    apellido: str
+    rol: str
+    fecha_adhesion: Optional[datetime]
+
+
+@strawberry.type
 class EventDetailType:
     """GraphQL Event Detail type for participation reports"""
     dia: int
     nombre: str
     descripcion: Optional[str]
     donaciones: List[DonationType]
+    participantes: List[EventParticipantType]
 
 
 @strawberry.type

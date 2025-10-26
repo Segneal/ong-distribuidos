@@ -7,6 +7,13 @@ export const EVENT_DETAIL_FRAGMENT = gql`
     dia
     nombre
     descripcion
+    participantes {
+      id
+      nombre
+      apellido
+      rol
+      fechaAdhesion
+    }
     donaciones {
       id
       categoria

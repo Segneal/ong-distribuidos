@@ -44,6 +44,7 @@ class DonationResolver:
             user = context.auth_context.require_donation_access()
             
             logger.info(f"User {user.id} ({user.rol.value}) requested donation report")
+            logger.info(f"Raw parameters - categoria: {categoria}, fecha_desde: {fecha_desde}, fecha_hasta: {fecha_hasta}, eliminado: {eliminado}")
             
             # Parse and validate parameters
             categoria_enum = None
@@ -64,6 +65,11 @@ class DonationResolver:
             if fecha_hasta:
                 try:
                     fecha_hasta_dt = datetime.fromisoformat(fecha_hasta.replace('Z', '+00:00'))
+                    logger.info(f"Parsed fecha_hasta_dt before adjustment: {fecha_hasta_dt}")
+                    # If only date is provided (no time), set to end of day (23:59:59)
+                    if fecha_hasta_dt.hour == 0 and fecha_hasta_dt.minute == 0 and fecha_hasta_dt.second == 0:
+                        fecha_hasta_dt = fecha_hasta_dt.replace(hour=23, minute=59, second=59)
+                        logger.info(f"Adjusted fecha_hasta_dt to end of day: {fecha_hasta_dt}")
                 except ValueError:
                     raise ValueError(f"Invalid fecha_hasta format: {fecha_hasta}. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
             

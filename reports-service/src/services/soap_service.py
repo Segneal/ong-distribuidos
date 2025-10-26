@@ -165,20 +165,36 @@ class SOAPService:
             Dictionary with connection test results
         """
         try:
+            logger.info("Testing SOAP connection...")
             is_connected = self.soap_client.test_connection()
+            
+            if is_connected:
+                message = 'SOAP service is available'
+                logger.info(message)
+            else:
+                message = 'SOAP service is not available - service may be sleeping or experiencing issues'
+                logger.warning(message)
             
             return {
                 'connected': is_connected,
                 'service_url': self.soap_client.base_url,
-                'message': 'SOAP service is available' if is_connected else 'SOAP service is not available'
+                'message': message
             }
             
         except Exception as e:
+            error_message = f'Connection test failed: {str(e)}'
             logger.error(f"Error testing SOAP connection: {e}")
+            
+            # Provide more specific error messages
+            if 'timeout' in str(e).lower():
+                error_message = 'SOAP service timeout - service may be sleeping and needs time to wake up'
+            elif 'connection' in str(e).lower():
+                error_message = 'Cannot connect to SOAP service - service may be down'
+            
             return {
                 'connected': False,
                 'service_url': self.soap_client.base_url,
-                'message': f'Connection test failed: {str(e)}'
+                'message': error_message
             }
 
 

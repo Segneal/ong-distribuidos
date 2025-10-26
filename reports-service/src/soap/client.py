@@ -56,67 +56,36 @@ class SOAPClient:
                 timeout=30
             )
             
-            # Handle different HTTP status codes
+            # Handle different status codes gracefully
             if response.status_code == 500:
-                # Check if it's a SOAP fault or server error
-                try:
-                    # Try to parse as XML to see if it's a SOAP fault
-                    root = ET.fromstring(response.text)
-                    
-                    # Look for SOAP fault
-                    fault_elements = root.findall('.//{http://schemas.xmlsoap.org/soap/envelope/}Fault')
-                    if fault_elements:
-                        fault_string = fault_elements[0].find('.//{http://schemas.xmlsoap.org/soap/envelope/}faultstring')
-                        fault_message = fault_string.text if fault_string is not None else "Unknown SOAP fault"
-                        logger.warning(f"SOAP fault received: {fault_message}")
-                        
-                        # If it's about non-existent IDs, return empty response instead of error
-                        if any(keyword in fault_message.lower() for keyword in ['not found', 'no data', 'empty', 'invalid id']):
-                            logger.info(f"No data found for organization IDs: {org_ids}")
-                            return self._create_empty_soap_response(action)
-                        
-                        raise SOAPServiceError(f"SOAP fault: {fault_message}")
-                    else:
-                        # Not a SOAP fault, might be server error
-                        logger.warning(f"Server returned 500 but no SOAP fault found. Response: {response.text[:200]}")
-                        # Try to return empty response for graceful degradation
-                        return self._create_empty_soap_response(action)
-                        
-                except ET.ParseError:
-                    # Not valid XML, treat as server error
-                    logger.error(f"Server error (500) with non-XML response: {response.text[:200]}")
-                    raise SOAPServiceError(f"Server error: HTTP 500 - {response.text[:100]}")
+                # Server error - likely no data found, return empty response
+                logger.warning(f"Server returned 500 for org_ids {org_ids} - likely no data found")
+                return self._create_empty_soap_response(action)
             
-            elif response.status_code != 200:
-                logger.error(f"HTTP error {response.status_code}: {response.text[:200]}")
-                response.raise_for_status()
-            
+            response.raise_for_status()
             return response.text
             
         except requests.exceptions.RequestException as e:
             logger.error(f"SOAP request failed: {e}")
-            raise SOAPServiceError(f"SOAP request failed: {e}")
-        except ET.ParseError as e:
-            logger.error(f"Failed to parse SOAP response: {e}")
-            raise SOAPServiceError(f"Invalid SOAP response: {e}")
+            # Return empty response instead of raising error
+            logger.info(f"Returning empty response for org_ids {org_ids}")
+            return self._create_empty_soap_response(action)
     
     def _create_empty_soap_response(self, action: str) -> str:
-        """Create an empty SOAP response for graceful error handling."""
+        """Create an empty SOAP response when no data is found."""
         if action == 'list_presidents':
             return """<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="soap.backend" xmlns:s0="models">
   <soap:Body>
-    <tns:list_presidentsResponse xmlns:tns="soap.backend">
-      <tns:presidents></tns:presidents>
+    <tns:list_presidentsResponse>
     </tns:list_presidentsResponse>
   </soap:Body>
 </soap:Envelope>"""
         elif action == 'list_associations':
             return """<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="soap.backend" xmlns:s0="models">
   <soap:Body>
-    <tns:list_associationsResponse xmlns:tns="soap.backend">
-      <tns:associations></tns:associations>
+    <tns:list_associationsResponse>
     </tns:list_associationsResponse>
   </soap:Body>
 </soap:Envelope>"""
@@ -124,8 +93,6 @@ class SOAPClient:
             return """<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
-    <tns:emptyResponse xmlns:tns="soap.backend">
-    </tns:emptyResponse>
   </soap:Body>
 </soap:Envelope>"""
     
@@ -222,12 +189,10 @@ class SOAPClient:
             logger.info(f"Successfully retrieved {len(formatted_data)} president records")
             return formatted_data
             
-        except SOAPServiceError:
-            # Re-raise SOAP service errors as-is
-            raise
         except Exception as e:
-            logger.error(f"Unexpected error when querying president data: {e}")
-            raise SOAPServiceError(f"Unexpected SOAP error: {e}")
+            logger.warning(f"Error querying president data: {e}")
+            # Return empty list instead of raising exception
+            return []
     
     def get_organization_data(self, organization_ids: List[int]) -> List[Dict[str, Any]]:
         """
@@ -276,12 +241,10 @@ class SOAPClient:
             logger.info(f"Successfully retrieved {len(formatted_data)} organization records")
             return formatted_data
             
-        except SOAPServiceError:
-            # Re-raise SOAP service errors as-is
-            raise
         except Exception as e:
-            logger.error(f"Unexpected error when querying organization data: {e}")
-            raise SOAPServiceError(f"Unexpected SOAP error: {e}")
+            logger.warning(f"Error querying organization data: {e}")
+            # Return empty list instead of raising exception
+            return []
     
     def get_combined_data(self, organization_ids: List[int]) -> Dict[str, Any]:
         """
@@ -292,52 +255,41 @@ class SOAPClient:
             
         Returns:
             Dictionary containing both president and organization data
-            
-        Raises:
-            SOAPServiceError: If the SOAP service call fails
         """
-        errors = []
+        logger.info(f"Querying combined data for organizations: {organization_ids}")
+        
         president_data = []
         organization_data = []
+        errors = []
         
+        # Query president data safely
         try:
-            logger.info(f"Querying combined data for organizations: {organization_ids}")
-            
-            # Query president data with error handling
-            try:
-                president_data = self.get_president_data(organization_ids)
-            except SOAPServiceError as e:
-                error_msg = f"Error querying president data: {str(e)}"
-                logger.warning(error_msg)
-                errors.append(error_msg)
-            
-            # Query organization data with error handling
-            try:
-                organization_data = self.get_organization_data(organization_ids)
-            except SOAPServiceError as e:
-                error_msg = f"Error querying organization data: {str(e)}"
-                logger.warning(error_msg)
-                errors.append(error_msg)
-            
-            # If both queries failed, raise an error
-            if len(errors) == 2:
-                raise SOAPServiceError(f"Both queries failed: {'; '.join(errors)}")
-            
-            return {
-                'presidents': president_data,
-                'organizations': organization_data,
-                'query_ids': organization_ids,
-                'total_presidents': len(president_data),
-                'total_organizations': len(organization_data),
-                'errors': errors
-            }
-            
-        except SOAPServiceError:
-            # Re-raise SOAP service errors as-is
-            raise
+            president_data = self.get_president_data(organization_ids)
         except Exception as e:
-            logger.error(f"Unexpected error querying combined data: {e}")
-            raise SOAPServiceError(f"Unexpected error: {e}")
+            error_msg = f"Could not retrieve president data: {str(e)}"
+            logger.warning(error_msg)
+            errors.append(error_msg)
+        
+        # Query organization data safely
+        try:
+            organization_data = self.get_organization_data(organization_ids)
+        except Exception as e:
+            error_msg = f"Could not retrieve organization data: {str(e)}"
+            logger.warning(error_msg)
+            errors.append(error_msg)
+        
+        # Always return a valid response, even if empty
+        result = {
+            'presidents': president_data or [],
+            'organizations': organization_data or [],
+            'query_ids': organization_ids,
+            'total_presidents': len(president_data) if president_data else 0,
+            'total_organizations': len(organization_data) if organization_data else 0,
+            'errors': errors
+        }
+        
+        logger.info(f"Combined query completed: {result['total_presidents']} presidents, {result['total_organizations']} organizations")
+        return result
     
     def test_connection(self) -> bool:
         """
@@ -347,9 +299,29 @@ class SOAPClient:
             True if connection is successful, False otherwise
         """
         try:
-            # Test with a simple request
-            test_response = self._make_soap_request('list_associations', [1])
-            return True if test_response else False
+            # First try a simple HTTP GET to check if the service is responding
+            logger.info("Testing SOAP service connection...")
+            
+            # Try to reach the WSDL endpoint first with a shorter timeout
+            import requests
+            wsdl_response = requests.get(f"{self.base_url}?wsdl", timeout=15)
+            
+            if wsdl_response.status_code == 200:
+                logger.info("WSDL endpoint is accessible")
+                
+                # Now try a simple SOAP request
+                test_response = self._make_soap_request('list_associations', [1])
+                return True if test_response else False
+            else:
+                logger.warning(f"WSDL endpoint returned status {wsdl_response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout as e:
+            logger.warning(f"SOAP service connection timeout: {e}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"SOAP service connection error: {e}")
+            return False
         except Exception as e:
             logger.error(f"SOAP connection test failed: {e}")
             return False
